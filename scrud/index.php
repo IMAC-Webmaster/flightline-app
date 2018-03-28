@@ -5,20 +5,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-    <!-- <link rel="stylesheet" href="/include/css/font-oxygen.css"> -->
-    <!-- <link rel="stylesheet" href="/include/css/fontawesome.min.css"> -->
-    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Oxygen:400,700">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/include/css/font-awesome.min.css">
     <link rel="stylesheet" href="layout.css">
-    <link rel="stylesheet" type="text/css" href="/include/DataTables/datatables.min.css"/>
     <script charset="utf-8" src="/include/DataTables/jQuery-1.12.3/jquery-1.12.3.min.js"></script>
-    <script type="text/javascript" src="/include/DataTables/datatables.min.js"></script>
+    <script type="text/javascript" src="/include/DataTables/datatables.min.js"></script> 
     <script charset="utf-8" src="/include/jquery-validation-1.17.0/jquery.validate.min.js"></script>
     <script charset="utf-8" src="webapp.js"></script>
-
-
- 
-
   </head>
   <body>
 
