@@ -10,11 +10,13 @@ unset ($id);
 unset($message);
 if (isset($_GET['job'])) {
   $job = $_GET['job'];
-  if ($job == 'get_rounds' ||
-      $job == 'get_round'   ||
-      $job == 'add_round'   ||
-      $job == 'edit_round'  ||
-      $job == 'delete_round') {
+  if ($job == 'get_rounds'       ||
+      $job == 'get_round'        ||
+      $job == 'get_nextrnds'     ||
+      $job == 'get_schedlist'    ||
+      $job == 'add_round'        ||
+      $job == 'edit_round'       ||
+      $job == 'delete_round')       {
     if (isset($_GET['id'])){ $id = $_GET['id'];}
   } else {
     $result  = 'error';
@@ -105,7 +107,7 @@ if (isset($job)){
     }
   } // get_rounds...
   
- if ($job == 'get_round') {
+ elseif ($job == 'get_round') {
     // Get round  (class, type, round number).
     if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
     if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
@@ -179,8 +181,113 @@ if (isset($job)){
       }
     }
   } // get_round...
-  
-  else if ($job == 'delete_round') {
+
+  elseif ($job == 'get_nextrnds') {
+    // Get rounds
+    $query = "select class as roundclass, type, (max(roundnum) + 1) as nextroundnum from round group by class, type;";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+      $result  = 'success';
+      $message = 'query success';
+      while ($round = $res->fetchArray()){
+        $sqlite_data[] = array(
+          "class"         => $round['roundclass'],
+          "type"          => $round['type'],
+          "nextroundnum"  => $round['nextroundnum'],
+        );
+      }
+    }
+  } // get_roundlist...
+
+  elseif ($job == 'get_schedlist') {
+    // Get rounds
+    $query = "select * from schedule order by class;";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+      $result  = 'success';
+      $message = 'query success';
+      while ($round = $res->fetchArray()){
+        $sqlite_data[] = array(
+          "id"         => $round['id'],
+          "class"      => $round['class'],
+          "type"       => $round['type'],
+          "name"       => $round['name'],
+        );
+      }
+    }
+  } // get_schedlist...
+ 
+  elseif ($job == 'add_round') {
+    // Add round
+
+      
+      
+    // Add company
+      
+    $query =  "INSERT into round (class, type, roundnum, sched, sequences, phase) ";
+    $query .= "VALUES (:class, :type, :roundnum, :sched, :sequences, :phase );";
+
+    if ($statement = $db->prepare($query)) {
+      try {
+        if (isset($_GET['class']))      { $statement->bindValue(':class',        $_GET['class']);        };
+        if (isset($_GET['type']))       { $statement->bindValue(':type',         $_GET['type']);         };
+        if (isset($_GET['roundnum']))   { $statement->bindValue(':roundnum',     $_GET['roundnum']);     };
+        if (isset($_GET['schedule']))   { $statement->bindValue(':sched',        $_GET['schedule']);     };
+        if (isset($_GET['sequences']))  { $statement->bindValue(':sequences',    $_GET['sequences']);    };
+        $statement->bindValue(':phase',        'U');
+        error_log($query);
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+      $res = FALSE;
+      $err = error_get_last();
+      $message = $err['message'];
+    }
+
+    if ($res === FALSE) {
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+      $result  = 'success';
+      $message = 'query success';
+    }
+      
+  } // add_round...
+
+  elseif ($job == 'delete_round') {
     // Delete round
     if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
     if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;

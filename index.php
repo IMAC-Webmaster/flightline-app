@@ -7,9 +7,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
     <link rel="stylesheet" href="/include/css/font-awesome.min.css">
     <link rel="stylesheet" href="layout.css">
-    <script charset="utf-8" src="/include/DataTables/jQuery-1.12.3/jquery-1.12.3.min.js"></script>
-    <script type="text/javascript" src="/include/DataTables/datatables.min.js"></script> 
-    <script charset="utf-8" src="/include/jquery-validation-1.17.0/jquery.validate.min.js"></script>
+    <script charset="utf-8" src="/include/DataTables/jQuery-1.12.3/jquery-1.12.3.js"></script>
+    <script type="text/javascript" src="/include/DataTables/datatables.js"></script> 
+    <script charset="utf-8" src="/include/jquery-validation-1.17.0/jquery.validate.js"></script>
     <script charset="utf-8" src="webapp.js"></script>
   </head>
   <body>
@@ -18,7 +18,7 @@
 
       <h1>IMAC Contest Flightline controller</h1>
 
-      <button type="button" class="button" id="add_company">Add company</button>
+      <button type="button" class="button" id="add_round">Add round</button>
 
       <table class="datatable" id="table_roundlist">
         <thead>
@@ -45,59 +45,63 @@
     <div class="lightbox_container">
       <div class="lightbox_close"></div>
       <div class="lightbox_content">
-        
-        <h2>Add company</h2>
-        <form class="form add" id="form_company" data-id="" novalidate>
+        <h2>Add Round</h2>
+        <form class="form add" id="form_round" data-id="" novalidate>
           <div class="input_container">
-            <label for="rank">Rank: <span class="required">*</span></label>
+            <label for="class">Class: </label>         
             <div class="field_container">
-              <input type="number" step="1" min="0" class="text" name="rank" id="rank" value="" required>
+              <label class='error' id="class-error"></label>
+              <select name="class" id="class">
+                <option value="">Please choose a class</option>
+                <option value="Basic">Basic</option>
+                <option value="Sportsman">Sportsman</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+                <option value="Unlimited">Unlimited</option>
+              </select>
+              <label id="hiddenclass" class="hiddenlabel">Any</label>  
             </div>
           </div>
           <div class="input_container">
-            <label for="company_name">Company name: <span class="required">*</span></label>
+            <label for="type">Round Type: <span class="required">*</span></label>
             <div class="field_container">
-              <input type="text" class="text" name="company_name" id="company_name" value="" required>
+              <label class='error' id="type-error"></label>
+              <select name="type" id="type">
+                <option value="Known">Known</option>
+                <option value="Unknown">Unknown</option>
+                <option value="Freestyle">Freestyle</option>
+              </select>
             </div>
           </div>
           <div class="input_container">
-            <label for="industries">Industries: <span class="required">*</span></label>
+            <label for="roundnum">Round Number: <span class="required">*</span></label>
             <div class="field_container">
-              <input type="text" class="text" name="industries" id="industries" value="" required>
+              <label class='error' id="roundnum-error"></label>
+              <input type="text" class="text" name="roundnum" id="roundnum" value="" required>
             </div>
           </div>
           <div class="input_container">
-            <label for="revenue">Revenue: <span class="required">*</span></label>
+            <label for="schedule">Schedule: <span class="required">*</span></label>
             <div class="field_container">
-              <input type="number" step="1" min="0" class="text" name="revenue" id="revenue" value="" required>
+              <label class='error' id="schedule-error"></label>
+              <select type="text" name="schedule" id="schedule">
+                <option value="">Please choose a schedule</option>
+              </select>
             </div>
           </div>
           <div class="input_container">
-            <label for="fiscal_year">Fiscal year: <span class="required">*</span></label>
+            <label for="sequences">Number of sequences: <span class="required">*</span></label>
             <div class="field_container">
-              <input type="number" min="0" class="text" name="fiscal_year" id="fiscal_year" value="" required>
-            </div>
-          </div>
-          <div class="input_container">
-            <label for="employees">Employees: <span class="required">*</span></label>
-            <div class="field_container">
-              <input type="number" min="0" class="text" name="employees" id="employees" value="" required>
-            </div>
-          </div>
-          <div class="input_container">
-            <label for="market_cap">Market cap: <span class="required">*</span></label>
-            <div class="field_container">
-              <input type="number" step="1" min="0" class="text" name="market_cap" id="market_cap" value="" required>
-            </div>
-          </div>
-          <div class="input_container">
-            <label for="headquarters">Headquarters: <span class="required">*</span></label>
-            <div class="field_container">
-              <input type="text" class="text" name="headquarters" id="headquarters" value="" required>
+              <label class='error' id="sequences-error"></label>
+              <select name="sequences" id="sequences">
+                  <option value="1">Single</option>
+                  <option value="2">Double</option>
+              </select>
+              <label id="hiddensequences" class="hiddenlabel">Single</label>  
             </div>
           </div>
           <div class="button_container">
-            <button type="submit">Add company</button>
+            <button type="submit">Add Round</button>
           </div>
         </form>
         
@@ -125,6 +129,5 @@
         </div>
       </div>
     </div>
-
   </body>
 </html>
