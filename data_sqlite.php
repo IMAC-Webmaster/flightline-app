@@ -16,6 +16,9 @@ if (isset($_GET['job'])) {
       $job == 'get_schedlist'    ||
       $job == 'add_round'        ||
       $job == 'edit_round'       ||
+      $job == 'start_round'      ||
+      $job == 'pause_round'      ||
+      $job == 'finish_round'     ||
       $job == 'delete_round')       {
     if (isset($_GET['id'])){ $id = $_GET['id'];}
   } else {
@@ -67,13 +70,13 @@ if (isset($job)){
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
             case "U":
-                $functions .= '<li class="function_start"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_start"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
                 $functions .= '<li class="function_edit"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Edit</span></a></li>';
                 $functions .= '<li class="function_delete"><a data-class="' . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Delete</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "O":
-                $functions .= '<li class="function_pause"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Pause</span></a></li>';
+                $functions .= '<li class="function_pause"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
@@ -82,7 +85,7 @@ if (isset($job)){
                 $functions .= '<li class="function_start"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_finish"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Finalise</span></a></li>';
+                $functions .= '<li class="function_finish"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
                 break;
             case "D":
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
@@ -290,7 +293,151 @@ if (isset($job)){
       }
     }
   } // delete_round...
-elseif ($job == 'edit_round') {
+
+  elseif ($job == 'start_round') {
+    // Start round
+    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
+    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
+    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+    $blOkToGo = true;
+    $query = "select count(*) as flycount from round where phase = 'O';";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage(); 
+        $blOkToGo = false;
+      }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+        $blOkToGo = false;
+    }
+
+    if ($res === FALSE) {
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+        $round = $res->fetchArray();
+        if ($round["flycount"] > 0) {
+            $result  = 'error';
+            $message = 'There is already an open round.';
+            $blOkToGo = false;
+        }
+    }
+    if ($blOkToGo) {
+      $query = "update round set phase = 'O' where class = :class and type = :type and roundnum = :roundnum and (phase ='U' or phase = 'P');";
+      if ($statement = $db->prepare($query)) {
+        try {
+          $statement->bindValue(':class',    $class);
+          $statement->bindValue(':type',     $type);
+          $statement->bindValue(':roundnum', $roundnum);
+          $res = $statement->execute();
+        } catch (Exception $e) {
+          $result  = 'error';
+          $message = 'query error: ' . $e->getMessage();          
+        }
+      } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+      }
+
+      if ($res === FALSE){
+        $result  = 'error';
+        if (!isset($message)) { $message = 'query error'; }
+      } else {
+        // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
+        if ($db->changes() === 1) {
+          $result  = 'success';
+          $message = 'query success';
+        } elseif ($db->changes() === 0) {
+           $result  = 'error';
+           $message = 'Unable to start this round.  Wrong phase?';
+        }
+      }
+    }
+  } // start_round...
+  
+  elseif ($job == 'pause_round') {
+    // Pause round
+    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
+    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
+    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+ 
+    $query = "update round set phase = 'P' where class = :class and type = :type and roundnum = :roundnum and phase ='O';";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $statement->bindValue(':class',    $class);
+        $statement->bindValue(':type',     $type);
+        $statement->bindValue(':roundnum', $roundnum);
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+      $res = FALSE;
+      $err = error_get_last();
+      $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+      // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
+      if ($db->changes() === 1) {
+        $result  = 'success';
+        $message = 'query success';
+      } elseif ($db->changes() === 0) {
+         $result  = 'error';
+         $message = 'Unable to pause this round.  Wrong phase?';
+      }
+    }
+  } // Pause round...
+
+  elseif ($job == 'finish_round') {
+    // Finish round
+    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
+    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
+    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+ 
+    $query = "update round set phase = 'D' where class = :class and type = :type and roundnum = :roundnum and phase ='P';";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $statement->bindValue(':class',    $class);
+        $statement->bindValue(':type',     $type);
+        $statement->bindValue(':roundnum', $roundnum);
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+      $res = FALSE;
+      $err = error_get_last();
+      $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+      // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
+      if ($db->changes() === 1) {
+        $result  = 'success';
+        $message = 'query success';
+      } elseif ($db->changes() === 0) {
+         $result  = 'error';
+         $message = 'Unable to complete this round.  Wrong phase?';
+      }
+    }
+  } // Finish round...
+
+  elseif ($job == 'edit_round') {
     // Edit round
     $blOkToGo = true;
     if (isset($_GET['prevclass'])){     $prevclass      = $_GET['prevclass'];   } else $blOkToGo = false;

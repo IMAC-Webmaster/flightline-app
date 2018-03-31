@@ -517,7 +517,6 @@ $(document).ready(function(){
     var round_num = $(this).data('roundnum');
     if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
       show_loading_message();
-      var id      = $(this).data('id');
       var request = $.ajax({
         url:          'data_sqlite.php?job=delete_round&class=' + round_class + '&type=' + round_type + '&roundnum=' + round_num,
         cache:        false,
@@ -530,7 +529,7 @@ $(document).ready(function(){
           // Reload datable
           table_roundlist.api().ajax.reload(function(){
             hide_loading_message();
-            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' deleted successfully." + output.message, 'success');
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' deleted successfully.", 'success');
           }, true);
         } else {
           hide_loading_message();
@@ -543,6 +542,138 @@ $(document).ready(function(){
       });
     }
   });
+
+  // Start a round - only if it's paused or unstarted and if no other rounds are started.
+  $(document).on('click', '.function_start a', function(e){
+    e.preventDefault();
+    var round_class = $(this).data('class');
+    var round_type = $(this).data('type');
+    var round_num = $(this).data('roundnum');
+    var round_phase = $(this).data('phase');
+    var blOkToGo = true;
+    
+    if (round_phase === 'O' || round_phase === 'D') {
+        blOkToGo = false;
+    }
+    if (!confirm("Are you sure you want to start flying '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")) {
+        blOkToGo = false;
+    }
+
+    if (blOkToGo) {
+      show_loading_message();
+      var request = $.ajax({
+        url:          'data_sqlite.php?job=start_round&class=' + round_class + '&type=' + round_type + '&roundnum=' + round_num,
+        cache:        false,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output){
+        if (output.result === 'success'){
+          // Reload datable
+          table_roundlist.api().ajax.reload(function(){
+            hide_loading_message();
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is started.", 'success');
+          }, true);
+        } else {
+          hide_loading_message();
+          show_message('Start request failed: ' + output.message, 'error');
+        }
+      });
+      request.fail(function(jqXHR, textStatus){
+        hide_loading_message();
+        show_message('Start request failed: ' + textStatus, 'error');
+      });
+    }
+  });  // Start round...
+
+  // Pause a round - only if it's currently open (flying).
+  $(document).on('click', '.function_pause a', function(e){
+    e.preventDefault();
+    var round_class = $(this).data('class');
+    var round_type = $(this).data('type');
+    var round_num = $(this).data('roundnum');
+    var round_phase = $(this).data('phase');
+    var blOkToGo = true;
+    
+    if (round_phase !== 'O') {
+        blOkToGo = false;
+    }
+    if (!confirm("Are you sure you want to pause '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")) {
+        blOkToGo = false;
+    }
+
+    if (blOkToGo) {
+      show_loading_message();
+      var request = $.ajax({
+        url:          'data_sqlite.php?job=pause_round&class=' + round_class + '&type=' + round_type + '&roundnum=' + round_num,
+        cache:        false,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output){
+        if (output.result === 'success'){
+          // Reload datable
+          table_roundlist.api().ajax.reload(function(){
+            hide_loading_message();
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is paused.", 'success');
+          }, true);
+        } else {
+          hide_loading_message();
+          show_message('Pause request failed: ' + output.message, 'error');
+        }
+      });
+      request.fail(function(jqXHR, textStatus){
+        hide_loading_message();
+        show_message('Pause request failed: ' + textStatus, 'error');
+      });
+    }
+  });  // Pause round...
+
+  // Set a paused round to be completed.
+  $(document).on('click', '.function_finish a', function(e){
+    e.preventDefault();
+    var round_class = $(this).data('class');
+    var round_type = $(this).data('type');
+    var round_num = $(this).data('roundnum');
+    var round_phase = $(this).data('phase');
+    var blOkToGo = true;
+    
+    if (round_phase !== 'P') {
+        blOkToGo = false;
+    }
+    if (!confirm("Are you sure you want to finish '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")) {
+        blOkToGo = false;
+    }
+
+    if (blOkToGo) {
+      show_loading_message();
+      var request = $.ajax({
+        url:          'data_sqlite.php?job=finish_round&class=' + round_class + '&type=' + round_type + '&roundnum=' + round_num,
+        cache:        false,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output){
+        if (output.result === 'success'){
+          // Reload datable
+          table_roundlist.api().ajax.reload(function(){
+            hide_loading_message();
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is finished.", 'success');
+          }, true);
+        } else {
+          hide_loading_message();
+          show_message('Finish request failed: ' + output.message, 'error');
+        }
+      });
+      request.fail(function(jqXHR, textStatus){
+        hide_loading_message();
+        show_message('Finish request failed: ' + textStatus, 'error');
+      });
+    }
+  });  // Finish round...
 
   $('#type').on('change',function(){
     $(this).parent('.field_container').removeClass('error');
