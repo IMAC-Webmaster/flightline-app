@@ -139,34 +139,6 @@ if (isset($job)){
       $result  = 'success';
       $message = 'query success';
       while ($round = $res->fetchArray()){
-        $functions  = '<div class="function_buttons"><ul>';
-        switch($round["phase"]) {
-            case "U":
-                $functions .= '<li class="function_start"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
-                $functions .= '<li class="function_edit"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Edit</span></a></li>';
-                $functions .= '<li class="function_delete"><a data-class="' . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Delete</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                break;
-            case "O":
-                $functions .= '<li class="function_pause"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Pause</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                break;
-            case "P":
-                $functions .= '<li class="function_start"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_finish"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Finalise</span></a></li>';
-                break;
-            case "D":
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                break;
-        }
-        $functions .= '</ul></div>';
         $sqlite_data[] = array(
           "class"         => $round['roundclass'],
           "type"          => $round['type'],
@@ -175,8 +147,7 @@ if (isset($job)){
           "id"            => $round['id'],
           "sequences"     => $round['sequences'],
           "phase"         => $round['phase'],
-          "status"        => $round['status'],
-          "functions"     => $functions
+          "status"        => $round['status']
         );
       }
     }
@@ -249,10 +220,6 @@ if (isset($job)){
  
   elseif ($job == 'add_round') {
     // Add round
-
-      
-      
-    // Add company
       
     $query =  "INSERT into round (class, type, roundnum, sched, sequences, phase) ";
     $query .= "VALUES (:class, :type, :roundnum, :sched, :sequences, :phase );";
@@ -292,7 +259,7 @@ if (isset($job)){
     if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
     if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
     if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
-    $query = "delete from round where class = :class and type = :type and roundnum = :roundnum;";
+    $query = "delete from round where class = :class and type = :type and roundnum = :roundnum and phase ='U';";
     if ($statement = $db->prepare($query)) {
       try {
         $statement->bindValue(':class',    $class);
@@ -313,11 +280,73 @@ if (isset($job)){
       $result  = 'error';
       if (!isset($message)) { $message = 'query error'; }
     } else {
-      $result  = 'success';
-      $message = 'query success';
+      // Query was OK, but let's check if we actually deleted it (business rule - can only delete unflown rounds).
+      if ($db->changes() === 1) {
+        $result  = 'success';
+        $message = 'query success';
+      } elseif ($db->changes() === 0) {
+        $result  = 'error';
+        $message = 'Unable to delete this round.  Is it already started?';
+      }
     }
   } // delete_round...
+elseif ($job == 'edit_round') {
+    // Edit round
+    $blOkToGo = true;
+    if (isset($_GET['prevclass'])){     $prevclass      = $_GET['prevclass'];   } else $blOkToGo = false;
+    if (isset($_GET['prevtype'])){      $prevtype       = $_GET['prevtype'];    } else $blOkToGo = false;
+    if (isset($_GET['prevroundnum'])){  $prevroundnum   = $_GET['prevroundnum'];} else $blOkToGo = false;
+    if (isset($_GET['class'])){         $class          = $_GET['class'];       } else $blOkToGo = false;
+    if (isset($_GET['type'])){          $type           = $_GET['type'];        } else $blOkToGo = false;
+    if (isset($_GET['roundnum'])){      $roundnum       = $_GET['roundnum'];    } else $blOkToGo = false;
+    if (isset($_GET['schedule'])){      $sched          = $_GET['schedule'];    } else $blOkToGo = false;
+    if (isset($_GET['sequences'])){     $sequences      = $_GET['sequences'];   } else $blOkToGo = false;
+    
+    if (!blOkToGo) {
+      $result  = 'error';
+      $message = 'Unable to edit this round.  Some form data was missing.';
+    } else {
+      $query  = "update round set class = :class, type = :type, roundnum = :roundnum, sched = :sched, sequences = :sequences ";
+      $query .= "where class = :prevclass and type = :prevtype and roundnum = :prevroundnum and phase ='U';";
+      
+      if ($statement = $db->prepare($query)) {
+        try {
+          $statement->bindValue(':prevclass',    $prevclass);
+          $statement->bindValue(':prevtype',     $prevtype);
+          $statement->bindValue(':prevroundnum', $prevroundnum);
+          $statement->bindValue(':class',        $class);
+          $statement->bindValue(':type',         $type);
+          $statement->bindValue(':roundnum',     $roundnum);
+          $statement->bindValue(':sched',        $sched);
+          $statement->bindValue(':sequences',    $sequences);
+          $res = $statement->execute();
+        } catch (Exception $e) {
+          $result  = 'error';
+          $message = 'query error: ' . $e->getMessage();          
+        }
+      } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+      }
 
+      if ($res === FALSE){
+        $result  = 'error';
+        if (!isset($message)) { $message = 'query error'; }
+      } else {
+        // Query was OK, but let's check if we actually deleted it (business rule - can only delete unflown rounds).
+        if ($db->changes() === 1) {
+          $result  = 'success';
+          $message = 'query success';
+        } elseif ($db->changes() === 0) {
+          $result  = 'error';
+          $message = 'Unable to delete this round.  Is it already started?';
+        }
+      }
+    }
+  } // edit_round...
+  
+  
   // Close database connection
   $db->close();
 

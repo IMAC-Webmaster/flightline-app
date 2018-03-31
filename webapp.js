@@ -2,6 +2,7 @@ $(document).ready(function(){
   var classlist;
   var schedulelist;
   var nextroundnums;
+  var rounddata;
   // On page load: datatable
   var table_roundlist = $('#table_roundlist').dataTable({
     "ajax": "data_sqlite.php?job=get_rounds",
@@ -104,10 +105,60 @@ $(document).ready(function(){
     $('#loading_container').hide();
   }
 
+  function clearForm() {
+    removeOptions(document.getElementById("schedule"));
+    $("#type").val("Known");
+    $("#sequences").val("1");
+    $("#roundnum").val("");
+    $("#class").show()
+    $("#sequences").show();
+    $("#hiddenclass").hide();
+    $("#hiddensequences").hide();
+  }
+
+  function fillForm() {
+    // Edit mode...   Fill in the form.
+    if (typeof nextroundnums!== 'undefined' ) {
+        // The round we are editing needs to not increment...
+        for (var rnd in nextroundnums) {
+            if (nextroundnums[rnd].type === rounddata.type && nextroundnums[rnd].class === rounddata.class) {
+                nextroundnums[rnd].nextroundnum = rounddata.roundnum;
+            }
+        }
+    }
+    if (rounddata.type !== "Freestyle") {
+        $('#class').val(rounddata.class);
+        $("#class").show()
+        $("#sequences").show();
+        $("#hiddenclass").hide();
+        $("#hiddensequences").hide();
+        if (rounddata.type === "Unknown") {
+            $("#sequences").hide();
+            $("#hiddensequences").show();
+        }
+    } else {
+        $("#class").hide()
+        $("#sequences").hide();
+        $("#hiddenclass").show();
+        $("#hiddensequences").show();
+    }
+
+    $('#type').val(rounddata.type);
+    fillSchedules($('#class').val(), $('#type').val());
+    $('#schedule').val(rounddata.id);
+    $('#roundnum').val(rounddata.roundnum);
+    $('#sequences').val(rounddata.sequences);
+  }
   // Show lightbox
   function show_lightbox(){
     $('.lightbox_bg').show();
     $('.lightbox_container').show();
+    if ($('#form_round button').text() === 'Edit round') {
+        fillForm();
+    } else {
+        rounddata = "";
+        clearForm();
+    }
   }
   // Hide lightbox
   function hide_lightbox(){
@@ -115,6 +166,33 @@ $(document).ready(function(){
     $('.lightbox_container').hide();
   }
   
+  function validateForm() {
+    var form_valid = true;
+    if ($('#type').val() === "Freestyle" || $('#type').val() === "Unknown") {
+        if ($('#sequences').val() !== 1) $('#sequences').val(1);
+    }
+
+    if ($('#roundnum').val() === "") {
+        $('#roundnum').parent('.field_container').addClass('error');
+        $('#roundnum-error').text("A valid round number must be chosen.").show();
+        form_valid = false;
+    }
+      
+    if ($('#type').val() !== "Freestyle" && $('#class').val() === "" ) {
+        $('#class').parent('.field_container').addClass('error');
+        $('#class-error').text("Please choose a class.").show();
+        form_valid = false;
+    }
+
+    if ($('#schedule').val() === "") {
+        $('#schedule').parent('.field_container').addClass('error');
+        $('#schedule-error').text("Please choose a schedule.").show();
+        form_valid = false;
+    }
+    
+    return form_valid;
+  }
+
   function fillSchedules(cls, type) {
     var schedsel = document.getElementById("schedule");
     removeOptions(schedsel);
@@ -246,38 +324,9 @@ $(document).ready(function(){
   // Add round submit form
   $(document).on('submit', '#form_round.add', function(e){
     e.preventDefault();
-    var form_valid = true;
-    // Validate form
-    // Must have a class unless type is Freestyle.
-    // Unknown and Freestyle types must have single seq.
-    // Must have a scedule and round number defined.
-    
-    if ($('#type').val() === "Freestyle" || $('#type').val() === "Unknown") {
-        if ($('#sequences').val() !== 1) $('#sequences').val(1);
-    }
 
-    if ($('#roundnum').val() === "") {
-        $('#roundnum').parent('.field_container').addClass('error');
-        $('#roundnum-error').text("A valid round number must be chosen.").show();
-        form_valid = false;
-    }
-      
-    if ($('#type').val() !== "Freestyle" && $('#class').val() === "" ) {
-        $('#class').parent('.field_container').addClass('error');
-        $('#class-error').text("Please choose a class.").show();
-        form_valid = false;
-    }
 
-    if ($('#schedule').val() === "") {
-        $('#schedule').parent('.field_container').addClass('error');
-        $('#schedule-error').text("Please choose a schedule.").show();
-        form_valid = false;
-    }
-    
-    //alert("N:" + $('#roundnum').val() + " V:" + form_valid + " T:" + $('#type').val() + ' C:' + $('#class').val() + ' Sch:' + $('#schedule').val() + ' Seq:' + $('#sequences').val());
-    // form_valid = false;
-
-    if (form_valid === true) {
+    if (validateForm()) {
       // Send company information to database
       hide_ipad_keyboard();
       hide_lightbox();
@@ -313,6 +362,153 @@ $(document).ready(function(){
     }
   });
 
+  // Edit round button
+  $(document).on('click', '.function_edit a', function(e){
+    e.preventDefault();
+    // Get company information from database
+    show_loading_message();
+    var round_class    = $(this).data('class');
+    var round_type     = $(this).data('type');
+    var round_num      = $(this).data('roundnum');
+    var blGotSchedules = false;
+    var blGotRounds    = false;
+    var blGotRoundData = false;
+
+    
+    // First, get the next round numbers.
+    var next_round_request = $.ajax({
+      url:          'data_sqlite.php?job=get_nextrnds',
+      cache:        false,
+      dataType:     'json',
+      contentType:  'application/json; charset=utf-8',
+      type:         'get'
+    });
+    
+    next_round_request.done(function(output){
+      if (output.result == 'success'){
+
+        nextroundnums = output.data;
+        blGotRounds = true;
+        if (blGotSchedules === true && blGotRounds === true && blGotRoundData === true) {
+          hide_loading_message();
+          show_lightbox();
+        }
+      } else {
+        hide_loading_message();
+        show_message('Could not get next round: ' + output.message, 'error');
+      }
+    });
+
+    next_round_request.fail(function(jqXHR, textStatus){
+      hide_loading_message();
+      show_message('Could not get next round: ' + textStatus, 'error');
+    });
+
+    // Now get the schedules.
+    var sched_request = $.ajax({
+      url:          'data_sqlite.php?job=get_schedlist',
+      cache:        false,
+      dataType:     'json',
+      contentType:  'application/json; charset=utf-8',
+      type:         'get'
+    });
+    
+    sched_request.done(function(output){
+      if (output.result == 'success'){
+
+        schedulelist = output.data;
+        blGotSchedules = true;
+        if (blGotSchedules === true && blGotRounds === true && blGotRoundData === true) {
+          hide_loading_message();
+          show_lightbox();
+        }
+      } else {
+        hide_loading_message();
+        show_message('Could not get schedule list: ' + output.message, 'error');
+      }
+    });
+
+    sched_request.fail(function(jqXHR, textStatus){
+      hide_loading_message();
+      show_message('Could not get schedule list: ' + textStatus, 'error');
+    });
+    
+    var round_request = $.ajax({
+      url:          'data_sqlite.php?job=get_round',
+      cache:        false,
+      data:         'class=' + round_class + '&type=' + round_type + '&roundnum=' + round_num,
+      dataType:     'json',
+      contentType:  'application/json; charset=utf-8',
+      type:         'get'
+    });
+    round_request.done(function(output){
+      if (output.result == 'success'){
+        $('.lightbox_content h2').text('Edit round');
+        $('#form_round button').text('Edit round');
+        $('#form_round').attr('class', 'form edit');
+        $('#form_round').attr('data-class', round_class);
+        $('#form_round').attr('data-type', round_type);
+        $('#form_round').attr('data-roundnum', round_num);
+        $('#form_round .field_container label.error').hide();
+        $('#form_round .field_container').removeClass('valid').removeClass('error');
+
+        blGotRoundData = true;
+        rounddata = output.data[0];
+        if (blGotSchedules === true && blGotRounds === true && blGotRoundData === true) {
+          hide_loading_message();
+          show_lightbox();
+        }
+      } else {
+        hide_loading_message();
+        show_message('Information request failed: ' + output.message, 'error');
+      }
+    });
+    round_request.fail(function(jqXHR, textStatus){
+      hide_loading_message();
+      show_message('Information request failed: ' + textStatus, 'error');
+    });
+  }); // Edit round.
+  
+  // Edit round submit form
+  $(document).on('submit', '#form_round.edit', function(e){
+    e.preventDefault();
+
+    if (validateForm()){
+      // Send rounbd information to database
+      hide_ipad_keyboard();
+      hide_lightbox();
+      show_loading_message();
+      var round_class    = $('#form_round').attr('data-class');
+      var round_type     = $('#form_round').attr('data-type');
+      var round_num      = $('#form_round').attr('data-roundnum');
+      var form_data = $('#form_round').serialize();
+      var request   = $.ajax({
+        url:          'data_sqlite.php?job=edit_round&prevclass=' + round_class + '&prevtype=' + round_type + '&prevroundnum=' + round_num,
+        cache:        false,
+        data:         form_data,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output){
+        if (output.result == 'success'){
+          // Reload datable
+          table_roundlist.api().ajax.reload(function(){
+            hide_loading_message();
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' edited successfully." + output.message, 'success');
+          }, true);
+        } else {
+          hide_loading_message();
+          show_message('Edit request failed: ' + output.message, 'error');
+        }
+      });
+      request.fail(function(jqXHR, textStatus){
+        hide_loading_message();
+        show_message('Edit request failed: ' + textStatus, 'error');
+      });
+    }
+  }); // Edit round submit.
+
   // Delete round - only if it has not yet beel flown.
   $(document).on('click', '.function_delete a', function(e){
     e.preventDefault();
@@ -334,7 +530,7 @@ $(document).ready(function(){
           // Reload datable
           table_roundlist.api().ajax.reload(function(){
             hide_loading_message();
-            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' deleted successfully.", 'success');
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' deleted successfully." + output.message, 'success');
           }, true);
         } else {
           hide_loading_message();
