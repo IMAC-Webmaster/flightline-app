@@ -46,7 +46,7 @@ if (isset($job)){
   // Execute job
   if ($job == 'get_rounds') {
     // Get rounds
-    $query = "select s.name, s.id, r.class as roundclass, r.type, r.roundnum, r.sequences, r.phase, r.status from round r left join schedule s on s.id = r.sched order by r.class, r.type, r.roundnum;";
+    $query = "select s.description, s.schedule_id, r.imac_class, r.imac_type, r.roundnum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedule_id = r.sched_id order by r.imac_class, r.imac_type, r.roundnum;";
     if ($statement = $db->prepare($query)) {
       try {
         $res = $statement->execute();
@@ -70,22 +70,22 @@ if (isset($job)){
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
             case "U":
-                $functions .= '<li class="function_start"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
-                $functions .= '<li class="function_edit"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Edit</span></a></li>';
-                $functions .= '<li class="function_delete"><a data-class="' . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Delete</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imac_class="'  . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_edit"><a data-imac_class="'   . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Edit</span></a></li>';
+                $functions .= '<li class="function_delete"><a data-imac_class="' . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Delete</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "O":
-                $functions .= '<li class="function_pause"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
+                $functions .= '<li class="function_pause"><a data-imac_class="'   . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "P":
-                $functions .= '<li class="function_start"><a data-class="'   . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imac_class="'   . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '"><span>Start</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_finish"><a data-class="'  . $round['roundclass'] . '" data-type="' . $round['type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
+                $functions .= '<li class="function_finish"><a data-imac_class="'  . $round['imac_class'] . '" data-imac_type="' . $round['imac_type'] . '" data-roundnum="' . $round['roundnum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
                 break;
             case "D":
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
@@ -96,11 +96,11 @@ if (isset($job)){
         }
         $functions .= '</ul></div>';
         $sqlite_data[] = array(
-          "class"         => $round['roundclass'],
-          "type"          => $round['type'],
+          "imac_class"    => $round['imac_class'],
+          "imac_type"     => $round['imac_type'],
           "roundnum"      => $round['roundnum'],
-          "name"          => $round['name'],
-          "id"            => $round['id'],
+          "description"   => $round['description'],
+          "schedule_id"   => $round['schedule_id'],
           "sequences"     => $round['sequences'],
           "phase"         => $round['phase'],
           "status"        => $round['status'],
@@ -111,18 +111,18 @@ if (isset($job)){
   } // get_rounds...
   
  elseif ($job == 'get_round') {
-    // Get round  (class, type, round number).
-    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
-    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
-    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+    // Get round  (imac_class, imac_type, round number).
+    if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
+    if (isset($_GET['imac_type'])) { $imac_type  = $_GET['imac_type']; } else $imac_type  = null;
+    if (isset($_GET['roundnum']))  { $roundnum   = $_GET['roundnum'];  } else $roundnum   = null;
 
 
-    $query =  "select s.name, s.id, r.class as roundclass, r.type, r.roundnum, r.sequences, r.phase, r.status from round r left join schedule s on s.id = r.sched ";
-    $query .= "where r.class = :class and r.type = :type and r.roundnum = :roundnum";
+    $query =  "select s.description, s.schedule_id, r.imac_class, r.imac_type, r.roundnum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedule_id = r.sched_id ";
+    $query .= "where r.imac_class = :imac_class and r.imac_type = :imac_type and r.roundnum = :roundnum";
     if ($statement = $db->prepare($query)) {
       try {
-        $statement->bindValue(':class',    $class);
-        $statement->bindValue(':type',     $type);
+        $statement->bindValue(':imac_class',    $imac_class);
+        $statement->bindValue(':imac_type',     $imac_type);
         $statement->bindValue(':roundnum', $roundnum);
         $res = $statement->execute();
       } catch (Exception $e) {
@@ -143,11 +143,11 @@ if (isset($job)){
       $message = 'query success';
       while ($round = $res->fetchArray()){
         $sqlite_data[] = array(
-          "class"         => $round['roundclass'],
-          "type"          => $round['type'],
+          "imac_class"    => $round['imac_class'],
+          "imac_type"     => $round['imac_type'],
           "roundnum"      => $round['roundnum'],
-          "name"          => $round['name'],
-          "id"            => $round['id'],
+          "description"   => $round['description'],
+          "schedule_id"   => $round['schedule_id'],
           "sequences"     => $round['sequences'],
           "phase"         => $round['phase'],
           "status"        => $round['status']
@@ -158,7 +158,7 @@ if (isset($job)){
 
   elseif ($job == 'get_nextrnds') {
     // Get rounds
-    $query = "select class as roundclass, type, (max(roundnum) + 1) as nextroundnum from round group by class, type;";
+    $query = "select imac_class, imac_type, (max(roundnum) + 1) as nextroundnum from round group by imac_class, imac_type;";
     if ($statement = $db->prepare($query)) {
       try {
         $res = $statement->execute();
@@ -180,9 +180,9 @@ if (isset($job)){
       $message = 'query success';
       while ($round = $res->fetchArray()){
         $sqlite_data[] = array(
-          "class"         => $round['roundclass'],
-          "type"          => $round['type'],
-          "nextroundnum"  => $round['nextroundnum'],
+          "imac_class"         => $round['imac_class'],
+          "imac_type"          => $round['imac_type'],
+          "nextroundnum"       => $round['nextroundnum'],
         );
       }
     }
@@ -190,7 +190,7 @@ if (isset($job)){
 
   elseif ($job == 'get_schedlist') {
     // Get rounds
-    $query = "select * from schedule order by class;";
+    $query = "select * from schedule order by imac_class;";
     if ($statement = $db->prepare($query)) {
       try {
         $res = $statement->execute();
@@ -212,10 +212,10 @@ if (isset($job)){
       $message = 'query success';
       while ($round = $res->fetchArray()){
         $sqlite_data[] = array(
-          "id"         => $round['id'],
-          "class"      => $round['class'],
-          "type"       => $round['type'],
-          "name"       => $round['name'],
+          "schedule_id" => $round['schedule_id'],
+          "imac_class"  => $round['imac_class'],
+          "imac_type"   => $round['imac_type'],
+          "description" => $round['description'],
         );
       }
     }
@@ -224,15 +224,15 @@ if (isset($job)){
   elseif ($job == 'add_round') {
     // Add round
       
-    $query =  "INSERT into round (class, type, roundnum, sched, sequences, phase) ";
-    $query .= "VALUES (:class, :type, :roundnum, :sched, :sequences, :phase );";
+    $query =  "INSERT into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) ";
+    $query .= "VALUES (:imac_class, :imac_type, :roundnum, :sched_id, :sequences, :phase );";
 
     if ($statement = $db->prepare($query)) {
       try {
-        if (isset($_GET['class']))      { $statement->bindValue(':class',        $_GET['class']);        };
-        if (isset($_GET['type']))       { $statement->bindValue(':type',         $_GET['type']);         };
+        if (isset($_GET['imac_class'])) { $statement->bindValue(':imac_class',   $_GET['imac_class']);   };
+        if (isset($_GET['imac_type']))  { $statement->bindValue(':imac_type',    $_GET['imac_type']);    };
         if (isset($_GET['roundnum']))   { $statement->bindValue(':roundnum',     $_GET['roundnum']);     };
-        if (isset($_GET['schedule']))   { $statement->bindValue(':sched',        $_GET['schedule']);     };
+        if (isset($_GET['schedule']))   { $statement->bindValue(':sched_id',     $_GET['schedule']);     };
         if (isset($_GET['sequences']))  { $statement->bindValue(':sequences',    $_GET['sequences']);    };
         $statement->bindValue(':phase',        'U');
         error_log($query);
@@ -259,14 +259,14 @@ if (isset($job)){
 
   elseif ($job == 'delete_round') {
     // Delete round
-    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
-    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
+    if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
+    if (isset($_GET['imac_type'])){ $imac_type = $_GET['imac_type'];} else $imac_type = null;
     if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
-    $query = "delete from round where class = :class and type = :type and roundnum = :roundnum and phase ='U';";
+    $query = "delete from round where imac_class = :imac_class and imac_type = :imac_type and roundnum = :roundnum and phase ='U';";
     if ($statement = $db->prepare($query)) {
       try {
-        $statement->bindValue(':class',    $class);
-        $statement->bindValue(':type',     $type);
+        $statement->bindValue(':imac_class',    $imac_class);
+        $statement->bindValue(':imac_type',     $imac_type);
         $statement->bindValue(':roundnum', $roundnum);
         $res = $statement->execute();
       } catch (Exception $e) {
@@ -296,8 +296,8 @@ if (isset($job)){
 
   elseif ($job == 'start_round') {
     // Start round
-    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
-    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
+    if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
+    if (isset($_GET['imac_type'])){ $imac_type = $_GET['imac_type'];} else $imac_type = null;
     if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
     $blOkToGo = true;
     $query = "select count(*) as flycount from round where phase = 'O';";
@@ -328,12 +328,12 @@ if (isset($job)){
         }
     }
     if ($blOkToGo) {
-      $query = "update round set phase = 'O' where class = :class and type = :type and roundnum = :roundnum and (phase ='U' or phase = 'P');";
+      $query = "update round set phase = 'O', starttime = strftime('%s','now') where imac_class = :imac_class and imac_type = :imac_type and roundnum = :roundnum and (phase ='U' or phase = 'P');";
       if ($statement = $db->prepare($query)) {
         try {
-          $statement->bindValue(':class',    $class);
-          $statement->bindValue(':type',     $type);
-          $statement->bindValue(':roundnum', $roundnum);
+          $statement->bindValue(':imac_class',    $imac_class);
+          $statement->bindValue(':imac_type',     $imac_type);
+          $statement->bindValue(':roundnum',      $roundnum);
           $res = $statement->execute();
         } catch (Exception $e) {
           $result  = 'error';
@@ -363,16 +363,16 @@ if (isset($job)){
   
   elseif ($job == 'pause_round') {
     // Pause round
-    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
-    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
-    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+    if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
+    if (isset($_GET['imac_type'])) { $imac_type  = $_GET['imac_type']; } else $imac_type  = null;
+    if (isset($_GET['roundnum']))  { $roundnum   = $_GET['roundnum'];  } else $roundnum   = null;
  
-    $query = "update round set phase = 'P' where class = :class and type = :type and roundnum = :roundnum and phase ='O';";
+    $query = "update round set phase = 'P' where imac_class = :imac_class and imac_type = :imac_type and roundnum = :roundnum and phase ='O';";
     if ($statement = $db->prepare($query)) {
       try {
-        $statement->bindValue(':class',    $class);
-        $statement->bindValue(':type',     $type);
-        $statement->bindValue(':roundnum', $roundnum);
+        $statement->bindValue(':imac_class',    $imac_class);
+        $statement->bindValue(':imac_type',     $imac_type);
+        $statement->bindValue(':roundnum',      $roundnum);
         $res = $statement->execute();
       } catch (Exception $e) {
         $result  = 'error';
@@ -401,16 +401,16 @@ if (isset($job)){
 
   elseif ($job == 'finish_round') {
     // Finish round
-    if (isset($_GET['class'])){ $class = $_GET['class'];} else $class = null;
-    if (isset($_GET['type'])){ $type = $_GET['type'];} else $type = null;
-    if (isset($_GET['roundnum'])){ $roundnum = $_GET['roundnum'];} else $roundnum = null;
+    if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
+    if (isset($_GET['imac_type'])) { $imac_type  = $_GET['imac_type']; } else $imac_type  = null;
+    if (isset($_GET['roundnum']))  { $roundnum   = $_GET['roundnum'];  } else $roundnum   = null;
  
-    $query = "update round set phase = 'D' where class = :class and type = :type and roundnum = :roundnum and phase ='P';";
+    $query = "update round set phase = 'D', finishtime = strftime('%s','now') where imac_class = :imac_class and imac_type = :imac_type and roundnum = :roundnum and phase ='P';";
     if ($statement = $db->prepare($query)) {
       try {
-        $statement->bindValue(':class',    $class);
-        $statement->bindValue(':type',     $type);
-        $statement->bindValue(':roundnum', $roundnum);
+        $statement->bindValue(':imac_class',    $imac_class);
+        $statement->bindValue(':imac_type',     $imac_type);
+        $statement->bindValue(':roundnum',      $roundnum);
         $res = $statement->execute();
       } catch (Exception $e) {
         $result  = 'error';
@@ -443,8 +443,8 @@ if (isset($job)){
     if (isset($_GET['prevclass'])){     $prevclass      = $_GET['prevclass'];   } else $blOkToGo = false;
     if (isset($_GET['prevtype'])){      $prevtype       = $_GET['prevtype'];    } else $blOkToGo = false;
     if (isset($_GET['prevroundnum'])){  $prevroundnum   = $_GET['prevroundnum'];} else $blOkToGo = false;
-    if (isset($_GET['class'])){         $class          = $_GET['class'];       } else $blOkToGo = false;
-    if (isset($_GET['type'])){          $type           = $_GET['type'];        } else $blOkToGo = false;
+    if (isset($_GET['imac_class'])){    $imac_class     = $_GET['imac_class'];  } else $blOkToGo = false;
+    if (isset($_GET['imac_type'])){     $imac_type      = $_GET['imac_type'];   } else $blOkToGo = false;
     if (isset($_GET['roundnum'])){      $roundnum       = $_GET['roundnum'];    } else $blOkToGo = false;
     if (isset($_GET['schedule'])){      $sched          = $_GET['schedule'];    } else $blOkToGo = false;
     if (isset($_GET['sequences'])){     $sequences      = $_GET['sequences'];   } else $blOkToGo = false;
@@ -453,18 +453,18 @@ if (isset($job)){
       $result  = 'error';
       $message = 'Unable to edit this round.  Some form data was missing.';
     } else {
-      $query  = "update round set class = :class, type = :type, roundnum = :roundnum, sched = :sched, sequences = :sequences ";
-      $query .= "where class = :prevclass and type = :prevtype and roundnum = :prevroundnum and phase ='U';";
+      $query  = "update round set imac_class = :imac_class, imac_type = :imac_type, roundnum = :roundnum, sched_id = :sched_id, sequences = :sequences ";
+      $query .= "where imac_class = :prevclass and imac_type = :prevtype and roundnum = :prevroundnum and phase ='U';";
       
       if ($statement = $db->prepare($query)) {
         try {
           $statement->bindValue(':prevclass',    $prevclass);
           $statement->bindValue(':prevtype',     $prevtype);
           $statement->bindValue(':prevroundnum', $prevroundnum);
-          $statement->bindValue(':class',        $class);
-          $statement->bindValue(':type',         $type);
+          $statement->bindValue(':imac_class',   $imac_class);
+          $statement->bindValue(':imac_type',    $imac_type);
           $statement->bindValue(':roundnum',     $roundnum);
-          $statement->bindValue(':sched',        $sched);
+          $statement->bindValue(':sched_id',     $sched);
           $statement->bindValue(':sequences',    $sequences);
           $res = $statement->execute();
         } catch (Exception $e) {

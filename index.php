@@ -26,7 +26,7 @@
             <th>Class</th>
             <th>Round Type</th>
             <th>Round Num.</th>
-            <th>Schedule Name</th>
+            <th>Schedule</th>
             <th>Schedule ID</th>
             <th>Sequences</th>
             <th>Phase</th>
@@ -48,10 +48,10 @@
         <h2>Add Round</h2>
         <form class="form add" id="form_round" data-id="" novalidate>
           <div class="input_container">
-            <label for="class">Class: </label>         
+            <label for="imac_class">Class: </label>         
             <div class="field_container">
               <label class='error' id="class-error"></label>
-              <select name="class" id="class">
+              <select name="imac_class" id="imac_class">
                 <option value="">Please choose a class</option>
                 <option value="Basic">Basic</option>
                 <option value="Sportsman">Sportsman</option>
@@ -59,14 +59,14 @@
                 <option value="Advanced">Advanced</option>
                 <option value="Unlimited">Unlimited</option>
               </select>
-              <label id="hiddenclass" class="hiddenlabel">Any</label>  
+              <label id="hidden_imac_class" class="hiddenlabel">Any</label>  
             </div>
           </div>
           <div class="input_container">
-            <label for="type">Round Type: <span class="required">*</span></label>
+            <label for="imac_type">Round Type: <span class="required">*</span></label>
             <div class="field_container">
-              <label class='error' id="type-error"></label>
-              <select name="type" id="type">
+              <label class='error' id="imac_type-error"></label>
+              <select name="imac_type" id="imac_type">
                 <option value="Known">Known</option>
                 <option value="Unknown">Unknown</option>
                 <option value="Freestyle">Freestyle</option>
@@ -97,7 +97,7 @@
                   <option value="1">Single</option>
                   <option value="2">Double</option>
               </select>
-              <label id="hiddensequences" class="hiddenlabel">Single</label>  
+              <label id="hidden_sequences" class="hiddenlabel">Single</label>  
             </div>
           </div>
           <div class="button_container">
