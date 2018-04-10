@@ -1,8 +1,10 @@
 <?php
+include_once 'include/functions.php';
 ini_set("display_errors", 0);
 
 // Database details
 $dbfile = 'flightline.db';
+
 
 // Get job (and id)
 unset ($job);
@@ -12,6 +14,7 @@ if (isset($_GET['job'])) {
   $job = $_GET['job'];
   if ($job == 'get_rounds'       ||
       $job == 'get_round'        ||
+      $job == 'get_rounds_json'  ||
       $job == 'get_nextrnds'     ||
       $job == 'get_schedlist'    ||
       $job == 'add_round'        ||
@@ -110,7 +113,75 @@ if (isset($job)){
     }
   } // get_rounds...
   
- elseif ($job == 'get_round') {
+  elseif ($job == 'get_rounds_json') {
+    // Get rounds
+    $query = "select * from round;";
+    if ($statement = $db->prepare($query)) {
+      try {
+        $res = $statement->execute();
+      } catch (Exception $e) {
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();          
+      }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if (!isset($message)) { $message = 'query error'; }
+    } else {
+        $result  = 'success';
+        $message = 'query success';
+        $all_results = array();
+        while ($round = $res->fetchArray(SQLITE3_ASSOC)){
+            // For each round, now we need to get the flights
+            $flight_stmt = $db->prepare("select * from flight where round_id = :round_id;");
+            $flight_stmt->bindValue(':round_id',   $round["round_id"]);
+            $flight_res = $flight_stmt->execute();
+            $flights = array();
+            while ($flight = $flight_res->fetchArray(SQLITE3_ASSOC)){
+                // Get the sheets to add to this flight.
+                unset($flight["round_id"]);
+                $sheet_stmt = $db->prepare("select * from sheet where flight_id = :flight_id;");
+                $sheet_stmt->bindValue(':flight_id',   $flight["flight_id"]);
+                $sheet_res = $sheet_stmt->execute();
+                $sheets = array();
+                while ($sheet = $sheet_res->fetchArray(SQLITE3_ASSOC)){
+                    // Get the scores to add to this sheet.
+                    unset($sheet["flight_id"]);
+                    $score_stmt = $db->prepare("select * from score where sheet_id = :sheet_id;");
+                    $score_stmt->bindValue(':sheet_id',   $sheet["sheet_id"]);
+                    $score_res = $score_stmt->execute();
+                    $scores = array();
+                    while ($score = $score_res->fetchArray(SQLITE3_ASSOC)){
+                        unset($score["sheet_id"]);
+                        $scores[] = $score;  
+                    }
+                    $score_res->finalize();
+                    $score_stmt->close();
+                    $sheet["scores"] = $scores;
+                    $sheets[] = $sheet;   
+                }
+                $sheet_res->finalize();
+                $sheet_stmt->close();
+                $flight["sheets"] = $sheets;
+                $flights[] = $flight;
+            }
+            $flight_res->finalize();
+            $flight_stmt->close();
+            $round["flights"] = $flights;
+            $all_results[] = $round;
+        }
+        $res->finalize();
+        $statement->close();
+        echo (json_encode($all_results, JSON_PRETTY_PRINT));
+        exit;
+    }
+  } // get_rounds...
+   elseif ($job == 'get_round') {
     // Get round  (imac_class, imac_type, round number).
     if (isset($_GET['imac_class'])){ $imac_class = $_GET['imac_class'];} else $imac_class = null;
     if (isset($_GET['imac_type'])) { $imac_type  = $_GET['imac_type']; } else $imac_type  = null;
@@ -123,7 +194,7 @@ if (isset($job)){
       try {
         $statement->bindValue(':imac_class',    $imac_class);
         $statement->bindValue(':imac_type',     $imac_type);
-        $statement->bindValue(':roundnum', $roundnum);
+        $statement->bindValue(':roundnum',      $roundnum);
         $res = $statement->execute();
       } catch (Exception $e) {
         $result  = 'error';
