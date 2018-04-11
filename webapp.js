@@ -1,17 +1,17 @@
 $(document).ready(function(){
   var classlist;
   var schedulelist;
-  var nextroundnums;
+  var nextroundNums;
   var rounddata;
   // On page load: datatable
   var table_roundlist = $('#table_roundlist').dataTable({
     "ajax": "data_sqlite.php?job=get_rounds",
     "columns": [
-      { "data": "imac_class"},
-      { "data": "imac_type" },
-      { "data": "roundnum",       "sClass": "integer" },
+      { "data": "imacClass"},
+      { "data": "imacType" },
+      { "data": "roundNum",       "sClass": "integer" },
       { "data": "description" },
-      { "data": "schedule_id",    "visible": false },
+      { "data": "schedId",    "visible": false },
       { "data": "sequences",      "render": function ( data, type, row ) { return renderSequence(data); } },
       { "data": "phase",          "render": function ( data, type, row ) { return renderPhase(data); } },
       { "data": "status" },
@@ -38,9 +38,9 @@ $(document).ready(function(){
   jQuery.validator.setDefaults({
     success: 'valid',
     rules: {
-      imac_class:     { excluded: true },
+      imacClass:     { excluded: true },
       schedule:       { excluded: true },
-      imac_type:      { excluded: true },
+      imacType:      { excluded: true },
       sequences:      { excluded: true }
     },
     errorPlacement: function(error, element){
@@ -107,46 +107,46 @@ $(document).ready(function(){
 
   function clearForm() {
     removeOptions(document.getElementById("schedule"));
-    $("#imac_type").val("Known");
+    $("#imacType").val("Known");
     $("#sequences").val("1");
-    $("#roundnum").val("");
-    $("#imac_class").show()
+    $("#roundNum").val("");
+    $("#imacClass").show()
     $("#sequences").show();
-    $("#hidden_imac_class").hide();
+    $("#hidden_imacClass").hide();
     $("#hidden_sequences").hide();
   }
 
   function fillForm() {
     // Edit mode...   Fill in the form.
-    if (typeof nextroundnums!== 'undefined' ) {
+    if (typeof nextroundNums!== 'undefined' ) {
         // The round we are editing needs to not increment...
-        for (var rnd in nextroundnums) {
-            if (nextroundnums[rnd].imac_type === rounddata.imac_type && nextroundnums[rnd].imac_class === rounddata.imac_class) {
-                nextroundnums[rnd].nextroundnum = rounddata.roundnum;
+        for (var rnd in nextroundNums) {
+            if (nextroundNums[rnd].imacType === rounddata.imacType && nextroundNums[rnd].imacClass === rounddata.imacClass) {
+                nextroundNums[rnd].nextroundNum = rounddata.roundNum;
             }
         }
     }
-    if (rounddata.imac_type !== "Freestyle") {
-        $('#imac_class').val(rounddata.imac_class);
-        $("#imac_class").show()
+    if (rounddata.imacType !== "Freestyle") {
+        $('#imacClass').val(rounddata.imacClass);
+        $("#imacClass").show()
         $("#sequences").show();
-        $("#hidden_imac_class").hide();
+        $("#hidden_imacClass").hide();
         $("#hidden_sequences").hide();
-        if (rounddata.imac_type === "Unknown") {
+        if (rounddata.imacType === "Unknown") {
             $("#sequences").hide();
             $("#hidden_sequences").show();
         }
     } else {
-        $("#imac_class").hide()
+        $("#imacClass").hide()
         $("#sequences").hide();
-        $("#hidden_imac_class").show();
+        $("#hidden_imacClass").show();
         $("#hidden_sequences").show();
     }
 
-    $('#imac_type').val(rounddata.imac_type);
-    fillSchedules($('#imac_class').val(), $('#imac_type').val());
-    $('#schedule').val(rounddata.schedule_id);
-    $('#roundnum').val(rounddata.roundnum);
+    $('#imacType').val(rounddata.imacType);
+    fillSchedules($('#imacClass').val(), $('#imacType').val());
+    $('#schedule').val(rounddata.schedId);
+    $('#roundNum').val(rounddata.roundNum);
     $('#sequences').val(rounddata.sequences);
   }
   // Show lightbox
@@ -168,19 +168,19 @@ $(document).ready(function(){
   
   function validateForm() {
     var form_valid = true;
-    if ($('#imac_type').val() === "Freestyle" || $('#imac_type').val() === "Unknown") {
+    if ($('#imacType').val() === "Freestyle" || $('#imacType').val() === "Unknown") {
         if ($('#sequences').val() !== 1) $('#sequences').val(1);
     }
 
-    if ($('#roundnum').val() === "") {
-        $('#roundnum').parent('.field_container').addClass('error');
-        $('#roundnum-error').text("A valid round number must be chosen.").show();
+    if ($('#roundNum').val() === "") {
+        $('#roundNum').parent('.field_container').addClass('error');
+        $('#roundNum-error').text("A valid round number must be chosen.").show();
         form_valid = false;
     }
       
-    if ($('#imac_type').val() !== "Freestyle" && $('#imac_class').val() === "" ) {
-        $('#imac_class').parent('.field_container').addClass('error');
-        $('#imac_class-error').text("Please choose a imac_class.").show();
+    if ($('#imacType').val() !== "Freestyle" && $('#imacClass').val() === "" ) {
+        $('#imacClass').parent('.field_container').addClass('error');
+        $('#imacClass-error').text("Please choose a imacClass.").show();
         form_valid = false;
     }
 
@@ -193,30 +193,30 @@ $(document).ready(function(){
     return form_valid;
   }
 
-  function fillSchedules(imac_class, imac_type) {
+  function fillSchedules(imacClass, imacType) {
     var schedsel = document.getElementById("schedule");
     removeOptions(schedsel);
-    if (imac_type === "Freestyle") imac_class = null;
+    if (imacType === "Freestyle") imacClass = null;
     for (var sched in schedulelist) {
-        if (schedulelist[sched].imac_class === imac_class  && schedulelist[sched].imac_type === imac_type) {
+        if (schedulelist[sched].imacClass === imacClass  && schedulelist[sched].imacType === imacType) {
             var opt = document.createElement("option");
             opt.text = schedulelist[sched].description;
-            opt.value = schedulelist[sched].schedule_id;
+            opt.value = schedulelist[sched].schedId;
             schedsel.add(opt);
         }       
     }
   }
 
-  function setNextRound(imac_class, imac_type) {
+  function setNextRound(imacClass, imacType) {
     var blFoundNext = false;
-    for (var rnd in nextroundnums) {
-        if (nextroundnums[rnd].imac_type === imac_type  && (nextroundnums[rnd].imac_class === imac_class || imac_type === "Freestyle") ){
-            $("#roundnum").val(nextroundnums[rnd].nextroundnum);
+    for (var rnd in nextroundNums) {
+        if (nextroundNums[rnd].imacType === imacType  && (nextroundNums[rnd].imacClass === imacClass || imacType === "Freestyle") ){
+            $("#roundNum").val(nextroundNums[rnd].nextroundNum);
             blFoundNext = true;
         }       
     }
     if (!blFoundNext) {
-        $("#roundnum").val(1);
+        $("#roundNum").val(1);
     }
   }
   
@@ -266,7 +266,7 @@ $(document).ready(function(){
         $('#form_round').attr('class', 'form add');
         $('#form_round .field_container label.error').hide();
         $('#form_round .field_container').removeClass('valid').removeClass('error');
-        nextroundnums = output.data;
+        nextroundNums = output.data;
         blGotRounds = true;
         if (blGotSchedules === true && blGotRounds === true) {
           hide_loading_message();
@@ -341,9 +341,9 @@ $(document).ready(function(){
           // Reload datable
           table_roundlist.api().ajax.reload(function(){
             hide_loading_message();
-            var round_class = $('#imac_class').val();
-            var round_type = $('#imac_type').val();
-            var round_num = $('#roundnum').val();
+            var round_class = $('#imacClass').val();
+            var round_type =  $('#imacType').val();
+            var round_num =   $('#roundNum').val();
             show_message("'" + round_type + "' round '" + round_num + "' in class '" + round_class + "' was added successfully.", 'success');
           }, true);
         } else {
@@ -363,8 +363,8 @@ $(document).ready(function(){
     e.preventDefault();
     // Get company information from database
     show_loading_message();
-    var round_class    = $(this).data('imac_class');
-    var round_type     = $(this).data('imac_type');
+    var round_class    = $(this).data('imacclass');
+    var round_type     = $(this).data('imactype');
     var round_num      = $(this).data('roundnum');
     var blGotSchedules = false;
     var blGotRounds    = false;
@@ -383,7 +383,7 @@ $(document).ready(function(){
     next_round_request.done(function(output){
       if (output.result == 'success'){
 
-        nextroundnums = output.data;
+        nextroundNums = output.data;
         blGotRounds = true;
         if (blGotSchedules === true && blGotRounds === true && blGotRoundData === true) {
           hide_loading_message();
@@ -432,7 +432,7 @@ $(document).ready(function(){
     var round_request = $.ajax({
       url:          'data_sqlite.php?job=get_round',
       cache:        false,
-      data:         'imac_class=' + round_class + '&imac_type=' + round_type + '&roundnum=' + round_num,
+      data:         'imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
       type:         'get'
@@ -442,14 +442,14 @@ $(document).ready(function(){
         $('.lightbox_content h2').text('Edit round');
         $('#form_round button').text('Edit round');
         $('#form_round').attr('class', 'form edit');
-        $('#form_round').attr('data-imac_class', round_class);
-        $('#form_round').attr('data-imac_type', round_type);
-        $('#form_round').attr('data-roundnum', round_num);
+        $('#form_round').attr('data-imacClass', round_class);
+        $('#form_round').attr('data-imacType', round_type);
+        $('#form_round').attr('data-roundNum', round_num);
         $('#form_round .field_container label.error').hide();
         $('#form_round .field_container').removeClass('valid').removeClass('error');
 
         blGotRoundData = true;
-        rounddata = output.data[0];
+        rounddata = output.data;
         if (blGotSchedules === true && blGotRounds === true && blGotRoundData === true) {
           hide_loading_message();
           show_lightbox();
@@ -474,12 +474,12 @@ $(document).ready(function(){
       hide_ipad_keyboard();
       hide_lightbox();
       show_loading_message();
-      var round_class    = $('#form_round').attr('data-imac_class');
-      var round_type     = $('#form_round').attr('data-imac_type');
-      var round_num      = $('#form_round').attr('data-roundnum');
+      var round_class    = $('#form_round').attr('data-imacClass');
+      var round_type     = $('#form_round').attr('data-imacType');
+      var round_num      = $('#form_round').attr('data-roundNum');
       var form_data = $('#form_round').serialize();
       var request   = $.ajax({
-        url:          'data_sqlite.php?job=edit_round&prevclass=' + round_class + '&prevtype=' + round_type + '&prevroundnum=' + round_num,
+        url:          'data_sqlite.php?job=edit_round&prevclass=' + round_class + '&prevtype=' + round_type + '&prevroundNum=' + round_num,
         cache:        false,
         data:         form_data,
         dataType:     'json',
@@ -508,13 +508,13 @@ $(document).ready(function(){
   // Delete round - only if it has not yet beel flown.
   $(document).on('click', '.function_delete a', function(e){
     e.preventDefault();
-    var round_class = $(this).data('imac_class');
-    var round_type = $(this).data('imac_type');
-    var round_num = $(this).data('roundnum');
+    var round_class = $(this).data('imacclass');
+    var round_type  = $(this).data('imactype');
+    var round_num   = $(this).data('roundnum');
     if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=delete_round&imac_class=' + round_class + '&imac_type=' + round_type + '&roundnum=' + round_num,
+        url:          'data_sqlite.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -542,9 +542,9 @@ $(document).ready(function(){
   // Start a round - only if it's paused or unstarted and if no other rounds are started.
   $(document).on('click', '.function_start a', function(e){
     e.preventDefault();
-    var round_class = $(this).data('imac_class');
-    var round_type = $(this).data('imac_type');
-    var round_num = $(this).data('roundnum');
+    var round_class = $(this).data('imacclass');
+    var round_type  = $(this).data('imactype');
+    var round_num   = $(this).data('roundnum');
     var round_phase = $(this).data('phase');
     var blOkToGo = true;
     
@@ -558,7 +558,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=start_round&imac_class=' + round_class + '&imac_type=' + round_type + '&roundnum=' + round_num,
+        url:          'data_sqlite.php?job=start_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -586,9 +586,9 @@ $(document).ready(function(){
   // Pause a round - only if it's currently open (flying).
   $(document).on('click', '.function_pause a', function(e){
     e.preventDefault();
-    var round_class = $(this).data('imac_class');
-    var round_type = $(this).data('imac_type');
-    var round_num = $(this).data('roundnum');
+    var round_class = $(this).data('imacclass');
+    var round_type  = $(this).data('imactype');
+    var round_num   = $(this).data('roundnum');
     var round_phase = $(this).data('phase');
     var blOkToGo = true;
     
@@ -602,7 +602,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=pause_round&imac_class=' + round_class + '&imac_type=' + round_type + '&roundnum=' + round_num,
+        url:          'data_sqlite.php?job=pause_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -630,9 +630,9 @@ $(document).ready(function(){
   // Set a paused round to be completed.
   $(document).on('click', '.function_finish a', function(e){
     e.preventDefault();
-    var round_class = $(this).data('imac_class');
-    var round_type = $(this).data('imac_type');
-    var round_num = $(this).data('roundnum');
+    var round_class = $(this).data('imacclass');
+    var round_type  = $(this).data('imactype');
+    var round_num   = $(this).data('roundnum');
     var round_phase = $(this).data('phase');
     var blOkToGo = true;
     
@@ -646,7 +646,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=finish_round&imac_class=' + round_class + '&imac_type=' + round_type + '&roundnum=' + round_num,
+        url:          'data_sqlite.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -671,37 +671,37 @@ $(document).ready(function(){
     }
   });  // Finish round...
 
-  $('#imac_type').on('change',function(){
+  $('#imacType').on('change',function(){
     $(this).parent('.field_container').removeClass('error');
-    $('#imac_type-error').hide();
+    $('#imacType-error').hide();
     if( $(this).val()==="Freestyle"){
-      $('#imac_class').parent('.field_container').removeClass('error');
-      $('#imac_class-error').hide();
+      $('#imacClass').parent('.field_container').removeClass('error');
+      $('#imacClass-error').hide();
       $('#sequences').parent('.field_container').removeClass('error');
       $('#sequences-error').hide();
 
-      $("#imac_class").hide()
+      $("#imacClass").hide()
       $("#sequences").hide();
-      $("#hidden_imac_class").show();
+      $("#hidden_imacClass").show();
       $("#hidden_sequences").show();
     } else if ( $(this).val()==="Unknown") {
-      $("#imac_class").show()
-      $("#hidden_imac_class").hide();
+      $("#imacClass").show()
+      $("#hidden_imacClass").hide();
       $("#sequences").hide();
       $("#hidden_sequences").show();
     } else {
-      $("#imac_class").show()
+      $("#imacClass").show()
       $("#sequences").show();
-      $("#hidden_imac_class").hide();
+      $("#hidden_imacClass").hide();
       $("#hidden_sequences").hide();
     }
-    fillSchedules($('#imac_class').val(), $(this).val());
-    setNextRound($('#imac_class').val(), $(this).val());
+    fillSchedules($('#imacClass').val(), $(this).val());
+    setNextRound($('#imacClass').val(), $(this).val());
   });
 
-  $('#roundnum').on('focus',function(){
+  $('#roundNum').on('focus',function(){
     $(this).parent('.field_container').removeClass('error');
-    $('#roundnum-error').hide();
+    $('#roundNum-error').hide();
   });
   
   $('#schedule').on('change',function(){
@@ -709,11 +709,11 @@ $(document).ready(function(){
     $('#schedule-error').hide();
   });
 
-  $('#imac_class').on('change',function(){
+  $('#imacClass').on('change',function(){
     $(this).parent('.field_container').removeClass('error');
-    $('#imac_class-error').hide();
-    fillSchedules($(this).val(), $('#imac_type').val());
-    setNextRound($(this).val(), $('#imac_type').val());
+    $('#imacClass-error').hide();
+    fillSchedules($(this).val(), $('#imacType').val());
+    setNextRound($(this).val(), $('#imacType').val());
   });
 });
     

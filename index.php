@@ -48,10 +48,10 @@
         <h2>Add Round</h2>
         <form class="form add" id="form_round" data-id="" novalidate>
           <div class="input_container">
-            <label for="imac_class">Class: </label>         
+            <label for="imacClass">Class: </label>         
             <div class="field_container">
               <label class='error' id="class-error"></label>
-              <select name="imac_class" id="imac_class">
+              <select name="imacClass" id="imacClass">
                 <option value="">Please choose a class</option>
                 <option value="Basic">Basic</option>
                 <option value="Sportsman">Sportsman</option>
@@ -59,14 +59,14 @@
                 <option value="Advanced">Advanced</option>
                 <option value="Unlimited">Unlimited</option>
               </select>
-              <label id="hidden_imac_class" class="hiddenlabel">Any</label>  
+              <label id="hidden_imacClass" class="hiddenlabel">Any</label>  
             </div>
           </div>
           <div class="input_container">
-            <label for="imac_type">Round Type: <span class="required">*</span></label>
+            <label for="imacType">Round Type: <span class="required">*</span></label>
             <div class="field_container">
-              <label class='error' id="imac_type-error"></label>
-              <select name="imac_type" id="imac_type">
+              <label class='error' id="imacType-error"></label>
+              <select name="imacType" id="imacType">
                 <option value="Known">Known</option>
                 <option value="Unknown">Unknown</option>
                 <option value="Freestyle">Freestyle</option>
@@ -74,10 +74,10 @@
             </div>
           </div>
           <div class="input_container">
-            <label for="roundnum">Round Number: <span class="required">*</span></label>
+            <label for="roundNum">Round Number: <span class="required">*</span></label>
             <div class="field_container">
-              <label class='error' id="roundnum-error"></label>
-              <input type="text" class="text" name="roundnum" id="roundnum" value="" required>
+              <label class='error' id="roundNum-error"></label>
+              <input type="text" class="text" name="roundNum" id="roundNum" value="" required>
             </div>
           </div>
           <div class="input_container">

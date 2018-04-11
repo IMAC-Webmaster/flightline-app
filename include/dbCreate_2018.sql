@@ -2,23 +2,32 @@
  * Bare bones SQL script
  */
 
+
+drop table config;
+CREATE TABLE config
+(
+   flightLineId   integer primary key
+);
+
+insert into config (flightLineId) values (1);
+
 drop table round;
 CREATE TABLE round
 (
-   round_id       integer primary key,
-   flightline     tinyint,
-   imac_class     varchar(15) not null,
-   imac_type      varchar(15) CHECK( imac_type IN ('Known','Unknown','Freestyle') ) NOT NULL DEFAULT 'Known',
-   roundnum       number tinyint not null,
-   comproundnum   number tinyint,
-   sched_id       varchar(8) not null,
+   roundId        integer primary key,
+   flightLine     tinyint,
+   imacClass      varchar(15) not null,
+   imacType       varchar(15) CHECK( imacType IN ('Known','Unknown','Freestyle') ) NOT NULL DEFAULT 'Known',
+   roundNum       number tinyint not null,
+   compRoundNum   number tinyint,
+   schedId        varchar(8) not null,
    sequences      tinyint not null,
-   phase          text CHECK( status IN ('U','O','P','D') ) NOT NULL DEFAULT 'U',
+   phase          text CHECK( phase IN ('U','O','P','D') ) NOT NULL DEFAULT 'U',
    status         text DEFAULT null,
-   next_pilot_id  integer,
-   starttime      integer,
-   finishtime     integer,
-   UNIQUE (imac_class, imac_type, roundnum) ON CONFLICT ROLLBACK
+   nextPilotId    integer,
+   startTime      integer,
+   finishTime     integer,
+   UNIQUE (imacClass, imacType, roundNum) ON CONFLICT ROLLBACK
 );
 
 /****************************
@@ -28,26 +37,26 @@ CREATE TABLE round
    D = Done - complete.
 *****************************/
 
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Basic', 'Known', 1, 'BAS-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Basic', 'Known', 2, 'BAS-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Basic', 'Known', 3, 'BAS-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Basic', 'Unknown', 1, 'BAS-UNKN', 1, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Sportsman', 'Known', 1, 'SPO-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Sportsman', 'Known', 2, 'SPO-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Sportsman', 'Known', 3, 'SPO-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Sportsman', 'Unknown', 1, 'SPO-UNKN', 1, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Intermediate', 'Known', 1, 'INT-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Intermediate', 'Known', 2, 'INT-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Intermediate', 'Known', 3, 'INT-KNWN', 2, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Intermediate', 'Unknown', 1, 'INT-UNKN', 1, 'U');
-insert into round (imac_class, imac_type, roundnum, sched_id, sequences, phase) values ('Any', 'Freestyle', 1, 'FREE', 1, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Basic', 'Known', 1, 'BAS-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Basic', 'Known', 2, 'BAS-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Basic', 'Known', 3, 'BAS-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Basic', 'Unknown', 1, 'BAS-UNKN', 1, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Sportsman', 'Known', 1, 'SPO-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Sportsman', 'Known', 2, 'SPO-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Sportsman', 'Known', 3, 'SPO-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Sportsman', 'Unknown', 1, 'SPO-UNKN', 1, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Intermediate', 'Known', 1, 'INT-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Intermediate', 'Known', 2, 'INT-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Intermediate', 'Known', 3, 'INT-KNWN', 2, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Intermediate', 'Unknown', 1, 'INT-UNKN', 1, 'U');
+insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) values ('Any', 'Freestyle', 1, 'FREE', 1, 'U');
 
 
 drop table user;
 CREATE TABLE user
 (
-   user_id        varchar not null primary key,
-   fullname       varchar not null,
+   userId         varchar not null primary key,
+   fullName       varchar not null,
    password       varchar not null,
    address        varchar not null
 );
@@ -58,9 +67,9 @@ insert into user values ('nicole', 'Nicole McNaughton', '12qwaszx', 'Some Addres
 
 drop table schedule;
 CREATE TABLE schedule (
-   schedule_id    varchar(8) not null primary key,
-   imac_class     varchar(15),
-   imac_type      varchar(15) CHECK( imac_type IN ('Known','Unknown','Freestyle') ) NOT NULL DEFAULT 'Known',
+   schedId        varchar(8) not null primary key,
+   imacClass      varchar(15),
+   imacType       varchar(15) CHECK( imacType IN ('Known','Unknown','Freestyle') ) NOT NULL DEFAULT 'Known',
    description    varchar(64) not null
 );
 
@@ -82,13 +91,13 @@ insert into schedule values ('FREE', null, 'Freestyle', 'Freestyle');
 
 drop table figure;
 CREATE TABLE figure (
-   figurenum      tinyint not null,
-   sched_id       varchar(8),
-   short_desc     varchar (20) not null,
-   long_desc      varchar(128),
+   figureNum      tinyint not null,
+   schedId        varchar(8),
+   shortDesc      varchar (20) not null,
+   longDesc       varchar(128),
    rule           tinyint not null,
    k              tinyint not null,
-   PRIMARY KEY(figurenum, sched_id)
+   PRIMARY KEY(figureNum, schedId)
 );
 
 insert into figure values (1, 'BAS-KNWN', 'Full Roll', 'Full Roll', 1, 10);
@@ -107,13 +116,13 @@ insert into figure values (12, 'BAS-KNWN', 'Airspace', 'Airspace Control', 2, 3)
 
 drop table pilot;
 create table pilot (
-   pilot_id         integer not null primary key,
+   pilotId         integer not null primary key,
    primary_id       integer not null,
    secondary_id     integer,
-   fullname         varchar(60) not null,
+   fullName         varchar(60) not null,
    airplane         varchar(60),
    freestyle        tinyint CHECK( freestyle IN (0, 1) ) NOT NULL DEFAULT 0,
-   imac_class       varchar(15) not null,
+   imacClass       varchar(15) not null,
    in_customclass1  tinyint CHECK( in_customclass1 IN (0, 1) ) NOT NULL DEFAULT 0,
    in_customclass2  tinyint CHECK( in_customclass2 IN (0, 1) ) NOT NULL DEFAULT 0,
    active           active CHECK( in_customclass2 IN (0, 1) ) NOT NULL DEFAULT 1
@@ -125,9 +134,9 @@ insert into pilot values (2, 1002, null, 'Michael Hobson', 'Extra 330', 0, 'Inte
 
 drop table flight;
 create table flight (
-   flight_id        integer not null primary key,
-   pilot_id         integer not null,
-   round_id         integer not null
+   flightId         integer not null primary key,
+   pilotId          integer not null,
+   roundId          integer not null
 );
 
 insert into flight values (1, 1, 9);
@@ -139,17 +148,17 @@ insert into flight values (6, 2, 12);
 
 drop table sheet;
 create table sheet (
-   sheet_id         integer not null primary key,
-   flight_id        integer not null,
-   sequence_num     tinyint not null,
-   judge_num        tinyint not null,
-   judge_name       text,
-   scribe_name      text,
+   sheetId          integer not null primary key,
+   flightId         integer not null,
+   sequenceNum      tinyint not null,
+   judgeNum         tinyint not null,
+   judgeName        text,
+   scribeName       text,
    comment          text,
-   mpp_penalty      tinyint CHECK( mpp_penalty IN (0, 1) ) NOT NULL DEFAULT 0,
-   flight_zeroed    tinyint CHECK( flight_zeroed IN (0, 1) ) NOT NULL DEFAULT 0,
-   zero_reason      text,
-   UNIQUE (flight_id, sequence_num, judge_num) ON CONFLICT ROLLBACK
+   mppPenalty       tinyint CHECK( mppPenalty IN (0, 1) ) NOT NULL DEFAULT 0,
+   flightZeroed     tinyint CHECK( flightZeroed IN (0, 1) ) NOT NULL DEFAULT 0,
+   zeroReason       text,
+   UNIQUE (flightId, sequenceNum, judgeNum) ON CONFLICT ROLLBACK
 );
 
 insert into sheet values (1, 1, 1, 1, "Judge 1, F1 S1", "Scribe 1 F1, S1", "comment", 0, 0, "zero comment");
@@ -175,13 +184,13 @@ insert into sheet values (20, 6, 1, 2, "Judge 2, F6 S1 unknown", "Scribe 2 F6, S
 
 drop table score;
 create table score (
-   sheet_id         integer not null,
-   figure_num       tinyint not null,
-   scoretime        integer not null,
-   break_penalty    tinyint CHECK( break_penalty IN (0, 1) ) NOT NULL DEFAULT 0,
+   sheetId          integer not null,
+   figureNum        tinyint not null,
+   scoreTime        integer not null,
+   breakPenalty     tinyint CHECK( breakPenalty IN (0, 1) ) NOT NULL DEFAULT 0,
    score            numeric,
    comment          text,
-   PRIMARY KEY(sheet_id, figure_num)
+   PRIMARY KEY(sheetId, figureNum)
 );
 
 insert into score values (1, 1,  1234567, 0, 4.5, null);

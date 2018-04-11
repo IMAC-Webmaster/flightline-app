@@ -1,8 +1,8 @@
 <?php
 
-function convertClassToCompID($imac_class, $imac_type) {
+function convertClassToCompID($imacClass, $imacType) {
 
-    switch (strtolower($imac_class)) {
+    switch (strtolower($imacClass)) {
         case "basic":
             return 1;
         case "sportsman":
@@ -16,7 +16,7 @@ function convertClassToCompID($imac_class, $imac_type) {
         case "invitational":
             return 7;
         default:
-            if (strtolower($imac_type) === "freestyle")
+            if (strtolower($imacType) === "freestyle")
                 // Give freestyle it's own class.
                 return 6;
             else
