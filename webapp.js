@@ -6,7 +6,7 @@ $(document).ready(function(){
   // On page load: datatable
   var table_pilotlist = null;
   var table_roundlist = $('#table_roundlist').DataTable({
-    "ajax": "data_sqlite.php?job=get_rounds",
+    "ajax": "data.php?job=get_rounds",
     "columns": [
       { "data": "roundId"},
       { "data": "imacClass"},
@@ -185,7 +185,7 @@ $(document).ready(function(){
     }
     
     table_pilotlist = $('#table_pilotlist').DataTable({
-      "ajax": "data_sqlite.php?job=get_round_pilots&roundId=" + data.roundId,
+      "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId,
       "columns": [
         { "data": "pilotId"},
         { "data": "fullName"},
@@ -318,7 +318,7 @@ $(document).ready(function(){
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data_sqlite.php?job=get_nextrnd_ids',
+      url:          'data.php?job=get_nextrnd_ids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -351,7 +351,7 @@ $(document).ready(function(){
 
     // Now get the schedules.
     var sched_request = $.ajax({
-      url:          'data_sqlite.php?job=get_schedlist',
+      url:          'data.php?job=get_schedlist',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -395,7 +395,7 @@ $(document).ready(function(){
       show_loading_message();
       var form_data = $('#form_round').serialize();
       var request   = $.ajax({
-        url:          'data_sqlite.php?job=add_round',
+        url:          'data.php?job=add_round',
         cache:        false,
         data:         form_data,
         dataType:     'json',
@@ -447,7 +447,7 @@ $(document).ready(function(){
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data_sqlite.php?job=get_nextrnd_ids',
+      url:          'data.php?job=get_nextrnd_ids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -476,7 +476,7 @@ $(document).ready(function(){
 
     // Now get the schedules.
     var sched_request = $.ajax({
-      url:          'data_sqlite.php?job=get_schedlist',
+      url:          'data.php?job=get_schedlist',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -504,7 +504,7 @@ $(document).ready(function(){
     });
     
     var round_request = $.ajax({
-      url:          'data_sqlite.php?job=get_round',
+      url:          'data.php?job=get_round',
       cache:        false,
       data:         'imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
       dataType:     'json',
@@ -553,7 +553,7 @@ $(document).ready(function(){
       var round_num      = $('#form_round').attr('data-roundNum');
       var form_data = $('#form_round').serialize();
       var request   = $.ajax({
-        url:          'data_sqlite.php?job=edit_round&prevclass=' + round_class + '&prevtype=' + round_type + '&prevroundNum=' + round_num,
+        url:          'data.php?job=edit_round&prevclass=' + round_class + '&prevtype=' + round_type + '&prevroundNum=' + round_num,
         cache:        false,
         data:         form_data,
         dataType:     'json',
@@ -588,7 +588,7 @@ $(document).ready(function(){
     if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -632,7 +632,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=start_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=start_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -676,7 +676,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=pause_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=pause_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -720,7 +720,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -765,7 +765,7 @@ $(document).ready(function(){
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data_sqlite.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
