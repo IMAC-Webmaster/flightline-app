@@ -356,6 +356,16 @@ table.datatable tbody td.functions .function_buttons a {
   -moz-border-radius:    6px;
   border-radius:         6px;
 }
+table.datatable tbody td.functions .function_buttons .function_set_next_flight_button a{
+  width: 110px;
+}
+
+table.datatable tbody td.functions .function_buttons .function_set_next_flight1 a:before {
+  font-size: 1.1rem;
+}
+table.datatable tbody td.functions .function_buttons .function_set_next_flight2 a:before {
+  font-size: 1.1rem;
+}
 table.datatable tbody td.functions .function_buttons .function_start a:before {
   font-size: 1.1rem;
   content: "\f04b";
@@ -387,6 +397,230 @@ table.datatable tbody td.functions .function_buttons .function_blankspace a {
 }
 table.datatable tbody td.functions .function_buttons span {
   display: none;
+}
+
+
+/* Roundbox ------------------------------------------------------------------------------------- */
+.roundbox_bg {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  background-color: #333;
+  background-color: rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+}
+
+.roundbox_container {
+  display: none;
+  position: fixed;
+  top: 5%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  z-index: 200;
+  background-color: #fff;
+  color: #666;
+  overflow-y: scroll;
+  overflow-x: auto;
+  padding: 50px 0 0 0;
+   -webkit-box-sizing: border-box;
+  -moz-box-sizing:     border-box;
+  box-sizing:          border-box;
+  -webkit-border-radius: 6px;
+  -moz-border-radius:    6px;
+  border-radius:         6px;
+}
+
+.roundbox_close {
+  width: 35px;
+  height: 35px;
+  position: absolute;
+  top: 45px;
+  right: 45px;
+  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  font-size: 20px;
+  line-height: 35px;
+  text-align: center;
+  color: #f70;
+  cursor: pointer;
+  border: 2px solid #f70;
+  -webkit-border-radius: 35px;
+  -moz-border-radius:    35px;
+  border-radius:         35px;
+}
+.roundbox_close:before {
+  content: '\f00d';
+}
+.roundbox_close:hover {
+  color: #333;
+  border-color: #333;
+}
+
+.roundbox_content {
+  width: 90%;
+  padding: 0 50px 0 50px;
+}
+.roundbox_content h2 {
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 2rem;
+  color: #f70;
+  margin: 0 0 25px 0;
+}
+
+.roundbox_content .input_container {
+  width: 600px;
+  margin: 0 0 10px 0;
+}
+
+.roundbox_content .input_container:after {
+  clear: both;
+  height: 0;
+  display: block;
+  font-size: 0;
+  line-height: 0;
+  content: ' ';
+}
+
+.roundbox_content .input_container label {
+  width: 200px;
+  float: left;
+  font-size: 1rem;
+  line-height: 32px;
+}
+.roundbox_content .input_container label span.required {
+  font-weight: bold;
+  color: #f70;
+}
+
+.roundbox_content .input_container select {
+  width: 200px;
+  float: left;
+  font-size: 1rem;
+  line-height: 32px;
+  border: 1px solid #f70;
+  padding-left: 5px;
+}
+
+.roundbox_content .rounddetails_container .field_container {
+  left: 20px;
+  width: 110px;
+  display: block;
+  float: left;
+  clear: left;
+}
+
+.roundbox_content .rounddetails_container .field_details {
+  width: 200px;
+  display: block;
+  float: left;
+}
+
+.roundbox_content .roundinstructions_container {
+  margin-left: 20%;
+  position: absolute;
+}
+
+.roundbox_content .roundpilots_container {
+  width: 50%;
+  display: block;
+  float: left;
+  clear: left;
+  margin-top: 10px;
+}
+
+.roundbox_content .input_container .field_container .field_details label.error {
+  width: 400px;
+  display: block;
+  background-color: #fff1e6;
+  line-height: 1.4rem;
+  color: #333;
+  padding: 5px 0 6px 10px;
+  border: 1px solid #f70;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing:    border-box;
+  box-sizing:         border-box;
+  -webkit-border-radius: 6px;
+  -moz-border-radius:    6px;
+  border-radius:         6px;
+  margin: 0 0 5px 0;
+}
+.roundbox_content .input_container .field_container .field_details label.error.valid {
+  display: none !important;
+}
+
+.roundbox_content .input_container .field_container .field_details label.hiddenlabel {
+  display: none; padding: 1px; padding-left: 5px;
+}
+
+.roundbox_content .input_container .field_container .field_details input {
+  width: 400px;
+  height: 32px;
+  background-color: #f9f9f9;
+  line-height: 30px;
+  color: #666;
+  padding: 0 0 0 10px;
+  border: 1px solid #ccc;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing:    border-box;
+  box-sizing:         border-box;
+  -webkit-border-radius: 6px;
+  -moz-border-radius:    6px;
+  border-radius:         6px;
+}
+.roundbox_content .input_container .field_container .field_details input:focus {
+  background-color: #ffd;
+  color: #000;
+}
+
+.roundbox_content .input_container .field_container.error:after,
+.roundbox_content .input_container .field_container.valid:after {
+  width: 32px;
+  height: 32px;
+  position: absolute;
+  bottom: 0;
+  right: -42px;
+  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  font-size: 20px;
+  line-height: 32px;
+  text-align: center;
+}
+.roundbox_content .input_container .field_container.error:after {
+  content: '\f00d';
+  color: #c00;
+}
+.roundbox_content .input_container .field_container.valid:after {
+  content: '\f00c';
+  color: #090;
+}
+
+.roundbox_content .button_container {
+  width: 600px;
+  height: 35px;
+  text-align: right;
+  padding: 15px 0 50px 0;
+}
+.roundbox_content .button_container button {
+  height: 35px;
+  display: inline-block;
+  background-color: #999;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 0 15px 0 15px;
+  -webkit-border-radius: 6px;
+  -moz-border-radius:    6px;
+  border-radius:         6px;
+}
+.roundbox_content .button_container button:hover {
+  background-color: #333;
+  color: #fff;
 }
 
 /* Lightbox ------------------------------------------------------------------------------------- */
@@ -601,6 +835,7 @@ table.datatable tbody td.functions .function_buttons span {
 }
 #message_container {
   display: none;
+  z-index: 300;
 }
 #message,
 #noscript {
@@ -608,12 +843,14 @@ table.datatable tbody td.functions .function_buttons span {
   line-height: 20px;
   padding: 10px 5px 10px 6px;
   margin: 0 auto 0 auto;
+  z-index: 300;
 }
 #message  p,
 #noscript p {
   display: inline-block;
   position: relative;
   padding: 0 0 0 28px;
+  z-index: 300;
 }
 #message  p:before,
 #noscript p:before {

@@ -4,9 +4,11 @@ $(document).ready(function(){
   var nextroundNums;
   var rounddata;
   // On page load: datatable
-  var table_roundlist = $('#table_roundlist').dataTable({
+  var table_pilotlist = null;
+  var table_roundlist = $('#table_roundlist').DataTable({
     "ajax": "data_sqlite.php?job=get_rounds",
     "columns": [
+      { "data": "roundId"},
       { "data": "imacClass"},
       { "data": "imacType" },
       { "data": "roundNum",       "sClass": "integer" },
@@ -17,8 +19,10 @@ $(document).ready(function(){
       { "data": "status" },
       { "data": "functions",      "sClass": "functions" }
     ],
-    "aoColumnDefs": [
-      { "bSortable": false, "aTargets": [-1] }
+    "columnDefs": [
+      { targets: '_all', "className": 'details-control' },
+      { targets: [0], visible: false  },
+      { targets: [-1], "orderable": false }
     ],
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "oLanguage": {
@@ -88,7 +92,7 @@ $(document).ready(function(){
     }
     timeout_message = setTimeout(function(){
       hide_message();
-    }, 8000);
+    }, 10000);
   }
   // Hide message
   function hide_message(){
@@ -165,6 +169,58 @@ $(document).ready(function(){
     $('.lightbox_bg').hide();
     $('.lightbox_container').hide();
   }
+
+  // Show lightbox
+  function show_roundbox(data){
+    $('.roundbox_bg').show();
+    $('.roundbox_container').show();
+    $('#class-details').text(data.imacClass);
+    $('#roundnum-details').text(data.roundNum);
+    if (data.sequences == 2) {
+        $('#roundtype-details').text(data.imacType + " Double");
+    } else if(data.imacType == 'Known') {
+        $('#roundtype-details').text(data.imacType + " Single");        
+    } else {
+        $('#roundtype-details').text(data.imacType);        
+    }
+    
+    table_pilotlist = $('#table_pilotlist').DataTable({
+      "ajax": "data_sqlite.php?job=get_round_pilots&roundId=" + data.roundId,
+      "columns": [
+        { "data": "pilotId"},
+        { "data": "fullName"},
+        { "data": "flightId"},
+        { "data": "functions",      "sClass": "functions" },
+        { "data": "noteHint"}
+      ],
+      "columnDefs": [
+        { targets: '_all', "className": 'details-control' },
+        { targets: [0], visible: false  },
+        { targets: [-1], "orderable": false }
+      ],
+      "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+      "oLanguage": {
+        "oPaginate": {
+          "sFirst":       " ",
+          "sPrevious":    " ",
+          "sNext":        " ",
+          "sLast":        " "
+        },
+        "sLengthMenu":    "Records per page: _MENU_",
+        "sInfo":          "Total of _TOTAL_ records (showing _START_ to _END_)",
+        "sInfoFiltered":  "(filtered from _MAX_ total records)"
+      }
+    });
+  }
+  // Hide lightbox
+  function hide_roundbox(){
+    $('.roundbox_bg').hide();
+    $('.roundbox_container').hide();
+    if ( $.fn.dataTable.isDataTable( table_pilotlist ) ) {
+        table_pilotlist.destroy();
+    }
+    
+  }
   
   function validateForm() {
     var form_valid = true;
@@ -219,6 +275,15 @@ $(document).ready(function(){
         $("#roundNum").val(1);
     }
   }
+
+  // Roundbox background
+  $(document).on('click', '.roundbox_bg', function(){
+    hide_roundbox();
+  });
+  // Lightbox close button
+  $(document).on('click', '.roundbox_close', function(){
+    hide_roundbox();
+  });
   
   // Lightbox background
   $(document).on('click', '.lightbox_bg', function(){
@@ -232,6 +297,7 @@ $(document).ready(function(){
   $(document).keyup(function(e){
     if (e.keyCode == 27){
       hide_lightbox();
+      hide_roundbox();
     }
   });
   
@@ -242,7 +308,7 @@ $(document).ready(function(){
   }
 
   // Add round button
-  $(document).on('click', '#add_round', function(e){
+  $(document).on('click', '#add_round', function(e) {
     e.preventDefault();
 
     // Get next round details..
@@ -252,7 +318,7 @@ $(document).ready(function(){
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data_sqlite.php?job=get_nextrnds',
+      url:          'data_sqlite.php?job=get_nextrnd_ids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -318,7 +384,7 @@ $(document).ready(function(){
   });
 
   // Add round submit form
-  $(document).on('submit', '#form_round.add', function(e){
+  $(document).on('submit', '#form_round.add', function(e) {
     e.preventDefault();
 
 
@@ -339,7 +405,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result == 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             var round_class = $('#imacClass').val();
             var round_type =  $('#imacType').val();
@@ -358,6 +424,14 @@ $(document).ready(function(){
     }
   });
 
+  // Click on a table row.
+  $('#table_roundlist tbody').on('click', 'td.details-control', function () {
+      var tr = $(this).closest('tr');
+      var row = table_roundlist.row( tr );
+
+      show_roundbox(row.data()); 
+  });
+
   // Edit round button
   $(document).on('click', '.function_edit a', function(e){
     e.preventDefault();
@@ -373,7 +447,7 @@ $(document).ready(function(){
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data_sqlite.php?job=get_nextrnds',
+      url:          'data_sqlite.php?job=get_nextrnd_ids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -466,7 +540,7 @@ $(document).ready(function(){
   }); // Edit round.
   
   // Edit round submit form
-  $(document).on('submit', '#form_round.edit', function(e){
+  $(document).on('submit', '#form_round.edit', function(e) {
     e.preventDefault();
 
     if (validateForm()){
@@ -489,7 +563,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result == 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' edited successfully." + output.message, 'success');
           }, true);
@@ -523,7 +597,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result === 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' deleted successfully.", 'success');
           }, true);
@@ -567,7 +641,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result === 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is started.", 'success');
           }, true);
@@ -611,7 +685,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result === 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is paused.", 'success');
           }, true);
@@ -655,7 +729,7 @@ $(document).ready(function(){
       request.done(function(output){
         if (output.result === 'success'){
           // Reload datable
-          table_roundlist.api().ajax.reload(function(){
+          table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is finished.", 'success');
           }, true);
@@ -670,6 +744,51 @@ $(document).ready(function(){
       });
     }
   });  // Finish round...
+
+  // Chose this flight for the next.
+  $(document).on('click', '.function_set_next_flight_button a', function(e){
+    e.preventDefault();
+    var next_seqnum   = $(this).data('seqnum');
+    var next_roundid  = $(this).data('roundid');
+    var next_pilotid  = $(this).data('pilotid');
+    var next_flightid = $(this).data('flightid');
+    var blOkToGo = true;
+    
+    show_message("Setting next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
+    
+    blOkToGo = false;
+    /*
+    if (!confirm("Are you sure you want to finish '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")) {
+        blOkToGo = false;
+    }
+    */
+    if (blOkToGo) {
+      show_loading_message();
+      var request = $.ajax({
+        url:          'data_sqlite.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        cache:        false,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output){
+        if (output.result === 'success'){
+          // Reload datable
+          table_roundlist.ajax.reload(function(){
+            hide_loading_message();
+            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is finished.", 'success');
+          }, true);
+        } else {
+          hide_loading_message();
+          show_message('Finish request failed: ' + output.message, 'error');
+        }
+      });
+      request.fail(function(jqXHR, textStatus){
+        hide_loading_message();
+        show_message('Finish request failed: ' + textStatus, 'error');
+      });
+    }
+  });  // Set next pilot....
 
   $('#imacType').on('change',function(){
     $(this).parent('.field_container').removeClass('error');

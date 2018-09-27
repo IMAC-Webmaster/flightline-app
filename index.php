@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en" dir="ltr">
   <head>
-    <title>jQuery SCRUD system</title>
+    <title>Score! Flightline Controller</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
@@ -16,13 +16,14 @@
 
     <div id="page_container">
 
-      <h1>IMAC Contest Flightline controller</h1>
+      <h1>Score! Flightline controller</h1>
 
       <button type="button" class="button" id="add_round">Add round</button>
 
       <table class="datatable" id="table_roundlist">
         <thead>
           <tr>
+            <th>RoundNum</th>
             <th>Class</th>
             <th>Round Type</th>
             <th>Round Num.</th>
@@ -103,6 +104,41 @@
           <div class="button_container">
             <button type="submit">Add Round</button>
           </div>
+        </form>
+        
+      </div>
+    </div>
+
+    <div class="roundbox_bg"></div>
+
+    <div class="roundbox_container">
+      <div class="roundbox_close"></div>
+      <div class="roundbox_content">
+        <h2>Round Details</h2>
+        <div class="rounddetails_container">
+          <div class="field_container">Class:</div><div class="field_details" id="class-details">Some Class</div>
+          <div class="field_container">Round:</div><div class="field_details" id="roundnum-details">Round Num</div>
+          <div class="field_container">Type:</div><div class="field_details" id="roundtype-details">Known</div>
+          <div class="roundinstructions_container">
+           Some instructions here...
+          </div>
+          <div class="roundpilots_container">
+            <table class="datatable" id="table_pilotlist">
+              <thead>
+                <tr>
+                  <th>Pilot ID</th>
+                  <th>Pilot Name</th>
+                  <th>Flight ID</th>
+                  <th>Next Flight Selection</th>
+                  <th>Notaumatic Hint</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <form class="form add" id="form_roundview" data-id="" novalidate>
         </form>
         
       </div>
