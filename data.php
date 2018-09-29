@@ -52,6 +52,9 @@ switch ($job) {
     case 'set_next_flight':
         setNextFlight();
         break;
+    case 'get_next_flight':
+        getNextFlight();
+        break;
     case 'get_schedlist':
         getSchedlist();
         break;

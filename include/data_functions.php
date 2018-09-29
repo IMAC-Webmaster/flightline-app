@@ -1,6 +1,32 @@
 <?php
 
-  
+function beginTrans($failureMsg = "") {
+    global $db;
+    global $result;
+    global $message;
+    if (!$db->exec("BEGIN TRANSACTION;")) {
+        $db->enableExceptions(true);
+        $result  = 'error';
+        $message = $failureMsg . "Error was: " . $db->lastErrorMsg();
+        return false;
+    } else {
+        return true;
+    }
+}
+
+function commitTrans($failureMsg = "") {
+    global $db;
+    global $result;
+    global $message;
+    if (!$db->exec("COMMIT;")) {
+        $result  = 'error';
+        $message = $failureMsg . "Error was: " . $db->lastErrorMsg();
+        return false;
+    } else {
+        return true;
+    }
+}
+
 function getRounds() {
     global $db;
     global $result;
@@ -336,7 +362,7 @@ function getRoundPilots() {
         while ($round = $res->fetchArray()) {
             $sequenceNum = $round['sequenceNum'];
             $functions  = '<div class="function_buttons"><ul>';
-            $functions .= '<li class="function_set_next_flight_button"><a data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-flightid="'   . $round['flightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
+            $functions .= '<li class="function_set_next_flight_button"><a data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-flightid="'   . $round['flightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
             $functions .= '</ul></div>';
             $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['flightId'] . " Comp:" . convertClassToCompID($round["imacClass"]);
             $sqlite_data[] = array(
@@ -409,6 +435,7 @@ function setNextFlight() {
     if (isset($_GET['seqnum']))    { $sequenceNum = $_GET['seqnum'];  }   else $sequenceNum = null;
 
     $query = "select imacClass from round where roundId = :roundId and phase = 'O';";
+    $compId = 0;
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':roundId', $roundId);
@@ -419,9 +446,8 @@ function setNextFlight() {
             return;
         }
     } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
         return;
     }
 
@@ -432,7 +458,7 @@ function setNextFlight() {
         $round = $res->fetchArray();
         if (!$round) {
             $result  = 'error';
-            $message = 'Round ' . $roundId . ' is not open.';
+            $message = 'This round is not open.';
             return;
         } else {
             $imacClass = $round["imacClass"];
@@ -452,46 +478,34 @@ function setNextFlight() {
             return;
         }
     } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
         return;
     }
 
-    if ($res === FALSE) {
+    $pilot = $res->fetchArray();
+    if (!$pilot) {
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        $message = 'Pilot ' . $pilotId . ' is not active or in the ' . $imacClass . ' class.';
         return;
-    } else {
-        $pilot = $res->fetchArray();
-        if (!$round) {
-            $result  = 'error';
-            $message = 'Pilot ' . $pilotId . ' is not active or in the ' . $imacClass . ' class.';
-            return;
-        } else if ( ($imacClass == "Freestyle") && ($pilot["freestyle"] != 1) ) {
-            $result  = 'error';
-            $message = 'Pilot ' . $pilotId . ' is not registered for freestyle.';
-            return;
-        } else if ($pilot["imacClass"] != $imacClass && $imacClass != "Freestyle") {
-            $result  = 'error';
-            $message = 'Pilot ' . $pilotId . ' is not in the ' . $imacClass . ' class.';
-            return;
-        }
+    } else if ( ($imacClass == "Freestyle") && ($pilot["freestyle"] != 1) ) {
+        $result  = 'error';
+        $message = 'Pilot ' . $pilotId . ' is not registered for freestyle.';
+        return;
+    } else if ($pilot["imacClass"] != $imacClass && $imacClass != "Freestyle") {
+        $result  = 'error';
+        $message = 'Pilot ' . $pilotId . ' is not in the ' . $imacClass . ' class.';
+        return;
     }
+
  
+    if (!beginTrans())
+        goto end_set_next_flight;
+
     // Now do the update
 
     $result = "";
-    if (!$db->exec("BEGIN TRANSACTION;")) {
-        $res = FALSE;
-        $err = error_get_last();
-        $result  = 'error';
-        $message = $err['message'];
-        goto end_set_next_flight;
-    }
-
-    $query = "REPLACE INTO state(key, value) "
-             . "VALUES('nextCompId', :compId); ";
+    $query = "DELETE FROM nextFlight; ";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':compId', $compId);
@@ -502,18 +516,18 @@ function setNextFlight() {
             goto end_set_next_flight;
         }
     } else {
-        //$res = FALSE;
-        $err = error_get_last();
         $result  = 'error';
-        $message = $err['message'];
+        $message = $db->lastErrorMsg();
         goto end_set_next_flight;
     }
 
-    $query = "REPLACE INTO state(key, value) "
-             . "VALUES('nextFlightId', :flightId); ";
+    $query = "INSERT INTO nextFlight(nextFlightId, nextCompId, nextPilotId) "
+             . "VALUES(:flightId, :compId, :pilotId); ";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':flightId', $flightId);
+            $statement->bindValue(':compId', $compId);
+            $statement->bindValue(':pilotId', $pilotId);
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
@@ -521,49 +535,161 @@ function setNextFlight() {
             goto end_set_next_flight;
         }
     } else {
-        //$res = FALSE;
-        $err = error_get_last();
         $result  = 'error';
-        $message = $err['message'];
+        $message = $db->lastErrorMsg();
         goto end_set_next_flight;
     }
 
-    $query = "REPLACE INTO state(key, value) "
-             . "VALUES('nextPilotId', :pilotId); ";
+    if (commitTrans("There was a problem setting the next flight. ") ) {
+        $result  = 'success';
+        $message = 'Next flight set to ' . $flightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
+    }
+    
+    end_set_next_flight:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if (!isset($message)) { $message = 'query error'; }
+    }    
+}
+
+function getNextFlight() {
+    global $db;
+    global $result;
+    global $message;
+
+    // Get the next flight data (seq, pilotname etc)
+    // Note: each round has 1 flight per sequence.
+    
+    $imacClass = null;
+    $compId = null;
+
+    if (isset($_GET['roundId']))   { $roundId     = $_GET['roundId'];  }  else $roundId = null;
+    
+    $query = "select * from flight f inner join round r on f.roundId = r.roundId where r.roundId = :roundId;";
+    $query = "select * from nextFlight nf inner join pilot p on nf.nextPilotId = p.pilotId";
+    // Make sure nf.compId = round.imacClass (convert)
+    // Make sure pilot is active and in freestyle (if need be) or in imacClass.
+    // Return pilot data, round data...
+
+    /*
+    $query = "select imacClass from round where roundId = :roundId and phase = 'O';";
+    $compId = 0;
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            return;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return;
+    }
+
+    if ($res === FALSE) {
+        $result  = 'error';
+        if (!isset($message)) { $message = 'query error'; }
+    } else {
+        $round = $res->fetchArray();
+        if (!$round) {
+            $result  = 'error';
+            $message = 'This round is not open.';
+            return;
+        } else {
+            $imacClass = $round["imacClass"];
+            // compId is the numeric form of the class (freestyle is also a kind of class...)
+            $compId = convertClassToCompID($imacClass);
+        }
+    }
+
+    $query = "select freestyle, imacClass, fullName from pilot where pilotId = :pilotId and active = 1;";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':pilotId', $pilotId);
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
+            $message = 'query error: ' . $e->getMessage();
+            return;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return;
+    }
+
+    $pilot = $res->fetchArray();
+    if (!$pilot) {
+        $result  = 'error';
+        $message = 'Pilot ' . $pilotId . ' is not active or in the ' . $imacClass . ' class.';
+        return;
+    } else if ( ($imacClass == "Freestyle") && ($pilot["freestyle"] != 1) ) {
+        $result  = 'error';
+        $message = 'Pilot ' . $pilotId . ' is not registered for freestyle.';
+        return;
+    } else if ($pilot["imacClass"] != $imacClass && $imacClass != "Freestyle") {
+        $result  = 'error';
+        $message = 'Pilot ' . $pilotId . ' is not in the ' . $imacClass . ' class.';
+        return;
+    }
+
+ 
+    if (!beginTrans())
+        goto end_set_next_flight;
+
+    // Now do the update
+
+    $result = "";
+    $query = "DELETE FROM nextFlight; ";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':compId', $compId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
             goto end_set_next_flight;
         }
     } else {
-        //$res = FALSE;
-        $err = error_get_last();
         $result  = 'error';
-        $message = $err['message'];
+        $message = $db->lastErrorMsg();
         goto end_set_next_flight;
     }
 
-    if (!$db->exec("COMMIT;")) {
-        //$res = FALSE;
-        $err = error_get_last();
-        $result  = 'error';
-        $message = $err['message'];
-        goto end_set_next_flight;
+    $query = "INSERT INTO nextFlight(nextFlightId, nextCompId, nextPilotId) "
+             . "VALUES(:flightId, :compId, :pilotId); ";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':flightId', $flightId);
+            $statement->bindValue(':compId', $compId);
+            $statement->bindValue(':pilotId', $pilotId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto end_set_next_flight;
+        }
     } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto end_set_next_flight;
+    }
+
+    if (commitTrans("There was a problem setting the next flight. ") ) {
         $result  = 'success';
         $message = 'Next flight set to ' . $flightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
     }
-
+    
     end_set_next_flight:
-    if ($result == "error") {
-        $result  = 'error';
+    if ($result == "error"){
         $db->exec("ROLLBACK;");
         if (!isset($message)) { $message = 'query error'; }
-    }
+    }   
+     * 
+     */ 
 }
 
 function getSchedlist() {
@@ -609,7 +735,7 @@ function addRound() {
     global $result;
     global $message;
     
-        // Add round
+    // Add round
     
     // Insert into two tables...   First one is the round table.
     // Second is the flight table (1 flight row per sequence).
@@ -628,9 +754,10 @@ function addRound() {
     if ($imacType != "Known" ) $sequences = 1;
 
     if (!$db->exec("BEGIN TRANSACTION;")) {
-        $err = error_get_last();
+        $db->enableExceptions(true);
+        $err = $db->lastErrorMsg();
         $result  = 'error';
-        $message = $err['message'];
+        $message = $err;
         goto end_add_round;
     }
 
@@ -647,6 +774,11 @@ function addRound() {
             $statement->bindValue(':phase',     'U');
             error_log($query);
             $res = $statement->execute();
+            if (!$res || $db->lastErrorCode() != 0) {
+                $result  = 'error';
+                $message = 'query error: ' . $db->lastErrorMsg();
+                goto end_add_round;
+            }
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();   
@@ -654,25 +786,23 @@ function addRound() {
         }
     } else {
         $result  = 'error';
-        $err = error_get_last();
-        $message = $err['message'];
+        $err = $db->lastErrorMsg();
+        $message = $err;
         goto end_add_round;
     }
-
     $newRoundId = $db->lastInsertRowID();
 
     $result = "";
 
     // Get the next flight id.
     $query = "select (max(flightid) + 1) as newFlightId from flight where imacClass = :imacClass";
-    
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':imacClass', $imacClass);
             $res = $statement->execute();
 
             $flight = $res->fetchArray();
-            if (!$flight) {
+            if (!$flight || $flight["newFlightId"] == null) {
                 // Null?
                 if ($imacClass == "Freestyle") {
                     $newFlightId = 91;
@@ -688,9 +818,9 @@ function addRound() {
           goto end_add_round;
         }
     } else {
-        $err = error_get_last();
+        $err = $db->lastErrorMsg();
         $result  = 'error';
-        $message = $err['message'];
+        $message = $err;
         goto end_add_round;
     }
 
@@ -710,28 +840,21 @@ function addRound() {
                 goto end_add_round;
             }
         } else {
-            $err = error_get_last();
+            $err = $db->lastErrorMsg();
             $result  = 'error';
-            $message = $err['message'];
+            $message = $err;
             goto end_add_round;
         }
         $newFlightId++;
     }
     
-    if (!$db->exec("COMMIT;")) {
-        //$res = FALSE;
-        $err = error_get_last();
-        $result  = 'error';
-        $message = $err['message'];
-        goto end_add_round;
-    } else {
+    if (commitTrans("There was a problem adding the round. ") ) {
         $result  = 'success';
-        $message = 'Next flight set to ' . $flightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
+        $message = 'Inserted new round (' . $newRoundId . ') into class ' . $imacClass . '.';
     }
 
     end_add_round:
     if ($result == "error"){
-        $result  = 'error';
         $db->exec("ROLLBACK;");
         if (!isset($message)) { $message = 'query error'; }
     }
@@ -752,49 +875,166 @@ function editRound() {
     if (isset($_GET['roundNum'])){      $roundNum       = $_GET['roundNum'];    } else $blOkToGo = false;
     if (isset($_GET['schedule'])){      $sched          = $_GET['schedule'];    } else $blOkToGo = false;
     if (isset($_GET['sequences'])){     $sequences      = $_GET['sequences'];   } else $blOkToGo = false;
+
+    // Sanity checks
+    if ($imacType == "Freestyle") $imacClass = "Freestyle";
+    if ($imacType != "Known" ) $sequences = 1;
     
     if (!blOkToGo) {
         $result  = 'error';
         $message = 'Unable to edit this round.  Some form data was missing.';
-    } else {
-        $query  = "update round set imacClass = :imacClass, imacType = :imacType, roundNum = :roundNum, schedId = :schedId, sequences = :sequences ";
-        $query .= "where imacClass = :prevclass and imacType = :prevtype and roundNum = :prevroundNum and phase ='U';";
+        return;
+    }
 
+    if (!beginTrans())
+        goto end_edit_round;
+    
+    $roundId = null;
+    $query  = "select * from round ";
+    $query .= "where imacClass = :prevclass and imacType = :prevtype and roundNum = :prevroundNum;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':prevclass',    $prevclass);
+            $statement->bindValue(':prevtype',     $prevtype);
+            $statement->bindValue(':prevroundNum', $prevroundNum);
+            $res = $statement->execute();
+
+            $round = $res->fetchArray();
+            if (!$round || $round["roundId"] == null) {
+                // Null?
+                $result  = 'error';
+                $message = 'Could not find the right round to edit.'; 
+                goto end_edit_round;
+            } else {
+                $roundId = $round["roundId"];
+                if ($round["phase"] != "U") {
+                    $result  = 'error';
+                    $message = 'Cannot edit a round that is already open.'; 
+                    goto end_edit_round; 
+                }
+            }
+        } catch (Exception $e) {
+          $result  = 'error';
+          $message = 'query error: ' . $e->getMessage(); 
+          goto end_edit_round;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto end_edit_round;
+    }
+
+    $query  = "update round set imacClass = :imacClass, imacType = :imacType, roundNum = :roundNum, schedId = :schedId, sequences = :sequences ";
+    $query .= "where imacClass = :prevclass and imacType = :prevtype and roundNum = :prevroundNum and phase ='U';";
+
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':prevclass',    $prevclass);
+            $statement->bindValue(':prevtype',     $prevtype);
+            $statement->bindValue(':prevroundNum', $prevroundNum);
+            $statement->bindValue(':imacClass',    $imacClass);
+            $statement->bindValue(':imacType',     $imacType);
+            $statement->bindValue(':roundNum',     $roundNum);
+            $statement->bindValue(':schedId',      $sched);
+            $statement->bindValue(':sequences',    $sequences);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();   
+            goto end_edit_round;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto end_edit_round;
+    }
+
+    $query  = "delete from flight ";
+    $query .= "where roundId = :roundId;";
+
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();   
+            goto end_edit_round;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto end_edit_round;
+    }
+
+    $newFlightId = 1;
+    // Get the next flight id.
+    $query = "select (max(flightid) + 1) as newFlightId from flight where imacClass = :imacClass";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':imacClass', $imacClass);
+            $res = $statement->execute();
+
+            $flight = $res->fetchArray();
+            if (!$flight || $flight["newFlightId"] == null) {
+                // Null?
+                if ($imacClass == "Freestyle") {
+                    $newFlightId = 91;
+                } else {
+                    $newFlightId = 1;
+                }
+            } else {
+                $newFlightId = $flight["newFlightId"];
+            }
+        } catch (Exception $e) {
+          $result  = 'error';
+          $message = 'query error: ' . $e->getMessage(); 
+          goto end_edit_round;
+        }
+    } else {
+        $err = $db->lastErrorMsg();
+        $result  = 'error';
+        $message = $err;
+        goto end_edit_round;
+    }
+    //echo "NFID: $newFlightId\nSEQ:$sequences\nCLS:$imacClass\nRnd:$roundId\n";
+
+    for ($i = 1; $i <= $sequences; $i++) {
+        $query = "INSERT INTO flight (flightId, imacClass, roundId, sequenceNum) "
+               . "VALUES(:flightId, :imacClass, :roundId, :sequenceNum); ";
         if ($statement = $db->prepare($query)) {
             try {
-                $statement->bindValue(':prevclass',    $prevclass);
-                $statement->bindValue(':prevtype',     $prevtype);
-                $statement->bindValue(':prevroundNum', $prevroundNum);
-                $statement->bindValue(':imacClass',   $imacClass);
-                $statement->bindValue(':imacType',    $imacType);
-                $statement->bindValue(':roundNum',     $roundNum);
-                $statement->bindValue(':schedId',     $sched);
-                $statement->bindValue(':sequences',    $sequences);
+                $statement->bindValue(':flightId', $newFlightId);
+                $statement->bindValue(':imacClass', $imacClass);
+                $statement->bindValue(':roundId', $roundId);
+                $statement->bindValue(':sequenceNum', $i);
                 $res = $statement->execute();
+                //echo "NFID: $newFlightId\nSEQ:$i\nCLS:$imacClass\nRnd:$roundId\n\n";
             } catch (Exception $e) {
                 $result  = 'error';
-                $message = 'query error: ' . $e->getMessage();          
+                $message = 'query error: ' . $e->getMessage(); 
+                goto end_edit_round;
             }
         } else {
-            $res = FALSE;
-            $err = error_get_last();
-            $message = $err['message'];
-        }
-
-        if ($res === FALSE){
+            $err = $db->lastErrorMsg();
             $result  = 'error';
-            if (!isset($message)) { $message = 'query error'; }
-        } else {
-            // Query was OK, but let's check if we actually deleted it (business rule - can only delete unflown rounds).
-            if ($db->changes() === 1) {
-                $result  = 'success';
-                $message = 'query success';
-            } elseif ($db->changes() === 0) {
-                $result  = 'error';
-                $message = 'Unable to delete this round.  Is it already started?';
-            }
+            $message = $err;
+            goto end_edit_round;
         }
+        $newFlightId++;
     }
+
+    if (commitTrans("There was a problem editing the round. ") ) {
+        $result  = 'success';
+        $message = 'Edited round (' . $roundId . ') sucessfully.';
+    }
+    
+    end_edit_round:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if (!isset($message)) { $message = 'query error'; }
+    }    
+    
 }
 
 function startRound() {
@@ -961,34 +1201,75 @@ function deleteRound() {
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
     if (isset($_GET['imacType'])){ $imacType = $_GET['imacType'];} else $imacType = null;
     if (isset($_GET['roundNum'])){ $roundNum = $_GET['roundNum'];} else $roundNum = null;
-    $query = "delete from round where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and phase ='U';";
+    //$query = "delete from round where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and phase ='U';";
+    $query = "select * from round where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum;";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':imacClass',    $imacClass);
             $statement->bindValue(':imacType',     $imacType);
-            $statement->bindValue(':roundNum', $roundNum);
+            $statement->bindValue(':roundNum',     $roundNum);
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();
         }
+        $round = $res->fetchArray();
+        if ($round["phase"] != 'U') {
+            $message = "This round has already been opened.   It cannot be deleted.";
+            $result  = 'error';
+            return;
+        }
     } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+        $result  = 'error';
+        $message = "Unknown DB error";
+        return;
     }
 
-    if ($res === FALSE){
+    $db->exec("BEGIN TRANSACTION;");
+    $query = "delete from round where roundId = :roundId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId',     $round["roundId"]);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();
+            goto end_delete_round;
+        }
+    } else {
         $result  = 'error';
+        $message = "Unknown DB error";
+        goto end_delete_round;
+    }
+    
+    $query = "delete from flight where roundId = :roundId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId',     $round["roundId"]);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();
+            goto end_delete_round;
+        }
+    } else {
+        $result  = 'error';
+        $message = "Unknown DB error";
+        goto end_delete_round;
+    }
+    
+    end_delete_round:
+    if ($result == "error") {
+        $db->exec("ROLLBACK;");
         if (!isset($message)) { $message = 'query error'; }
     } else {
-        // Query was OK, but let's check if we actually deleted it (business rule - can only delete unflown rounds).
-        if ($db->changes() === 1) {
-            $result  = 'success';
-            $message = 'query success';
-        } elseif ($db->changes() === 0) {
+        if (!$db->exec("COMMIT;")) {
+            $err = $db->lastErrorMsg();
             $result  = 'error';
-            $message = 'Unable to delete this round.  Is it already started?';
+            $message = "There was a problem deleting round " . $round["roundId"] . ".  Error was: " . $err;
+        } else {
+            $result  = 'success';
+            $message = 'Round ' . $round["roundId"] . ' has been deleted.';
         }
     }
 }

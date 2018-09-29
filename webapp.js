@@ -183,6 +183,7 @@ $(document).ready(function(){
     } else {
         $('#roundtype-details').text(data.imacType);        
     }
+    fillNextFlight(data.roundId);
     
     table_pilotlist = $('#table_pilotlist').DataTable({
       "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId,
@@ -748,24 +749,21 @@ $(document).ready(function(){
   // Chose this flight for the next.
   $(document).on('click', '.function_set_next_flight_button a', function(e){
     e.preventDefault();
-    var next_seqnum   = $(this).data('seqnum');
-    var next_roundid  = $(this).data('roundid');
-    var next_pilotid  = $(this).data('pilotid');
-    var next_flightid = $(this).data('flightid');
+    var thisButton = $(this);
+    var next_seqnum    = $(thisButton).data('seqnum');
+    var next_roundid   = $(thisButton).data('roundid');
+    var next_pilotid   = $(thisButton).data('pilotid');
+    var next_flightid  = $(thisButton).data('flightid');
+    var next_pilotname = $(thisButton).data('pilotname');
     var blOkToGo = true;
     
-    show_message("Setting next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
-    
-    blOkToGo = false;
-    /*
-    if (!confirm("Are you sure you want to finish '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")) {
-        blOkToGo = false;
-    }
-    */
+    //show_message("Setting next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
+    blOkToGo = true;
+
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+        url:          'data.php?job=set_next_flight&roundId=' + next_roundid + '&seqNum=' + next_seqnum + '&pilotId=' + next_pilotid + '&flightId=' + next_flightid,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -776,16 +774,19 @@ $(document).ready(function(){
           // Reload datable
           table_roundlist.ajax.reload(function(){
             hide_loading_message();
-            show_message("Round '" + round_type + "' number '" + round_num + "' in class '" + round_class + "' is finished.", 'success');
+            show_message("Set next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
+            fillNextFlight($(this).data('roundid'), next_pilotname, next_seqnum);
+            $('.function_set_next_flight_button a').removeClass("highlighted_button");
+            $(thisButton).addClass("highlighted_button");
           }, true);
         } else {
           hide_loading_message();
-          show_message('Finish request failed: ' + output.message, 'error');
+          show_message('Set next flight request failed: ' + output.message, 'error');
         }
       });
       request.fail(function(jqXHR, textStatus){
         hide_loading_message();
-        show_message('Finish request failed: ' + textStatus, 'error');
+        show_message('Set next flight request failed: ' + textStatus, 'error');
       });
     }
   });  // Set next pilot....
@@ -835,7 +836,34 @@ $(document).ready(function(){
     setNextRound($(this).val(), $('#imacType').val());
   });
 });
+
+function fillNextFlight(roundId, pilotName, seqNum) {
+    if (pilotName == null || seqNum == null) {
+
+      var request = $.ajax({
+        url:          'data.php?job=get_next_flight&roundId=' + roundId,
+        cache:        false,
+        dataType:     'json',
+        contentType:  'application/json; charset=utf-8',
+        type:         'get'
+      });
+      request.done(function(output) {
+        if (output.result === 'success') {
+          pilotName = output.data;
+        } else {
+          show_message('Could not get the next flgiht data: ' + textStatus, 'error');
+          pilotName = "Unknown";
+          seqNum = "Unknown";
+        }
+      });
+      request.fail(function(jqXHR, textStatus) {
+        show_message('Could not get the next flgiht data: ' + textStatus, 'error');
+      });
     
+    }
+    $('#nextflight-details').text("Sequence " + seqNum + " for pilot " + pilotName);
+}
+
 function removeOptions(selectbox) {
   var i;
   for(i = selectbox.options.length - 1 ; i > 0 ; i--) {

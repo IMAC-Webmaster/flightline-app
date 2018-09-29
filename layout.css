@@ -359,7 +359,12 @@ table.datatable tbody td.functions .function_buttons a {
 table.datatable tbody td.functions .function_buttons .function_set_next_flight_button a{
   width: 110px;
 }
-
+table.datatable tbody td.functions .function_buttons a.highlighted_button:hover,
+table.datatable tbody td.functions .function_buttons a.highlighted_button:active,
+table.datatable tbody td.functions .function_buttons a.highlighted_button:focus,
+table.datatable tbody td.functions .function_buttons .highlighted_button {
+  background-color: #f70;
+}
 table.datatable tbody td.functions .function_buttons .function_set_next_flight1 a:before {
   font-size: 1.1rem;
 }
@@ -516,13 +521,13 @@ table.datatable tbody td.functions .function_buttons span {
 }
 
 .roundbox_content .rounddetails_container .field_details {
-  width: 200px;
+  width: 22%;
   display: block;
   float: left;
 }
 
 .roundbox_content .roundinstructions_container {
-  margin-left: 20%;
+  margin-left: 28%;
   position: absolute;
 }
 
