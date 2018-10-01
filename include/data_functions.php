@@ -361,16 +361,18 @@ function getRoundPilots() {
         $message = 'query success';
         while ($round = $res->fetchArray()) {
             $sequenceNum = $round['sequenceNum'];
+            $btnId = $round['roundId'] . "_" . $round['pilotId'] . "_" . $round['flightId'] . "_" . convertClassToCompID($round["imacClass"]);
             $functions  = '<div class="function_buttons"><ul>';
-            $functions .= '<li class="function_set_next_flight_button"><a data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-flightid="'   . $round['flightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
+            $functions .= '<li class="function_set_next_flight_button"><a id="' . $btnId . '" data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-flightid="'   . $round['flightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
             $functions .= '</ul></div>';
-            $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['flightId'] . " Comp:" . convertClassToCompID($round["imacClass"]);
+            $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['flightId'] . " Comp:" . convertClassToCompID($round["imacClass"]) . " Schedule:" . $round["schedId"];
             $sqlite_data[] = array(
                 "pilotId"       => $round['pilotId'],
                 "fullName"      => $round['fullName'],
                 "flightId"      => $round['flightId'],
                 "functions"     => $functions,
-                "noteHint"      => $notehint
+                "noteHint"      => $notehint,
+                "compId"        => convertClassToCompID($round["imacClass"])
             );
         }
     }
@@ -556,7 +558,7 @@ function getNextFlight() {
     global $db;
     global $result;
     global $message;
-
+    global $sqlite_data;
     // Get the next flight data (seq, pilotname etc)
     // Note: each round has 1 flight per sequence.
     
@@ -565,50 +567,12 @@ function getNextFlight() {
 
     if (isset($_GET['roundId']))   { $roundId     = $_GET['roundId'];  }  else $roundId = null;
     
-    $query = "select * from flight f inner join round r on f.roundId = r.roundId where r.roundId = :roundId;";
-    $query = "select * from nextFlight nf inner join pilot p on nf.nextPilotId = p.pilotId";
+    $query = "select * from nextFlight nf inner join pilot p on nf.nextPilotId = p.pilotId where p.active = 1";
     // Make sure nf.compId = round.imacClass (convert)
     // Make sure pilot is active and in freestyle (if need be) or in imacClass.
     // Return pilot data, round data...
-
-    /*
-    $query = "select imacClass from round where roundId = :roundId and phase = 'O';";
-    $compId = 0;
     if ($statement = $db->prepare($query)) {
         try {
-            $statement->bindValue(':roundId', $roundId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return;
-    }
-
-    if ($res === FALSE) {
-        $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
-    } else {
-        $round = $res->fetchArray();
-        if (!$round) {
-            $result  = 'error';
-            $message = 'This round is not open.';
-            return;
-        } else {
-            $imacClass = $round["imacClass"];
-            // compId is the numeric form of the class (freestyle is also a kind of class...)
-            $compId = convertClassToCompID($imacClass);
-        }
-    }
-
-    $query = "select freestyle, imacClass, fullName from pilot where pilotId = :pilotId and active = 1;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':pilotId', $pilotId);
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
@@ -624,72 +588,56 @@ function getNextFlight() {
     $pilot = $res->fetchArray();
     if (!$pilot) {
         $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not active or in the ' . $imacClass . ' class.';
-        return;
-    } else if ( ($imacClass == "Freestyle") && ($pilot["freestyle"] != 1) ) {
-        $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not registered for freestyle.';
-        return;
-    } else if ($pilot["imacClass"] != $imacClass && $imacClass != "Freestyle") {
-        $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not in the ' . $imacClass . ' class.';
+        $message = 'There is no valid next flight scheduled.';
         return;
     }
-
- 
-    if (!beginTrans())
-        goto end_set_next_flight;
-
-    // Now do the update
-
-    $result = "";
-    $query = "DELETE FROM nextFlight; ";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':compId', $compId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto end_set_next_flight;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto end_set_next_flight;
-    }
-
-    $query = "INSERT INTO nextFlight(nextFlightId, nextCompId, nextPilotId) "
-             . "VALUES(:flightId, :compId, :pilotId); ";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':flightId', $flightId);
-            $statement->bindValue(':compId', $compId);
-            $statement->bindValue(':pilotId', $pilotId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto end_set_next_flight;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto end_set_next_flight;
-    }
-
-    if (commitTrans("There was a problem setting the next flight. ") ) {
-        $result  = 'success';
-        $message = 'Next flight set to ' . $flightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
-    }
+    $nextFlightId = $pilot["nextFlightId"];
+    $nextFlightClass = convertCompIDToClass($pilot["nextCompId"]);
+    $pilotInFreestyle = $pilot["freestyle"];
     
-    end_set_next_flight:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if (!isset($message)) { $message = 'query error'; }
-    }   
-     * 
-     */ 
+
+    $query = "select * from flight f inner join round r on f.roundId = r.roundId where r.roundId = :roundId and f.flightId = :nextFlightId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $statement->bindValue(':nextFlightId', $nextFlightId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();
+            return;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return;
+    }
+
+    $flight = $res->fetchArray();
+    if (!$flight) {
+        $result  = 'error';
+        $message = 'There is no valid next flight scheduled.';
+        return;
+    }
+
+    if ($nextFlightClass == $flight["imacClass"] || ($nextFlightClass == "Freestyle" && $pilotInFreestyle == 1)) {
+        // All good!
+    } else {
+        $result  = 'error';
+        $message = 'This pilot is not in the correct class for the next flight.';
+        return;
+    }
+
+    // I think we have all we need!   Lets send it back.
+    $result  = 'success';
+    $message = 'query success';
+    $sqlite_data["nextFlightId"]          = $pilot['nextFlightId'];
+    $sqlite_data["nextPilotId"]           = $pilot['nextPilotId'];
+    $sqlite_data["nextCompId"]            = $pilot['nextCompId'];
+    $sqlite_data["nextPilotName"]         = $pilot['fullName'];
+    $sqlite_data["nextSchedId"]           = $flight['schedId'];
+    $sqlite_data["nextSequenceNum"]       = $flight['sequenceNum'];
+    $sqlite_data["nextRoundId"]           = $flight['roundId'];
 }
 
 function getSchedlist() {

@@ -119,6 +119,7 @@
           <div class="field_container">Class:</div><div class="field_details" id="class-details">Some Class</div>
           <div class="field_container">Round:</div><div class="field_details" id="roundnum-details">Round Num</div>
           <div class="field_container">Type:</div><div class="field_details" id="roundtype-details">Known</div>
+          <div class="field_container">Scedule:</div><div class="field_details" id="roundsched-details"></div>
           <div class="field_container">Next Flight:</div><div class="field_details" id="nextflight-details"></div>
           <div class="roundinstructions_container">
            Some instructions here...
@@ -132,6 +133,7 @@
                   <th>Flight ID</th>
                   <th>Next Flight Selection</th>
                   <th>Notaumatic Hint</th>
+                  <th>Class ID</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,4 +1,4 @@
-$(document).ready(function(){
+$(document).ready(function() {
   var classlist;
   var schedulelist;
   var nextroundNums;
@@ -175,7 +175,7 @@ $(document).ready(function(){
     $('.roundbox_bg').show();
     $('.roundbox_container').show();
     $('#class-details').text(data.imacClass);
-    $('#roundnum-details').text(data.roundNum);
+    $('#roundsched-details').text(data.description);
     if (data.sequences == 2) {
         $('#roundtype-details').text(data.imacType + " Double");
     } else if(data.imacType == 'Known') {
@@ -183,7 +183,7 @@ $(document).ready(function(){
     } else {
         $('#roundtype-details').text(data.imacType);        
     }
-    fillNextFlight(data.roundId);
+    $('#roundnum-details').text(data.roundNum); 
     
     table_pilotlist = $('#table_pilotlist').DataTable({
       "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId,
@@ -192,12 +192,13 @@ $(document).ready(function(){
         { "data": "fullName"},
         { "data": "flightId"},
         { "data": "functions",      "sClass": "functions" },
-        { "data": "noteHint"}
+        { "data": "noteHint"},
+        { "data": "compId"}
       ],
       "columnDefs": [
         { targets: '_all', "className": 'details-control' },
-        { targets: [0], visible: false  },
-        { targets: [-1], "orderable": false }
+        { targets: [0, 5], visible: false  },
+        { targets: [-2], "orderable": false }
       ],
       "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
       "oLanguage": {
@@ -212,6 +213,7 @@ $(document).ready(function(){
         "sInfoFiltered":  "(filtered from _MAX_ total records)"
       }
     });
+    fillNextFlight(data.roundId, null, null);
   }
   // Hide lightbox
   function hide_roundbox(){
@@ -301,7 +303,7 @@ $(document).ready(function(){
       hide_roundbox();
     }
   });
-  
+
   // Hide iPad keyboard
   function hide_ipad_keyboard(){
     document.activeElement.blur();
@@ -835,11 +837,10 @@ $(document).ready(function(){
     fillSchedules($(this).val(), $('#imacType').val());
     setNextRound($(this).val(), $('#imacType').val());
   });
-});
 
-function fillNextFlight(roundId, pilotName, seqNum) {
+  function fillNextFlight(roundId, pilotName, seqNum) {
     if (pilotName == null || seqNum == null) {
-
+        
       var request = $.ajax({
         url:          'data.php?job=get_next_flight&roundId=' + roundId,
         cache:        false,
@@ -847,22 +848,31 @@ function fillNextFlight(roundId, pilotName, seqNum) {
         contentType:  'application/json; charset=utf-8',
         type:         'get'
       });
+
       request.done(function(output) {
         if (output.result === 'success') {
-          pilotName = output.data;
+          $('#nextflight-details').text("Sequence " + output.data.nextSequenceNum + " for pilot " + output.data.nextPilotName);
+          highlightNextFlightButton(output.data.nextRoundId, output.data.nextPilotId, output.data.nextFlightId, output.data.nextCompId);
         } else {
-          show_message('Could not get the next flgiht data: ' + textStatus, 'error');
-          pilotName = "Unknown";
-          seqNum = "Unknown";
+          $('#nextflight-details').text("Sequence unknown for pilot unknown.");   
         }
       });
+
       request.fail(function(jqXHR, textStatus) {
-        show_message('Could not get the next flgiht data: ' + textStatus, 'error');
+        $('#nextflight-details').text("Sequence unknown for pilot unknown.");   
+        show_message('Could not get the next flight data: ' + textStatus, 'error');
       });
     
+    } else {
+      $('#nextflight-details').text("Sequence " + seqNum + " for pilot " + pilotName);   
     }
-    $('#nextflight-details').text("Sequence " + seqNum + " for pilot " + pilotName);
-}
+  }
+
+  function highlightNextFlightButton(roundId, pilotId, flightId, classId) {
+    $('.function_set_next_flight_button a').removeClass("highlighted_button");
+    $('#' + roundId + '_' + pilotId + '_' + flightId + '_' + classId).addClass("highlighted_button");
+  }
+});
 
 function removeOptions(selectbox) {
   var i;
