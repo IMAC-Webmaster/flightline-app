@@ -37,8 +37,8 @@ switch ($job) {
     case 'get_round':
         getRound();
         break;
-    case 'get_flightline':
-        getFlightline();
+    case 'get_flown_rounds':
+        getFlownRounds();
         break;
     case 'get_round_results':
         getRoundResults();

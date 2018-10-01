@@ -151,98 +151,195 @@ function getRound() {
     }
 }
 
-function getFlightline() {
+function getFlightsForRound($roundId) {
     global $db;
     global $result;
     global $message;
     global $sqlite_data;
 
-   // Get the full DB Dump in JSON format for importing into Score!
-    
-    $conf_stmt = $db->prepare("select * from config;");
-    $conf_res = $conf_stmt->execute();
-    $users = array();
-    $conf = $conf_res->fetchArray(SQLITE3_ASSOC);
-    $conf_res->finalize();
-    $conf_stmt->close();
 
-    $users_stmt = $db->prepare("select * from user;");
-    $users_res = $users_stmt->execute();
-    $users = array();
-    while ($user = $users_res->fetchArray(SQLITE3_ASSOC)){
-        $users[] = $user;  
+    $query = "select * from flight where roundId = :roundId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
     }
-    $users_res->finalize();
-    $users_stmt->close();
+
+    $flightArray = array();
     
-    $query = "select * from round;";
+    while ($flight = $res->fetchArray()){
+        $thisFlight = array(
+            "id"          => $flight["flightId"],
+            "sequenceNum" => $flight["sequenceNum"],
+            "sheets"      => getSheetsForFlight($roundId, $flight["flightId"])
+        );
+        array_push($flightArray, $thisFlight);
+    }
+    return $flightArray;
+}
+
+function getSheetsForFlight($roundId, $flightId) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+
+    $query = "select * from sheet where roundId = :roundId and flightId = :flightId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $statement->bindValue(':flightId', $flightId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
+    $sheetArray = array();
+    
+    while ($sheet = $res->fetchArray()){
+        $thisSheet = array(
+            "id"           => $sheet["sheetId"],
+            "pilotId"      => $sheet["pilotId"],
+            "judgeNum"     => $sheet["judgeNum"],
+            "judgeName"    => $sheet["judgeName"],
+            "scribeName"   => $sheet["scribeName"],
+            "comment"      => $sheet["comment"],
+            "mppPenalty"   => $sheet["comment"],
+            "flightZeroed" => $sheet["comment"],
+            "zeroReason"   => $sheet["comment"],
+            "scores"       => getScoresForSheet($sheet["sheetId"])
+        );
+        array_push($sheetArray, $thisSheet);
+    }
+    return $sheetArray;
+}
+
+function getScoresForSheet($sheetId) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $query = "select * from score where sheetId = :sheetId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':sheetId', $sheetId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
+    $scoreArray = array();
+    
+    while ($score = $res->fetchArray()){
+        $thisScore = array(
+            "figNum"       => $score["figureNum"],
+            "scoreTime"    => $score["scoreTime"],
+            "breakPenalty" => $score["judgeNum"],
+            "score"        => $score["score"],
+            "comment"      => $score["comment"]
+        );
+        array_push($scoreArray, $thisScore);
+    }
+    return $scoreArray;
+}
+
+function getPilots() {
+    global $db;
+    global $result;
+    global $message;
+
+    $query = "select * from pilot;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':sheetId', $sheetId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
+    $pilotArray = array();
+    
+    while ($pilot = $res->fetchArray()){
+        $thisPilot = array(
+            "id"              => $pilot["pilotId"],
+            "primaryId"       => $pilot["primaryId"],
+            "secondaryId"     => $pilot["secondaryId"],
+            "fullName"        => $pilot["fullName"],
+            "airplane"        => $pilot["airplane"],
+            "freestyle"       => $pilot["freestyle"],
+            "imacClass"       => $pilot["imacClass"],
+            "in_customclass1" => $pilot["in_customclass1"],
+            "in_customclass2" => $pilot["in_customclass2"],
+            "active"          => $pilot["active"]
+        );
+        array_push($pilotArray, $thisPilot);
+    }
+    return $pilotArray;
+}
+
+function getFlownRounds() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    // Get the flown rounds as one big JSON object.
+    // Keep as much of the non Score! like data out of it....
+
+    $query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId where phase = 'D';";
+    //$query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId;";
     if ($statement = $db->prepare($query)) {
         try {
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
+            $message = 'query error: ' . $e->getMessage();
+            return;
         }
     } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return;
     }
 
-    if ($res === FALSE){
-        $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
-    } else {
-        $result  = 'success';
-        $message = 'query success';
-        $all_rounds = array();
-        while ($round = $res->fetchArray(SQLITE3_ASSOC)){
-            // For each round, now we need to get the flights
-            $flight_stmt = $db->prepare("select * from flight where roundId = :roundId;");
-            $flight_stmt->bindValue(':roundId',   $round["roundId"]);
-            $flight_res = $flight_stmt->execute();
-            $flights = array();
-            while ($flight = $flight_res->fetchArray(SQLITE3_ASSOC)){
-                // Get the sheets to add to this flight.
-                unset($flight["roundId"]);
-                $sheet_stmt = $db->prepare("select * from sheet where flightId = :flightId;");
-                $sheet_stmt->bindValue(':flightId',   $flight["flightId"]);
-                $sheet_res = $sheet_stmt->execute();
-                $sheets = array();
-                while ($sheet = $sheet_res->fetchArray(SQLITE3_ASSOC)){
-                    // Get the scores to add to this sheet.
-                    unset($sheet["flightId"]);
-                    $score_stmt = $db->prepare("select * from score where sheetId = :sheetId;");
-                    $score_stmt->bindValue(':sheetId',   $sheet["sheetId"]);
-                    $score_res = $score_stmt->execute();
-                    $scores = array();
-                    while ($score = $score_res->fetchArray(SQLITE3_ASSOC)){
-                        unset($score["sheetId"]);
-                        $scores[] = $score;  
-                    }
-                    $score_res->finalize();
-                    $score_stmt->close();
-                    $sheet["scores"] = $scores;
-                    $sheets[] = $sheet;   
-                }
-                $sheet_res->finalize();
-                $sheet_stmt->close();
-                $flight["sheets"] = $sheets;
-                $flights[] = $flight;
-            }
-            $flight_res->finalize();
-            $flight_stmt->close();
-            $round["flights"] = $flights;
-            $all_rounds[] = $round;
-        }
-        $res->finalize();
-        $statement->close();
-        $result  = 'success';
-        $message = 'query success';
-        $sqlite_data["flightLineId"] = $conf["flightLineId"];
-        $sqlite_data["users"] = $users;
-        $sqlite_data["rounds"] = $all_rounds;
-    }
+    $sqlite_data = array(
+        "pilots" => array(),
+        "rounds" => array()
+    );
+
+    $sqlite_data["pilots"] = getPilots();
+
+    while ($round = $res->fetchArray()){
+        $thisRound = array(
+            "id"            => $round["roundId"],
+            "flightLine"    => $round["flightLine"],
+            "type"          => $round["imacType"], // Known, Unknown, Freestyle
+            "class"         => $round["imacClass"],
+            "roundNum"      => $round["roundNum"],
+            "startTime"     => $round["startTime"],
+            "finishTime"    => $round["finishTime"],
+            "schedId"       => $round["schedId"],
+            "schedDesc"     => $round["description"],
+            "flights"       => getFlightsForRound($round["roundId"])
+        );
+        array_push($sqlite_data["rounds"], $thisRound);
+    }    
 }
 
 function getRoundResults() {
@@ -678,6 +775,31 @@ function getSchedlist() {
     }
 }
 
+function getFlightlineId() {
+    global $db;
+    global $result;
+    global $message;
+    
+    $query = "select value as flightLineId from state where key = 'flightLineId';";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return -2;
+        }
+    } else {
+        return -2;
+    }
+
+    $state = $res->fetchArray();
+    if (!$state) {
+        // Null.   
+        return -1;
+    } else {
+        return $state["flightLineId"];
+    }
+}
+
 function addRound() {
     global $db;
     global $result;
@@ -701,25 +823,25 @@ function addRound() {
     if ($imacType == "Freestyle") $imacClass = "Freestyle";
     if ($imacType != "Known" ) $sequences = 1;
 
-    if (!$db->exec("BEGIN TRANSACTION;")) {
-        $db->enableExceptions(true);
-        $err = $db->lastErrorMsg();
-        $result  = 'error';
-        $message = $err;
-        goto end_add_round;
+    $flightLineId = getFlightlineId();
+    if ($flightLineId < 1) {
+        $flightLineId = null;
     }
+    if (!beginTrans())
+        goto end_add_round;
 
-    $query =  "INSERT into round (imacClass, imacType, roundNum, schedId, sequences, phase) ";
-    $query .= "VALUES (:imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
+    $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) ";
+    $query .= "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
 
     if ($statement = $db->prepare($query)) {
         try {
-            $statement->bindValue(':imacClass', $imacClass);
-            $statement->bindValue(':imacType',  $imacType);
-            $statement->bindValue(':roundNum',  $roundNum);
-            $statement->bindValue(':schedId',   $schedule);
-            $statement->bindValue(':sequences', $sequences);
-            $statement->bindValue(':phase',     'U');
+            $statement->bindValue(':flightLine', $flightLineId);
+            $statement->bindValue(':imacClass',  $imacClass);
+            $statement->bindValue(':imacType',   $imacType);
+            $statement->bindValue(':roundNum',   $roundNum);
+            $statement->bindValue(':schedId',    $schedule);
+            $statement->bindValue(':sequences',  $sequences);
+            $statement->bindValue(':phase',      'U');
             error_log($query);
             $res = $statement->execute();
             if (!$res || $db->lastErrorCode() != 0) {
