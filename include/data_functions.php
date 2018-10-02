@@ -856,8 +856,7 @@ function addRound() {
         }
     } else {
         $result  = 'error';
-        $err = $db->lastErrorMsg();
-        $message = $err;
+        $message = "1:" . $db->lastErrorMsg();;
         goto end_add_round;
     }
     $newRoundId = $db->lastInsertRowID();
@@ -865,7 +864,9 @@ function addRound() {
     $result = "";
 
     // Get the next flight id.
-    $query = "select (max(flightid) + 1) as newFlightId from flight where imacClass = :imacClass";
+    $query = "select (max(flightid) + 1) as newFlightId "
+           . "from flight f inner join round r on f.roundId = r.roundId "
+           . "where r.imacClass = :imacClass";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':imacClass', $imacClass);
@@ -874,7 +875,7 @@ function addRound() {
             $flight = $res->fetchArray();
             if (!$flight || $flight["newFlightId"] == null) {
                 // Null?
-                if ($imacClass == "Freestyle") {
+                if (($imacClass == "Freestyle") || ($imacType == "Freestyle"))  {
                     $newFlightId = 91;
                 } else {
                     $newFlightId = 1;
@@ -888,19 +889,17 @@ function addRound() {
           goto end_add_round;
         }
     } else {
-        $err = $db->lastErrorMsg();
         $result  = 'error';
-        $message = $err;
+        $message = "2:" . $db->lastErrorMsg();;
         goto end_add_round;
     }
 
     for ($i = 1; $i <= $sequences; $i++) {
-        $query = "INSERT INTO flight(flightId, imacClass, roundId, sequenceNum) "
-               . "VALUES(:flightId, :imacClass, :roundId, :sequenceNum); ";
+        $query = "INSERT INTO flight(flightId, roundId, sequenceNum) "
+               . "VALUES(:flightId, :roundId, :sequenceNum); ";
         if ($statement = $db->prepare($query)) {
             try {
                 $statement->bindValue(':flightId', $newFlightId);
-                $statement->bindValue(':imacClass', $imacClass);
                 $statement->bindValue(':roundId', $newRoundId);
                 $statement->bindValue(':sequenceNum', $i);
                 $res = $statement->execute();
@@ -910,9 +909,8 @@ function addRound() {
                 goto end_add_round;
             }
         } else {
-            $err = $db->lastErrorMsg();
             $result  = 'error';
-            $message = $err;
+            $message = "3:" . $db->lastErrorMsg();;
             goto end_add_round;
         }
         $newFlightId++;
@@ -1039,7 +1037,9 @@ function editRound() {
 
     $newFlightId = 1;
     // Get the next flight id.
-    $query = "select (max(flightid) + 1) as newFlightId from flight where imacClass = :imacClass";
+    $query = "select (max(flightid) + 1) as newFlightId "
+           . "from flight f inner join round r on f.roundId = r.roundId "
+           . "where imacClass = :imacClass";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':imacClass', $imacClass);
@@ -1048,7 +1048,7 @@ function editRound() {
             $flight = $res->fetchArray();
             if (!$flight || $flight["newFlightId"] == null) {
                 // Null?
-                if ($imacClass == "Freestyle") {
+                if (($imacClass == "Freestyle") || ($imacType == "Freestyle")) {
                     $newFlightId = 91;
                 } else {
                     $newFlightId = 1;
@@ -1067,19 +1067,18 @@ function editRound() {
         $message = $err;
         goto end_edit_round;
     }
-    //echo "NFID: $newFlightId\nSEQ:$sequences\nCLS:$imacClass\nRnd:$roundId\n";
+    //echo "NFID: $newFlightId\nSEQ:$sequences\nRnd:$roundId\n";
 
     for ($i = 1; $i <= $sequences; $i++) {
-        $query = "INSERT INTO flight (flightId, imacClass, roundId, sequenceNum) "
-               . "VALUES(:flightId, :imacClass, :roundId, :sequenceNum); ";
+        $query = "INSERT INTO flight (flightId, roundId, sequenceNum) "
+               . "VALUES(:flightId, :roundId, :sequenceNum); ";
         if ($statement = $db->prepare($query)) {
             try {
                 $statement->bindValue(':flightId', $newFlightId);
-                $statement->bindValue(':imacClass', $imacClass);
                 $statement->bindValue(':roundId', $roundId);
                 $statement->bindValue(':sequenceNum', $i);
                 $res = $statement->execute();
-                //echo "NFID: $newFlightId\nSEQ:$i\nCLS:$imacClass\nRnd:$roundId\n\n";
+                //echo "NFID: $newFlightId\nSEQ:$i\nRnd:$roundId\n\n";
             } catch (Exception $e) {
                 $result  = 'error';
                 $message = 'query error: ' . $e->getMessage(); 
