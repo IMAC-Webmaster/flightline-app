@@ -79,7 +79,7 @@ switch ($nautoption) {
     case "T":  
         // Test...   Check the flight exists, and is open.   This gets done before a pilot is scored.
         // 1. Check if we have a schedule open for a specific class..
-        //    The key is...   CompId (This is flightline), FlightId, SequenceId
+        //    The key is...   CompId (This is flightline), NoteFlightId, SequenceId
         //    i.e.  1,1,BASIC-K1
         //          1,1,SPORT-K1
         //          1,1,INTER-K2
@@ -173,16 +173,16 @@ switch ($nautoption) {
             //print_r($nextFlight);
             break;
         } else {
-            $nextFlightId = $nextFlight["nextFlightId"];
+            $nextNoteFlightId = $nextFlight["nextNoteFlightId"];
             $nextPilotId = $nextFlight["nextPilotId"];
             $nextCompId = $nextFlight["nextCompId"];
             $nextPilotFreestyle = $nextFlight["freestyle"];
             $nextPilotImacClass = $nextFlight["imacClass"];
         }
 
-        $sql = "select f.flightId, f.roundId, f.sequenceNum, r.imacClass, r.schedId "
+        $sql = "select f.noteFlightId, f.roundId, f.sequenceNum, r.imacClass, r.schedId "
                 . "from flight f inner join round r on f.roundId = r.roundId "
-                . "where f.flightId = :nextFlightId "
+                . "where f.noteFlightId = :nextNoteFlightId "
                 . "and r.imacClass = :nextCompImacClass "
                 . "and r.phase = 'O'";
 
@@ -190,7 +190,7 @@ switch ($nautoption) {
 
         if ($statement = $db->prepare($sql)) {
             try {
-                $statement->bindValue(':nextFlightId', $nextFlightId);
+                $statement->bindValue(':nextNoteFlightId', $nextNoteFlightId);
                 $statement->bindValue(':nextCompImacClass', $nextCompImacClass);
                 $res = $statement->execute();
             } catch (Exception $e) {
@@ -224,7 +224,7 @@ switch ($nautoption) {
             $schedId = $nextFlightRoundData["schedId"];
             // Return : pilot #, flight #, comp # and schedule's shortname
             $result = "return:".substr("00".$nextPilotId, -2);
-            $result.= substr("00".$nextFlightId, -2);
+            $result.= substr("00".$nextNoteFlightId, -2);
             $result.= substr("00".$nextCompId, -2);
             $result.= $schedId;
             echo $result;

@@ -190,7 +190,7 @@ $(document).ready(function() {
       "columns": [
         { "data": "pilotId"},
         { "data": "fullName"},
-        { "data": "flightId"},
+        { "data": "noteFlightId"},
         { "data": "functions",      "sClass": "functions" },
         { "data": "noteHint"},
         { "data": "compId"}
@@ -752,20 +752,20 @@ $(document).ready(function() {
   $(document).on('click', '.function_set_next_flight_button a', function(e){
     e.preventDefault();
     var thisButton = $(this);
-    var next_seqnum    = $(thisButton).data('seqnum');
-    var next_roundid   = $(thisButton).data('roundid');
-    var next_pilotid   = $(thisButton).data('pilotid');
-    var next_flightid  = $(thisButton).data('flightid');
-    var next_pilotname = $(thisButton).data('pilotname');
+    var next_seqnum       = $(thisButton).data('seqnum');
+    var next_roundid      = $(thisButton).data('roundid');
+    var next_pilotid      = $(thisButton).data('pilotid');
+    var next_noteflightid = $(thisButton).data('noteflightid');
+    var next_pilotname    = $(thisButton).data('pilotname');
     var blOkToGo = true;
     
-    //show_message("Setting next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
+    //show_message("Setting next flight to " + next_noteflightid + " pilot " + next_pilotid, 'success');
     blOkToGo = true;
 
     if (blOkToGo) {
       show_loading_message();
       var request = $.ajax({
-        url:          'data.php?job=set_next_flight&roundId=' + next_roundid + '&seqNum=' + next_seqnum + '&pilotId=' + next_pilotid + '&flightId=' + next_flightid,
+        url:          'data.php?job=set_next_flight&roundId=' + next_roundid + '&seqNum=' + next_seqnum + '&pilotId=' + next_pilotid + '&noteFlightId=' + next_noteflightid,
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -776,7 +776,7 @@ $(document).ready(function() {
           // Reload datable
           table_roundlist.ajax.reload(function(){
             hide_loading_message();
-            show_message("Set next flight to " + next_flightid + " pilot " + next_pilotid, 'success');
+            show_message("Set next flight to " + next_noteflightid + " pilot " + next_pilotid, 'success');
             fillNextFlight($(this).data('roundid'), next_pilotname, next_seqnum);
             $('.function_set_next_flight_button a').removeClass("highlighted_button");
             $(thisButton).addClass("highlighted_button");
@@ -852,7 +852,7 @@ $(document).ready(function() {
       request.done(function(output) {
         if (output.result === 'success') {
           $('#nextflight-details').text("Sequence " + output.data.nextSequenceNum + " for pilot " + output.data.nextPilotName);
-          highlightNextFlightButton(output.data.nextRoundId, output.data.nextPilotId, output.data.nextFlightId, output.data.nextCompId);
+          highlightNextFlightButton(output.data.nextRoundId, output.data.nextPilotId, output.data.nextNoteFlightId, output.data.nextCompId);
         } else {
           $('#nextflight-details').text("Sequence unknown for pilot unknown.");   
         }
@@ -868,9 +868,9 @@ $(document).ready(function() {
     }
   }
 
-  function highlightNextFlightButton(roundId, pilotId, flightId, classId) {
+  function highlightNextFlightButton(roundId, pilotId, noteFlightId, classId) {
     $('.function_set_next_flight_button a').removeClass("highlighted_button");
-    $('#' + roundId + '_' + pilotId + '_' + flightId + '_' + classId).addClass("highlighted_button");
+    $('#' + roundId + '_' + pilotId + '_' + noteFlightId + '_' + classId).addClass("highlighted_button");
   }
 });
 

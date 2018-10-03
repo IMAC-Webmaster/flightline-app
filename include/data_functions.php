@@ -174,27 +174,27 @@ function getFlightsForRound($roundId) {
     
     while ($flight = $res->fetchArray()){
         $thisFlight = array(
-            "id"          => $flight["flightId"],
-            "sequenceNum" => $flight["sequenceNum"],
-            "sheets"      => getSheetsForFlight($roundId, $flight["flightId"])
+            "noteFlightId" => $flight["noteFlightId"],
+            "sequenceNum"  => $flight["sequenceNum"],
+            "sheets"       => getSheetsForFlight($roundId, $flight["noteFlightId"])
         );
         array_push($flightArray, $thisFlight);
     }
     return $flightArray;
 }
 
-function getSheetsForFlight($roundId, $flightId) {
+function getSheetsForFlight($roundId, $noteFlightId) {
     global $db;
     global $result;
     global $message;
     global $sqlite_data;
 
 
-    $query = "select * from sheet where roundId = :roundId and flightId = :flightId;";
+    $query = "select * from sheet where roundId = :roundId and noteFlightId = :noteFlightId;";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':roundId', $roundId);
-            $statement->bindValue(':flightId', $flightId);
+            $statement->bindValue(':noteFlightId', $noteFlightId);
             $res = $statement->execute();
         } catch (Exception $e) {
             return null;
@@ -207,15 +207,15 @@ function getSheetsForFlight($roundId, $flightId) {
     
     while ($sheet = $res->fetchArray()){
         $thisSheet = array(
-            "id"           => $sheet["sheetId"],
+            "sheetId"      => $sheet["sheetId"],
             "pilotId"      => $sheet["pilotId"],
             "judgeNum"     => $sheet["judgeNum"],
             "judgeName"    => $sheet["judgeName"],
             "scribeName"   => $sheet["scribeName"],
             "comment"      => $sheet["comment"],
-            "mppPenalty"   => $sheet["comment"],
-            "flightZeroed" => $sheet["comment"],
-            "zeroReason"   => $sheet["comment"],
+            "mppPenalty"   => $sheet["mppPenalty"],
+            "flightZeroed" => $sheet["flightZeroed"],
+            "zeroReason"   => $sheet["zeroReason"],
             "scores"       => getScoresForSheet($sheet["sheetId"])
         );
         array_push($sheetArray, $thisSheet);
@@ -245,9 +245,9 @@ function getScoresForSheet($sheetId) {
     
     while ($score = $res->fetchArray()){
         $thisScore = array(
-            "figNum"       => $score["figureNum"],
+            "figureNum"    => $score["figureNum"],
             "scoreTime"    => $score["scoreTime"],
-            "breakPenalty" => $score["judgeNum"],
+            "breakPenalty" => $score["breakPenalty"],
             "score"        => $score["score"],
             "comment"      => $score["comment"]
         );
@@ -277,7 +277,7 @@ function getPilots() {
     
     while ($pilot = $res->fetchArray()){
         $thisPilot = array(
-            "id"              => $pilot["pilotId"],
+            "pilotId"         => $pilot["pilotId"],
             "primaryId"       => $pilot["primaryId"],
             "secondaryId"     => $pilot["secondaryId"],
             "fullName"        => $pilot["fullName"],
@@ -327,7 +327,7 @@ function getFlownRounds() {
 
     while ($round = $res->fetchArray()){
         $thisRound = array(
-            "id"            => $round["roundId"],
+            "roundId"       => $round["roundId"],
             "flightLine"    => $round["flightLine"],
             "type"          => $round["imacType"], // Known, Unknown, Freestyle
             "class"         => $round["imacClass"],
@@ -384,13 +384,13 @@ function getRoundResults() {
             while ($flight = $flight_res->fetchArray(SQLITE3_ASSOC)){
                 // Get the sheets to add to this flight.
                 unset($flight["roundId"]);
-                $sheet_stmt = $db->prepare("select * from sheet where flightId = :flightId;");
-                $sheet_stmt->bindValue(':flightId',   $flight["flightId"]);
+                $sheet_stmt = $db->prepare("select * from sheet where noteFlightId = :noteFlightId;");
+                $sheet_stmt->bindValue(':noteFlightId',   $flight["noteFlightId"]);
                 $sheet_res = $sheet_stmt->execute();
                 $sheets = array();
                 while ($sheet = $sheet_res->fetchArray(SQLITE3_ASSOC)){
                     // Get the scores to add to this sheet.
-                    unset($sheet["flightId"]);
+                    unset($sheet["noteFlightId"]);
                     $score_stmt = $db->prepare("select * from score where sheetId = :sheetId;");
                     $score_stmt->bindValue(':sheetId',   $sheet["sheetId"]);
                     $score_res = $score_stmt->execute();
@@ -430,7 +430,7 @@ function getRoundPilots() {
 
     // Get the full list of pilots for the round.
     // Note: each round has 1 flight per sequence.
-    $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.flightId, f.sequenceNum "
+    $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
         . "from round r "
         . "left join pilot p on p.imacClass = r.imacClass "
         . "left join flight f on f.roundId = r.roundId "
@@ -458,15 +458,15 @@ function getRoundPilots() {
         $message = 'query success';
         while ($round = $res->fetchArray()) {
             $sequenceNum = $round['sequenceNum'];
-            $btnId = $round['roundId'] . "_" . $round['pilotId'] . "_" . $round['flightId'] . "_" . convertClassToCompID($round["imacClass"]);
+            $btnId = $round['roundId'] . "_" . $round['pilotId'] . "_" . $round['noteFlightId'] . "_" . convertClassToCompID($round["imacClass"]);
             $functions  = '<div class="function_buttons"><ul>';
-            $functions .= '<li class="function_set_next_flight_button"><a id="' . $btnId . '" data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-flightid="'   . $round['flightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
+            $functions .= '<li class="function_set_next_flight_button"><a id="' . $btnId . '" data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-noteflightid="'   . $round['noteFlightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
             $functions .= '</ul></div>';
-            $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['flightId'] . " Comp:" . convertClassToCompID($round["imacClass"]) . " Schedule:" . $round["schedId"];
+            $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['noteFlightId'] . " Comp:" . convertClassToCompID($round["imacClass"]) . " Schedule:" . $round["schedId"];
             $sqlite_data[] = array(
                 "pilotId"       => $round['pilotId'],
                 "fullName"      => $round['fullName'],
-                "flightId"      => $round['flightId'],
+                "noteFlightId"  => $round['noteFlightId'],
                 "functions"     => $functions,
                 "noteHint"      => $notehint,
                 "compId"        => convertClassToCompID($round["imacClass"])
@@ -517,7 +517,7 @@ function setNextFlight() {
     global $result;
     global $message;
 
-    // Set the next flight (pilot, flightId)
+    // Set the next flight (pilot, noteFlightId)
     // Note: each round has 1 flight per sequence.
     
     $imacClass = null;
@@ -528,10 +528,10 @@ function setNextFlight() {
     //  - Round is open.
     //  - Pilot is valid for round.
     //  
-    if (isset($_GET['flightId']))  { $flightId    = $_GET['flightId'];  } else $flightId = null;
-    if (isset($_GET['pilotId']))   { $pilotId     = $_GET['pilotId'];  }  else $pilotId = null;
-    if (isset($_GET['roundId']))   { $roundId     = $_GET['roundId'];  }  else $roundId = null;
-    if (isset($_GET['seqnum']))    { $sequenceNum = $_GET['seqnum'];  }   else $sequenceNum = null;
+    if (isset($_GET['noteFlightId']))  { $noteFlightId = $_GET['noteFlightId'];  } else $noteFlightId = null;
+    if (isset($_GET['pilotId']))       { $pilotId      = $_GET['pilotId'];  }      else $pilotId = null;
+    if (isset($_GET['roundId']))       { $roundId      = $_GET['roundId'];  }      else $roundId = null;
+    if (isset($_GET['seqnum']))        { $sequenceNum  = $_GET['seqnum'];  }       else $sequenceNum = null;
 
     $query = "select imacClass from round where roundId = :roundId and phase = 'O';";
     $compId = 0;
@@ -620,11 +620,11 @@ function setNextFlight() {
         goto end_set_next_flight;
     }
 
-    $query = "INSERT INTO nextFlight(nextFlightId, nextCompId, nextPilotId) "
-             . "VALUES(:flightId, :compId, :pilotId); ";
+    $query = "INSERT INTO nextFlight(nextNoteFlightId, nextCompId, nextPilotId) "
+             . "VALUES(:noteFlightId, :compId, :pilotId); ";
     if ($statement = $db->prepare($query)) {
         try {
-            $statement->bindValue(':flightId', $flightId);
+            $statement->bindValue(':noteFlightId', $noteFlightId);
             $statement->bindValue(':compId', $compId);
             $statement->bindValue(':pilotId', $pilotId);
             $res = $statement->execute();
@@ -641,7 +641,7 @@ function setNextFlight() {
 
     if (commitTrans("There was a problem setting the next flight. ") ) {
         $result  = 'success';
-        $message = 'Next flight set to ' . $flightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
+        $message = 'Next flight set to ' . $noteFlightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
     }
     
     end_set_next_flight:
@@ -688,16 +688,16 @@ function getNextFlight() {
         $message = 'There is no valid next flight scheduled.';
         return;
     }
-    $nextFlightId = $pilot["nextFlightId"];
+    $nextNoteFlightId = $pilot["nextNoteFlightId"];
     $nextFlightClass = convertCompIDToClass($pilot["nextCompId"]);
     $pilotInFreestyle = $pilot["freestyle"];
     
 
-    $query = "select * from flight f inner join round r on f.roundId = r.roundId where r.roundId = :roundId and f.flightId = :nextFlightId;";
+    $query = "select * from flight f inner join round r on f.roundId = r.roundId where r.roundId = :roundId and f.noteFlightId = :nextNoteFlightId;";
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':roundId', $roundId);
-            $statement->bindValue(':nextFlightId', $nextFlightId);
+            $statement->bindValue(':nextNoteFlightId', $nextNoteFlightId);
             $res = $statement->execute();
         } catch (Exception $e) {
             $result  = 'error';
@@ -728,7 +728,7 @@ function getNextFlight() {
     // I think we have all we need!   Lets send it back.
     $result  = 'success';
     $message = 'query success';
-    $sqlite_data["nextFlightId"]          = $pilot['nextFlightId'];
+    $sqlite_data["nextNoteFlightId"]      = $pilot['nextNoteFlightId'];
     $sqlite_data["nextPilotId"]           = $pilot['nextPilotId'];
     $sqlite_data["nextCompId"]            = $pilot['nextCompId'];
     $sqlite_data["nextPilotName"]         = $pilot['fullName'];
@@ -864,7 +864,7 @@ function addRound() {
     $result = "";
 
     // Get the next flight id.
-    $query = "select (max(flightid) + 1) as newFlightId "
+    $query = "select (max(noteFlightId) + 1) as newNoteFlightId "
            . "from flight f inner join round r on f.roundId = r.roundId "
            . "where r.imacClass = :imacClass";
     if ($statement = $db->prepare($query)) {
@@ -873,15 +873,15 @@ function addRound() {
             $res = $statement->execute();
 
             $flight = $res->fetchArray();
-            if (!$flight || $flight["newFlightId"] == null) {
+            if (!$flight || $flight["newNoteFlightId"] == null) {
                 // Null?
                 if (($imacClass == "Freestyle") || ($imacType == "Freestyle"))  {
-                    $newFlightId = 91;
+                    $newNoteFlightId = 91;
                 } else {
-                    $newFlightId = 1;
+                    $newNoteFlightId = 1;
                 }
             } else {
-                $newFlightId = $flight["newFlightId"];
+                $newNoteFlightId = $flight["newNoteFlightId"];
             }
         } catch (Exception $e) {
           $result  = 'error';
@@ -895,11 +895,11 @@ function addRound() {
     }
 
     for ($i = 1; $i <= $sequences; $i++) {
-        $query = "INSERT INTO flight(flightId, roundId, sequenceNum) "
-               . "VALUES(:flightId, :roundId, :sequenceNum); ";
+        $query = "INSERT INTO flight(noteFlightId, roundId, sequenceNum) "
+               . "VALUES(:noteFlightId, :roundId, :sequenceNum); ";
         if ($statement = $db->prepare($query)) {
             try {
-                $statement->bindValue(':flightId', $newFlightId);
+                $statement->bindValue(':noteFlightId', $newNoteFlightId);
                 $statement->bindValue(':roundId', $newRoundId);
                 $statement->bindValue(':sequenceNum', $i);
                 $res = $statement->execute();
@@ -913,7 +913,7 @@ function addRound() {
             $message = "3:" . $db->lastErrorMsg();;
             goto end_add_round;
         }
-        $newFlightId++;
+        $newNoteFlightId++;
     }
     
     if (commitTrans("There was a problem adding the round. ") ) {
@@ -1035,9 +1035,9 @@ function editRound() {
         goto end_edit_round;
     }
 
-    $newFlightId = 1;
+    $newNoteFlightId = 1;
     // Get the next flight id.
-    $query = "select (max(flightid) + 1) as newFlightId "
+    $query = "select (max(noteFlightId) + 1) as newNoteFlightId "
            . "from flight f inner join round r on f.roundId = r.roundId "
            . "where imacClass = :imacClass";
     if ($statement = $db->prepare($query)) {
@@ -1046,15 +1046,15 @@ function editRound() {
             $res = $statement->execute();
 
             $flight = $res->fetchArray();
-            if (!$flight || $flight["newFlightId"] == null) {
+            if (!$flight || $flight["newNoteFlightId"] == null) {
                 // Null?
                 if (($imacClass == "Freestyle") || ($imacType == "Freestyle")) {
-                    $newFlightId = 91;
+                    $newNoteFlightId = 91;
                 } else {
-                    $newFlightId = 1;
+                    $newNoteFlightId = 1;
                 }
             } else {
-                $newFlightId = $flight["newFlightId"];
+                $newNoteFlightId = $flight["newNoteFlightId"];
             }
         } catch (Exception $e) {
           $result  = 'error';
@@ -1067,18 +1067,18 @@ function editRound() {
         $message = $err;
         goto end_edit_round;
     }
-    //echo "NFID: $newFlightId\nSEQ:$sequences\nRnd:$roundId\n";
+    //echo "NFID: $newNoteFlightId\nSEQ:$sequences\nRnd:$roundId\n";
 
     for ($i = 1; $i <= $sequences; $i++) {
-        $query = "INSERT INTO flight (flightId, roundId, sequenceNum) "
-               . "VALUES(:flightId, :roundId, :sequenceNum); ";
+        $query = "INSERT INTO flight (noteFlightId, roundId, sequenceNum) "
+               . "VALUES(:noteFlightId, :roundId, :sequenceNum); ";
         if ($statement = $db->prepare($query)) {
             try {
-                $statement->bindValue(':flightId', $newFlightId);
+                $statement->bindValue(':noteFlightId', $newNoteFlightId);
                 $statement->bindValue(':roundId', $roundId);
                 $statement->bindValue(':sequenceNum', $i);
                 $res = $statement->execute();
-                //echo "NFID: $newFlightId\nSEQ:$i\nRnd:$roundId\n\n";
+                //echo "NFID: $newNoteFlightId\nSEQ:$i\nRnd:$roundId\n\n";
             } catch (Exception $e) {
                 $result  = 'error';
                 $message = 'query error: ' . $e->getMessage(); 
@@ -1090,7 +1090,7 @@ function editRound() {
             $message = $err;
             goto end_edit_round;
         }
-        $newFlightId++;
+        $newNoteFlightId++;
     }
 
     if (commitTrans("There was a problem editing the round. ") ) {
