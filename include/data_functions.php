@@ -174,27 +174,27 @@ function getFlightsForRound($roundId) {
     
     while ($flight = $res->fetchArray()){
         $thisFlight = array(
+            "flightId"     => $flight["flightId"],
             "noteFlightId" => $flight["noteFlightId"],
             "sequenceNum"  => $flight["sequenceNum"],
-            "sheets"       => getSheetsForFlight($roundId, $flight["noteFlightId"])
+            "sheets"       => getSheetsForFlight($flight["flightId"])
         );
         array_push($flightArray, $thisFlight);
     }
     return $flightArray;
 }
 
-function getSheetsForFlight($roundId, $noteFlightId) {
+function getSheetsForFlight($flightId) {
     global $db;
     global $result;
     global $message;
     global $sqlite_data;
 
 
-    $query = "select * from sheet where roundId = :roundId and noteFlightId = :noteFlightId;";
+    $query = "select * from sheet where flightId = :flightId;";
     if ($statement = $db->prepare($query)) {
         try {
-            $statement->bindValue(':roundId', $roundId);
-            $statement->bindValue(':noteFlightId', $noteFlightId);
+            $statement->bindValue(':flightId', $flightId);
             $res = $statement->execute();
         } catch (Exception $e) {
             return null;
@@ -208,7 +208,7 @@ function getSheetsForFlight($roundId, $noteFlightId) {
     while ($sheet = $res->fetchArray()){
         $thisSheet = array(
             "sheetId"      => $sheet["sheetId"],
-            "pilotId"      => $sheet["pilotId"],
+            "pilot"        => getPilot($sheet["pilotId"]),
             "judgeNum"     => $sheet["judgeNum"],
             "judgeName"    => $sheet["judgeName"],
             "scribeName"   => $sheet["scribeName"],
@@ -264,7 +264,6 @@ function getPilots() {
     $query = "select * from pilot;";
     if ($statement = $db->prepare($query)) {
         try {
-            $statement->bindValue(':sheetId', $sheetId);
             $res = $statement->execute();
         } catch (Exception $e) {
             return null;
@@ -293,6 +292,50 @@ function getPilots() {
     return $pilotArray;
 }
 
+function getPilot($pilotId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $query = "select * from pilot where pilotId = :pilotId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':pilotId', $pilotId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            return null;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return null;
+    }
+
+    if ($pilot = $res->fetchArray()){
+        $sqlite_data = array(
+            "pilotId"         => $pilot["pilotId"],
+            "primaryId"       => $pilot["primaryId"],
+            "secondaryId"     => $pilot["secondaryId"],
+            "fullName"        => $pilot["fullName"],
+            "airplane"        => $pilot["airplane"],
+            "freestyle"       => $pilot["freestyle"],
+            "imacClass"       => $pilot["imacClass"],
+            "in_customclass1" => $pilot["in_customclass1"],
+            "in_customclass2" => $pilot["in_customclass2"],
+            "active"          => $pilot["active"]
+        );
+    } else {
+        $sqlite_data = null;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    
+    return $sqlite_data;
+}
+
 function getFlownRounds() {
     global $db;
     global $result;
@@ -303,6 +346,7 @@ function getFlownRounds() {
     // Keep as much of the non Score! like data out of it....
 
     $query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId where phase = 'D';";
+    $query = "select * from round where phase = 'D';";
     //$query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId;";
     if ($statement = $db->prepare($query)) {
         try {
@@ -329,13 +373,17 @@ function getFlownRounds() {
         $thisRound = array(
             "roundId"       => $round["roundId"],
             "flightLine"    => $round["flightLine"],
-            "type"          => $round["imacType"], // Known, Unknown, Freestyle
-            "class"         => $round["imacClass"],
+            "imacType"      => $round["imacType"], // Known, Unknown, Freestyle
+            "imacClass"     => $round["imacClass"],
             "roundNum"      => $round["roundNum"],
+            "compRoundNum"  => $round["compRoundNum"],
             "startTime"     => $round["startTime"],
             "finishTime"    => $round["finishTime"],
             "schedId"       => $round["schedId"],
-            "schedDesc"     => $round["description"],
+//            "schedDesc"     => $round["description"],
+            "sequences"     => $round["sequences"],
+            "phase"         => $round["phase"],
+            "status"        => $round["status"],
             "flights"       => getFlightsForRound($round["roundId"])
         );
         array_push($sqlite_data["rounds"], $thisRound);

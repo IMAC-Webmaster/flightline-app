@@ -24,6 +24,10 @@ $message = null;
 // Connect to database
 try {
   $db = new SQLite3($dbfile);
+  $db->busyTimeout(5000);
+  // WAL mode has better control over concurrency.
+  // Source: https://www.sqlite.org/wal.html
+  $db->exec('PRAGMA journal_mode = wal;');
 } catch (Exception $e) {
   $result  = 'error';
   $message = 'Failed to connect to database: ' . $e->getMessage();
@@ -84,6 +88,7 @@ switch ($job) {
 }
 
 $db->close();
+unset($db);
 // Prepare data
 $data = array(
   "result"  => $result,
