@@ -171,11 +171,10 @@ function getFlightsForRound($roundId) {
     global $db;
     global $result;
     global $message;
-    global $sqlite_data;
 
     $message = null;
-    $sqlite_data = null;
 
+    error_log("Getting flights for round " . $roundId);
     $query = "select * from flight where roundId = :roundId;";
     if ($statement = $db->prepare($query)) {
         try {
@@ -206,10 +205,8 @@ function getSheetsForFlight($flightId) {
     global $db;
     global $result;
     global $message;
-    global $sqlite_data;
 
     $message = null;
-    $sqlite_data = null;
 
     $query = "select * from sheet where flightId = :flightId;";
     if ($statement = $db->prepare($query)) {
@@ -247,10 +244,8 @@ function getScoresForSheet($sheetId) {
     global $db;
     global $result;
     global $message;
-    global $sqlite_data;
 
     $message = null;
-    $sqlite_data = null;
 
     $query = "select * from score where sheetId = :sheetId;";
     if ($statement = $db->prepare($query)) {
@@ -414,6 +409,7 @@ function getFlownRounds() {
             "sequences"     => $round["sequences"],
             "phase"         => $round["phase"],
             "status"        => $round["status"],
+            //"flights"       => null
             "flights"       => getFlightsForRound($round["roundId"])
         );
         array_push($sqlite_data["rounds"], $thisRound);
@@ -1512,8 +1508,10 @@ function clearPilots() {
     global $db;
     global $result;
     global $message;
+    global $sqlite_data;
 
     $message = null;
+    $sqlite_data = null;
 
     if (!beginTrans())
         goto db_rollback;
@@ -1596,6 +1594,7 @@ function clearSchedules() {
     global $message;
 
     $message = null;
+    $sqlite_data = null;
     
     if (!beginTrans())
         goto db_rollback;
@@ -1663,12 +1662,12 @@ function clearSchedules() {
     return $sqlite_data;
 }
 
-
 function postPilots() {
     global $db;
     global $result;
     global $message;
     global $sqlite_data;
+    global $verboseMsgs;
 
     $message = null;
     $sqlite_data = null;
@@ -1678,9 +1677,9 @@ function postPilots() {
         goto db_rollback;
 
     $result = "success";
+    $verboseMsgs = array();
     foreach($pilotsArray as $pilotId => $pilot) {
         //echo "$pilotId: " . print_r($pilot, true);
-        //echo "Inserting Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName . "\n";
         $query = "INSERT into pilot (pilotId, primaryId, secondaryId, fullName, airplane, freestyle, imacClass, in_customclass1, in_customclass2, active) "
                 ."VALUES(:pilotId, :primaryId, :secondaryId, :fullName, :airplane, :freestyle, :imacClass, :in_customclass1, :in_customclass2, :active)";
         if ($statement = $db->prepare($query)) {
@@ -1701,6 +1700,7 @@ function postPilots() {
                     error_log($message);
                     goto db_rollback;
                 } else {
+                    $verboseMsgs[] = "Inserted Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName;
                     error_log("Inserted Pilot: " . $pilot->fullName);
                 }
             } catch (Exception $e) {
@@ -1714,7 +1714,6 @@ function postPilots() {
             goto db_rollback;
         }
     }
-
     if (commitTrans("Could not add the pilots. ") ) {
         $result  = 'success';
         $message = 'Pilots have been added.';

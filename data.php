@@ -20,6 +20,10 @@ $sqlite_data = array();
 $db = null;
 $result = null;
 $message = null;
+$verboseMsgs = array();
+$requestTime = time();
+$source = null;
+$requestId = null;
 
 // Connect to database
 try {
@@ -103,10 +107,29 @@ $db->close();
 unset($db);
 // Prepare data
 $data = array(
-  "result"  => $result,
-  "message" => $message,
-  "data"    => $sqlite_data
+  "result"          => $result,
+  "message"         => $message,
+  "requestId"       => $requestId,
+  "requestTime"     => $requestTime,
+  "verboseMsgs"     => $verboseMsgs,
+  "source"          => $source,
+  "data"            => $sqlite_data
 );
+
+if (!isSet($data["data"]) || $data["data"] == null)
+    unset ($data["data"]);
+
+if (!isSet($data["verboseMsgs"]) || $data["verboseMsgs"] == null)
+    unset($data["verboseMsgs"]);
+
+if (!isSet($data["requestTime"]) || $data["requestTime"] == null)
+    unset($data["requestTime"]);
+
+if (!isSet($data["source"]) || $data["source"] == null)
+    unset($data["source"]);
+
+if (!isSet($data["requestId"]) || $data["requestId"] == null)
+    unset($data["requestId"]);
 
 // Convert PHP array to JSON array
 $json_data = json_encode($data, JSON_PRETTY_PRINT);
