@@ -35,6 +35,18 @@ try {
 }    
 
 switch ($job) {
+    case 'del_all_results':
+        clearResults();
+        break;
+    case 'del_all_pilots':
+        clearPilots();
+        break;
+    case 'del_schedules':
+        clearSchedules();
+        break;
+    case 'post_pilots':
+        postPilots();
+        break;
     case 'get_rounds':
         getRounds();
         break;

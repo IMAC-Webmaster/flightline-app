@@ -4,6 +4,8 @@ function beginTrans($failureMsg = "") {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
     if (!$db->exec("BEGIN TRANSACTION;")) {
         $db->enableExceptions(true);
         $result  = 'error';
@@ -18,6 +20,8 @@ function commitTrans($failureMsg = "") {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
     if (!$db->exec("COMMIT;")) {
         $result  = 'error';
         $message = $failureMsg . "Error was: " . $db->lastErrorMsg();
@@ -33,72 +37,77 @@ function getRounds() {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
+
     // Get rounds
     $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status "
            . "from round r left join schedule s on s.schedId = r.schedId order by r.imacClass, r.imacType, r.roundNum;";
 
     if ($statement = $db->prepare($query)) {
         try {
-            $res = $statement->execute();
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get round data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
         } catch (Exception $e) {
             $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
+            $message = 'query error: ' . $e->getMessage();
+            goto db_rollback;
         }
     } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+        $result  = 'error';
+        $message = 'query error: ' . $e->getMessage();
+        goto db_rollback;
     }
 
-    if ($res === FALSE) {
-        $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
-    } else {
-        $result  = 'success';
-        $message = 'query success';
-        while ($round = $res->fetchArray()) {
-            $functions  = '<div class="function_buttons"><ul>';
-            switch($round["phase"]) {
-                case "U":
-                    $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
-                    $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Edit</span></a></li>';
-                    $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Delete</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    break;
-                case "O":
-                    $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    break;
-                case "P":
-                    $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Start</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
-                    break;
-                case "D":
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                    break;
-            }
-            $functions .= '</ul></div>';
-            $sqlite_data[] = array(
-                "roundId"       => $round['roundId'],
-                "imacClass"     => $round['imacClass'],
-                "imacType"      => $round['imacType'],
-                "roundNum"      => $round['roundNum'],
-                "description"   => $round['description'],
-                "schedId"       => $round['schedId'],
-                "sequences"     => $round['sequences'],
-                "phase"         => $round['phase'],
-                "status"        => $round['status'],
-                "functions"     => $functions
-            );
+    $result  = 'success';
+    $message = 'query success';
+    while ($round = $res->fetchArray()) {
+        $functions  = '<div class="function_buttons"><ul>';
+        switch($round["phase"]) {
+            case "U":
+                $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Edit</span></a></li>';
+                $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Delete</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                break;
+            case "O":
+                $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                break;
+            case "P":
+                $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
+                break;
+            case "D":
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                break;
         }
+        $functions .= '</ul></div>';
+        $sqlite_data[] = array(
+            "roundId"       => $round['roundId'],
+            "imacClass"     => $round['imacClass'],
+            "imacType"      => $round['imacType'],
+            "roundNum"      => $round['roundNum'],
+            "description"   => $round['description'],
+            "schedId"       => $round['schedId'],
+            "sequences"     => $round['sequences'],
+            "phase"         => $round['phase'],
+            "status"        => $round['status'],
+            "functions"     => $functions
+        );
     }
+    db_rollback:
 }
 
 function getRound() {
@@ -106,6 +115,9 @@ function getRound() {
     global $result;
     global $message;
     global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
 
     // Get round  (imacClass, imacType, round number).
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
@@ -119,36 +131,40 @@ function getRound() {
             $statement->bindValue(':imacClass',    $imacClass);
             $statement->bindValue(':imacType',     $imacType);
             $statement->bindValue(':roundNum',     $roundNum);
-            $res = $statement->execute();
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get round data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();          
+            error_log($message);
+            goto db_rollback;
         }
     } else {
-        $res = FALSE;
         $err = error_get_last();
         $message = $err['message'];
+        error_log($message);
+        goto db_rollback;
     }
 
-    if ($res === FALSE){
-        $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
-    } else {
-        $result  = 'success';
-        $message = 'query success';
-        while ($round = $res->fetchArray()){
-            $sqlite_data = array(
-                "imacClass"     => $round['imacClass'],
-                "imacType"      => $round['imacType'],
-                "roundNum"      => $round['roundNum'],
-                "description"   => $round['description'],
-                "schedId"       => $round['schedId'],
-                "sequences"     => $round['sequences'],
-                "phase"         => $round['phase'],
-                "status"        => $round['status']
-            );
-        }
+    $result  = 'success';
+    $message = 'query success';
+    while ($round = $res->fetchArray()){
+        $sqlite_data = array(
+            "imacClass"     => $round['imacClass'],
+            "imacType"      => $round['imacType'],
+            "roundNum"      => $round['roundNum'],
+            "description"   => $round['description'],
+            "schedId"       => $round['schedId'],
+            "sequences"     => $round['sequences'],
+            "phase"         => $round['phase'],
+            "status"        => $round['status']
+        );
     }
+    db_rollback:
 }
 
 function getFlightsForRound($roundId) {
@@ -157,6 +173,8 @@ function getFlightsForRound($roundId) {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
 
     $query = "select * from flight where roundId = :roundId;";
     if ($statement = $db->prepare($query)) {
@@ -190,6 +208,8 @@ function getSheetsForFlight($flightId) {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
 
     $query = "select * from sheet where flightId = :flightId;";
     if ($statement = $db->prepare($query)) {
@@ -229,6 +249,9 @@ function getScoresForSheet($sheetId) {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
+
     $query = "select * from score where sheetId = :sheetId;";
     if ($statement = $db->prepare($query)) {
         try {
@@ -260,6 +283,8 @@ function getPilots() {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
 
     $query = "select * from pilot;";
     if ($statement = $db->prepare($query)) {
@@ -296,6 +321,8 @@ function getPilot($pilotId) {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
 
     $query = "select * from pilot where pilotId = :pilotId;";
     if ($statement = $db->prepare($query)) {
@@ -341,6 +368,9 @@ function getFlownRounds() {
     global $result;
     global $message;
     global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
 
     // Get the flown rounds as one big JSON object.
     // Keep as much of the non Score! like data out of it....
@@ -396,7 +426,10 @@ function getRoundResults() {
     global $message;
     global $sqlite_data;
 
-       // Get the full data for a round.
+    $message = null;
+    $sqlite_data = null;
+
+    // Get the full data for a round.
     $query = "select * from round where roundId = :roundId;";
     if (isset($_GET['roundId']))  { $roundId   = $_GET['roundId'];  } else $roundId = null;
 
@@ -416,7 +449,7 @@ function getRoundResults() {
 
     if ($res === FALSE){
       $result  = 'error';
-      if (!isset($message)) { $message = 'query error'; }
+      if ($message == null) { $message = 'query error'; }
     } else {
         $result  = 'success';
         $message = 'query success';
@@ -476,6 +509,9 @@ function getRoundPilots() {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
+
     // Get the full list of pilots for the round.
     // Note: each round has 1 flight per sequence.
     $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
@@ -500,7 +536,7 @@ function getRoundPilots() {
 
     if ($res === FALSE) {
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         $result  = 'success';
         $message = 'query success';
@@ -529,6 +565,9 @@ function getNextRndIds() {
     global $message;
     global $sqlite_data;
 
+    $message = null;
+    $sqlite_data = null;
+
     // Get rounds
     $query = "select imacClass, imacType, (max(roundNum) + 1) as nextroundNum from round group by imacClass, imacType;";
     if ($statement = $db->prepare($query)) {
@@ -546,7 +585,7 @@ function getNextRndIds() {
 
     if ($res === FALSE){
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         $result  = 'success';
         $message = 'query success';
@@ -564,6 +603,9 @@ function setNextFlight() {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
+    $sqlite_data = null;
 
     // Set the next flight (pilot, noteFlightId)
     // Note: each round has 1 flight per sequence.
@@ -600,7 +642,7 @@ function setNextFlight() {
 
     if ($res === FALSE) {
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         $round = $res->fetchArray();
         if (!$round) {
@@ -695,7 +737,7 @@ function setNextFlight() {
     end_set_next_flight:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     }    
 }
 
@@ -704,6 +746,10 @@ function getNextFlight() {
     global $result;
     global $message;
     global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
     // Get the next flight data (seq, pilotname etc)
     // Note: each round has 1 flight per sequence.
     
@@ -791,7 +837,10 @@ function getSchedlist() {
     global $message;
     global $sqlite_data;
     
-        // Get schedules
+    $message = null;
+    $sqlite_data = null;
+
+    // Get schedules
     $query = "select * from schedule order by imacClass;";
     if ($statement = $db->prepare($query)) {
         try {
@@ -808,7 +857,7 @@ function getSchedlist() {
 
     if ($res === FALSE){
       $result  = 'error';
-      if (!isset($message)) { $message = 'query error'; }
+      if ($message == null) { $message = 'query error'; }
     } else {
         $result  = 'success';
         $message = 'query success';
@@ -827,7 +876,10 @@ function getFlightlineId() {
     global $db;
     global $result;
     global $message;
-    
+
+    $message = null;
+    $sqlite_data = null;
+
     $query = "select value as flightLineId from state where key = 'flightLineId';";
     if ($statement = $db->prepare($query)) {
         try {
@@ -853,6 +905,8 @@ function addRound() {
     global $result;
     global $message;
     
+    $message = null;
+
     // Add round
     
     // Insert into two tables...   First one is the round table.
@@ -972,7 +1026,7 @@ function addRound() {
     end_add_round:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     }
 }
 
@@ -980,6 +1034,8 @@ function editRound() {
     global $db;
     global $result;
     global $message;
+
+    $message = null;
 
     // Edit round
     $blOkToGo = true;
@@ -1149,7 +1205,7 @@ function editRound() {
     end_edit_round:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     }    
     
 }
@@ -1159,7 +1215,9 @@ function startRound() {
     global $result;
     global $message;
 
-       // Start round
+    $message = null;
+
+    // Start round
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
     if (isset($_GET['imacType'])){ $imacType = $_GET['imacType'];} else $imacType = null;
     if (isset($_GET['roundNum'])){ $roundNum = $_GET['roundNum'];} else $roundNum = null;
@@ -1182,7 +1240,7 @@ function startRound() {
 
     if ($res === FALSE) {
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         $round = $res->fetchArray();
         if ($round["flycount"] > 0) {
@@ -1211,7 +1269,7 @@ function startRound() {
 
         if ($res === FALSE) {
             $result  = 'error';
-            if (!isset($message)) { $message = 'query error'; }
+            if ($message == null) { $message = 'query error'; }
         } else {
             // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
             if ($db->changes() === 1) {
@@ -1230,7 +1288,9 @@ function pauseRound() {
     global $result;
     global $message;
 
-       // Pause round
+    $message = null;
+
+    // Pause round
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
     if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType  = null;
     if (isset($_GET['roundNum']))  { $roundNum   = $_GET['roundNum'];  } else $roundNum   = null;
@@ -1254,7 +1314,7 @@ function pauseRound() {
 
     if ($res === FALSE){
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
         if ($db->changes() === 1) {
@@ -1272,7 +1332,9 @@ function finishRound() {
     global $result;
     global $message;
 
-        // Finish round
+    $message = null;
+
+    // Finish round
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
     if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType  = null;
     if (isset($_GET['roundNum']))  { $roundNum   = $_GET['roundNum'];  } else $roundNum   = null;
@@ -1296,7 +1358,7 @@ function finishRound() {
 
     if ($res === FALSE){
         $result  = 'error';
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
         if ($db->changes() === 1) {
@@ -1314,7 +1376,9 @@ function deleteRound() {
     global $result;
     global $message;
     
-       // Delete round
+    $message = null;
+
+    // Delete round
     if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
     if (isset($_GET['imacType'])){ $imacType = $_GET['imacType'];} else $imacType = null;
     if (isset($_GET['roundNum'])){ $roundNum = $_GET['roundNum'];} else $roundNum = null;
@@ -1378,7 +1442,7 @@ function deleteRound() {
     end_delete_round:
     if ($result == "error") {
         $db->exec("ROLLBACK;");
-        if (!isset($message)) { $message = 'query error'; }
+        if ($message == null) { $message = 'query error'; }
     } else {
         if (!$db->exec("COMMIT;")) {
             $err = $db->lastErrorMsg();
@@ -1389,4 +1453,277 @@ function deleteRound() {
             $message = 'Round ' . $round["roundId"] . ' has been deleted.';
         }
     }
+}
+
+function clearResults() {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    if (!beginTrans())
+        goto db_rollback;
+    
+    $query = "delete from score;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    $query = "delete from sheet;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+    
+    if (commitTrans("Could not clear result data. ") ) {
+        $result  = 'success';
+        $message = 'The result data has been cleared.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if ($message == null) { $message = 'query error'; }
+    }       
+    return $sqlite_data;
+}
+
+function clearPilots() {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    if (!beginTrans())
+        goto db_rollback;
+    
+    $query = "delete from nextFlight;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    $query = "select count(*) as sheetCount from sheet;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    /*****
+     * Allow this for now.   But after testing we really want to enforce the integrity.
+     **/
+    error_log("Checking for sheets." . $result);
+    if ($sheet = $res->fetchArray()) {
+        if ($sheet["sheetCount"] > 0) {
+            $result  = 'error';
+            $message = 'Cannot clear pilots while scores have been entered.'; 
+            goto db_rollback;
+        }
+    }
+    error_log("Checking for sheets." . $sheet["sheetCount"]);
+    /**/
+
+    $query = "delete from pilot ;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    if (commitTrans("Could not clear pilots. ") ) {
+        $result  = 'success';
+        $message = 'The pilots have been cleared.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if ($message == null) { $message = 'query error'; }
+    }       
+    return $sqlite_data;
+}
+
+function clearSchedules() {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+    
+    if (!beginTrans())
+        goto db_rollback;
+    if (isset($_GET['scheduleType'])){ $schedType = $_GET['scheduleType'];} else $schedType = null;
+
+    $query = "select schedId from schedule where imacType = :schedType;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':schedType', $schedType);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+    
+    while ($sched = $res->fetchArray()) {
+        $query = "delete from figure where schedId = :schedId;";
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':schedType', $sched["schedId"]);
+                $res = $statement->execute();
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $result  = 'error';
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+    }
+
+    $query = "delete from schedule where imacType = :schedType;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    if (commitTrans("Could not clear schedule data. ") ) {
+        $result  = 'success';
+        $message = 'Schedules have been cleared.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if ($message == null) { $message = 'query error'; }
+    }       
+    return $sqlite_data;
+}
+
+
+function postPilots() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+    $pilotsArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+
+    if (!beginTrans())
+        goto db_rollback;
+
+    $result = "success";
+    foreach($pilotsArray as $pilotId => $pilot) {
+        //echo "$pilotId: " . print_r($pilot, true);
+        //echo "Inserting Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName . "\n";
+        $query = "INSERT into pilot (pilotId, primaryId, secondaryId, fullName, airplane, freestyle, imacClass, in_customclass1, in_customclass2, active) "
+                ."VALUES(:pilotId, :primaryId, :secondaryId, :fullName, :airplane, :freestyle, :imacClass, :in_customclass1, :in_customclass2, :active)";
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':pilotId', $pilot->pilotId);
+                $statement->bindValue(':primaryId', $pilot->primaryId);
+                $statement->bindValue(':secondaryId', $pilot->secondaryId);
+                $statement->bindValue(':fullName', $pilot->fullName);
+                $statement->bindValue(':airplane', $pilot->airplane);
+                $statement->bindValue(':freestyle', $pilot->freestyle);
+                $statement->bindValue(':imacClass', $pilot->imacClass);
+                $statement->bindValue(':in_customclass1', $pilot->in_customclass1);
+                $statement->bindValue(':in_customclass2', $pilot->in_customclass2);
+                $statement->bindValue(':active', $pilot->active);
+                if (!$res = $statement->execute()) {            
+                    $result  = 'error';
+                    $message = "Could not insert Pilot: " . $pilot->fullName . " Err: " . $db->lastErrorMsg();
+                    error_log($message);
+                    goto db_rollback;
+                } else {
+                    error_log("Inserted Pilot: " . $pilot->fullName);
+                }
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $result  = 'error';
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+    }
+
+    if (commitTrans("Could not add the pilots. ") ) {
+        $result  = 'success';
+        $message = 'Pilots have been added.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if ($message == null) { $message = 'query error'; }
+    }       
+    return $sqlite_data;
 }
