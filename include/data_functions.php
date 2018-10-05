@@ -312,6 +312,41 @@ function getPilots() {
     return $pilotArray;
 }
 
+
+function getUsers() {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    $query = "select * from user;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            if (!$res = $statement->execute()) {
+                return null;
+            }
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
+    $userArray = array();
+    
+    while ($user = $res->fetchArray()){
+        $thisUser = array(
+            "userId"          => $user["userId"],
+            "fullName"        => $user["fullName"],
+            "password"        => $user["password"],
+            "address"         => $user["address"]
+        );
+        array_push($userArray, $thisUser);
+    }
+    return $userArray;
+}
+
 function getPilot($pilotId) {
     global $db;
     global $result;
@@ -365,7 +400,6 @@ function getFlownRounds() {
     global $sqlite_data;
 
     $message = null;
-    $sqlite_data = null;
 
     // Get the flown rounds as one big JSON object.
     // Keep as much of the non Score! like data out of it....
@@ -387,12 +421,7 @@ function getFlownRounds() {
         return;
     }
 
-    $sqlite_data = array(
-        "pilots" => array(),
-        "rounds" => array()
-    );
-
-    $sqlite_data["pilots"] = getPilots();
+    $roundArray = array();
 
     while ($round = $res->fetchArray()){
         $thisRound = array(
@@ -405,15 +434,43 @@ function getFlownRounds() {
             "startTime"     => $round["startTime"],
             "finishTime"    => $round["finishTime"],
             "schedId"       => $round["schedId"],
-//            "schedDesc"     => $round["description"],
             "sequences"     => $round["sequences"],
             "phase"         => $round["phase"],
             "status"        => $round["status"],
-            //"flights"       => null
             "flights"       => getFlightsForRound($round["roundId"])
         );
-        array_push($sqlite_data["rounds"], $thisRound);
-    }    
+        array_push($roundArray, $thisRound);
+    }
+    return $roundArray;
+}
+
+function getFlightLineData() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    // Get everything we have.    Send it back to the requestor as JSON.
+    // Keep as much of the non Score! like data out of it....
+
+    $sqlite_data = array(
+        "flightLineId" => getStateValue("flightLineId"),
+        "flightLineAPIVersion" => getFlightLineAPIVersion(),
+        "flightLineName" => getStateValue("flightLineName"),
+        "flightLineUrl" => getStateValue("flightLineUrl"),
+        "users" => array(),
+        "pilots" => array(),
+        "rounds" => array()
+    );
+
+    $sqlite_data["users"] = getUsers();
+    $sqlite_data["pilots"] = getPilots();
+    $sqlite_data["rounds"] = getFlownRounds();
+
+    return $sqlite_data;
 }
 
 function getRoundResults() {
@@ -868,32 +925,38 @@ function getSchedlist() {
     }
 }
 
-function getFlightlineId() {
+function getStateValue($key) {
     global $db;
     global $result;
     global $message;
 
     $message = null;
-    $sqlite_data = null;
 
-    $query = "select value as flightLineId from state where key = 'flightLineId';";
+    $query = "select value from state where key = :key;";
     if ($statement = $db->prepare($query)) {
         try {
-            $res = $statement->execute();
+            $statement->bindValue(':key', $key);
+            if (!$res = $statement->execute()) {
+                return null;
+            }
         } catch (Exception $e) {
-            return -2;
+            return null;
         }
     } else {
-        return -2;
+        return null;
     }
 
     $state = $res->fetchArray();
     if (!$state) {
         // Null.   
-        return -1;
+        return null;
     } else {
-        return $state["flightLineId"];
+        return $state["value"];
     }
+}
+
+function getFlightLineAPIVersion() {
+    return "1.00";
 }
 
 function addRound() {
@@ -921,7 +984,7 @@ function addRound() {
     if ($imacType == "Freestyle") $imacClass = "Freestyle";
     if ($imacType != "Known" ) $sequences = 1;
 
-    $flightLineId = getFlightlineId();
+    $flightLineId = getStateValue("flightLineId")();
     if ($flightLineId < 1) {
         $flightLineId = null;
     }

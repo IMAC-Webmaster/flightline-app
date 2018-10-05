@@ -60,6 +60,9 @@ switch ($job) {
     case 'get_flown_rounds':
         getFlownRounds();
         break;
+    case 'get_flightline_data':
+        getFlightLineData();
+        break;
     case 'get_round_results':
         getRoundResults();
         break;
