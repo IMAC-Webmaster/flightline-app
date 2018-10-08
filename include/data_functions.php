@@ -230,7 +230,7 @@ function getSheetsForFlight($flightId) {
             "judgeName"    => $sheet["judgeName"],
             "scribeName"   => $sheet["scribeName"],
             "comment"      => $sheet["comment"],
-            "mppPenalty"   => $sheet["mppPenalty"],
+            "mppFlag"      => $sheet["mppFlag"],
             "flightZeroed" => $sheet["flightZeroed"],
             "zeroReason"   => $sheet["zeroReason"],
             "scores"       => getScoresForSheet($sheet["sheetId"])
@@ -265,7 +265,7 @@ function getScoresForSheet($sheetId) {
         $thisScore = array(
             "figureNum"    => $score["figureNum"],
             "scoreTime"    => $score["scoreTime"],
-            "breakPenalty" => $score["breakPenalty"],
+            "breakFlag"    => $score["breakFlag"],
             "score"        => $score["score"],
             "comment"      => $score["comment"]
         );
