@@ -984,7 +984,7 @@ function addRound() {
     if ($imacType == "Freestyle") $imacClass = "Freestyle";
     if ($imacType != "Known" ) $sequences = 1;
 
-    $flightLineId = getStateValue("flightLineId")();
+    $flightLineId = getStateValue("flightLineId");
     if ($flightLineId < 1) {
         $flightLineId = null;
     }
