@@ -127,7 +127,7 @@ if ($nautoption == "P")	{	// The Notaumatic is asking for the next pilot to fly	
 
     $rowpil = $sqlexe->FetchRow();
 	// Return : pilot #, flight #, comp # and schedule's shortname
-	$monRet = "return:".substr("00".$rowpil['pilbanniere'], -2);
+	$monRet = "return:".substr("000".$rowpil['pilbanniere'], -3);
 	$monRet.= substr("00".$rowpil['volpos'], -2);
 	$monRet.= substr("00".$rowpil['cmpid'], -2);
 	$monRet.= $rowpil['prgshortname'];

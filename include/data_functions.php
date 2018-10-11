@@ -1725,7 +1725,7 @@ function clearSchedules() {
     return $sqlite_data;
 }
 
-function postPilots() {
+function postPilots($pilotsArray = null) {
     global $db;
     global $result;
     global $message;
@@ -1734,7 +1734,8 @@ function postPilots() {
 
     $message = null;
     $sqlite_data = null;
-    $pilotsArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    if (is_null($pilotsArray))
+        $pilotsArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
 
     if (!beginTrans())
         goto db_rollback;
@@ -1788,4 +1789,130 @@ function postPilots() {
         if ($message == null) { $message = 'query error'; }
     }       
     return $sqlite_data;
+}
+
+function postSheets($sheetArray = null) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+    global $verboseMsgs;
+
+    $message = null;
+    $sqlite_data = null;
+    $result = "success";
+    if (is_null($sheetArray))
+        $sheetArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    
+    error_log("postSheets -> " . var_dump($sheetArray, true));
+    /***********/
+    if (!beginTrans())
+        goto db_rollback;
+
+    $query = "select r.roundId from round r inner join flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':imacClass', convertCompIDToClass($sheet["compId"]));
+            $statement->bindValue(':noteFlightId', $sheet["noteFlightId"]);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    if ($res === FALSE) {
+        $result  = 'error';
+        if ($message == null) { $message = 'query error'; }
+        goto db_rollback;
+    } else {
+        $round = $res->fetchArray();
+    }    
+
+    $verboseMsgs = array();
+    foreach($sheetArray as $sheet) {
+        $query =      "insert into sheet (roundId, flightId, pilotId, judgeNum) "
+                    . "values (:roundId, :flightId, :pilotId, :judgeNum);";
+        
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':pilotId', $sheet["pilotId"]);
+                $statement->bindValue(':roundId', $round["roundId"]);
+                $statement->bindValue(':flightId', $round["flightId"]);
+                $statement->bindValue(':judgeNum', $sheet["judgeNum"]);
+                if (!$res = $statement->execute()) {            
+                    $result  = 'error';
+                    $message = "Could not insert sheet. Err: " . $db->lastErrorMsg();
+                    error_log($message);
+                    goto db_rollback;
+                } else {
+                    $lastSheetId = $db->lastInsertRowID();
+                    $verboseMsgs[] = "Inserted sheet with Id: " . $lastSheetId;
+                    error_log("Inserted sheet with Id: " . $lastSheetId);
+                }
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $result  = 'error';
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+
+        
+        // Now insert the scores!
+        foreach($sheet["scores"] as $score) {
+            $query =    "insert into score (sheetId, figureNum, scoreTime, breakFlag, score, comment) "
+                        . "values (:sheetId, :figureNum, :scoreTime, :breakFlag, :comment);";
+
+
+            if ($statement = $db->prepare($query)) {
+                try {
+                    $statement->bindValue(':sheetId', $lastSheetId);
+                    $statement->bindValue(':figureNum', $score["figureNum"]);
+                    $statement->bindValue(':scoreTime', $score["scoreTime"]);
+                    $statement->bindValue(':breakFlag', $score["breakFlag"]);
+                    $statement->bindValue(':score', $score["score"]);
+                    $statement->bindValue(':comment', $score["comment"]);
+                    if (!$res = $statement->execute()) {            
+                        $result  = 'error';
+                        $message = "Could not insert score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId . " Err: " . $db->lastErrorMsg();
+                        error_log($message);
+                        goto db_rollback;
+                    } else {
+                        $verboseMsgs[] = "Inserted score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId;
+                        error_log("Inserted score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId);
+                    }
+                } catch (Exception $e) {
+                    $result  = 'error';
+                    $message = 'query error: ' . $e->getMessage(); 
+                    goto db_rollback;
+                }
+            } else {
+                $result  = 'error';
+                $message = $db->lastErrorMsg();
+                goto db_rollback;
+            }
+        }        
+    }
+
+    if (commitTrans("Could not add the sheet.") ) {
+        $result  = 'success';
+        $message = 'Sheet has been added.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        error_log("Rolling back sheet insert: " . $message);
+        return false;
+    }
+    /***********/
+    return true;
 }

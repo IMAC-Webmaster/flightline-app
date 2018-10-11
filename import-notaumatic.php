@@ -46,6 +46,7 @@ Error code
 $timezone = 'UTC';
 ini_set('date.timezone', $timezone);
 $dbfile = "flightline.db";
+date_default_timezone_set($timezone);    
 
 
 if (isset($_GET['OPT'])) $nautoption      = $_GET['OPT'];  else $nautoption = "";
@@ -63,18 +64,94 @@ try {
     exit;
 }
 
+// Log the request:
+//$req = new HttpRequest();
+$req_dump = var_export($_REQUEST, true);
+$fp = fopen('request.log', 'a');
+fwrite($fp, '['.date("c").']'.$req_dump."\n");
+error_log("Received: " . $req_dump);
+fclose($fp);
+
+
+// Get the scores if they exist.
+$i = 0;
+foreach($_GET as $reqOpt => $reqVal)	{
+    if ($reqOpt[0] === "N") {
+	$figureNumber = explode("N", $reqOpt);
+	$nautScores[$i]['figpos'] = $figureNumber[1];
+        $nautScores[$i]['breakFlag'] = false;
+        switch ($reqVal) {
+            case "-1":
+                $nautScores[$i]['score'] = null;
+                break;
+            case "-2":
+                // It's a break.
+                $nautScores[$i]['score'] = 0;
+                $nautScores[$i]['breakFlag'] = true;
+                break;
+            default:
+                $nautScores[$i]['score'] = $reqVal;
+                break;
+        }
+	$i++;
+    }
+}
 
 switch ($nautoption) {
     case "H":
-        date_default_timezone_set($timezone);    
         echo "return:0&H:".date('YmdHis', time());
         break;
 
     case "N":
-        // Update a single flight score.	
-        break;
+        // Update a single flight score.
+        // Fall through to 'U' since it really is the same code only the array is small.
     case "U":
-        // Update the flight scores and save them.	
+         /************
+         * Update the flight scores and save them.	
+         * Get each score from the array and insert it.
+         * Create a JSON objec and pass it to postSheet..
+         * 
+         *  {
+         *      "pilotId": 6,
+         *      "judgeNum": 2,
+         *      "compId": 1,
+         *      "flightId": 2,
+         *      "scores": [
+         *          {
+         *              "figureNum": 1,
+         *              "scoreTime": 1234567,
+         *              "breakFlag": 0,
+         *              "score": 5,
+         *              "comment": null
+         *          }.....
+         *      ]
+         *  }
+         */
+        $sheets = array();
+        $sheet = array(
+            "pilotId"       => $nautopilotid,
+            "judgeNum"      => $nautojugeid,
+            "compId"        => $nautocompid,
+            "noteFlightId"  => $nautoflightid,
+            "scores"        => array()
+        );
+        
+        foreach ($nautnote as $score) {
+            $s = array(
+                "figureNum" => $score['figpos'],
+                "scoreTime" => time(),
+                "breakFlag" => $score['breakFlag'],
+                "score"     => $score['score'],
+                "comment"   => null
+            );
+            array_push($sheet['scores'], $score);
+        }
+        array_push($sheets, $sheet);
+        if (postSheets(json_encode($sheets, JSON_PRETTY_PRINT)))
+            echo "return:0&H:".date('YmdHis', time());
+        else
+            echo "return:902";
+            
         break;
     case "T":  
         // Test...   Check the flight exists, and is open.   This gets done before a pilot is scored.
@@ -223,7 +300,7 @@ switch ($nautoption) {
 
             $schedId = $nextFlightRoundData["schedId"];
             // Return : pilot #, flight #, comp # and schedule's shortname
-            $result = "return:".substr("00".$nextPilotId, -2);
+            $result = "return:".substr("000".$nextPilotId, -3);
             $result.= substr("00".$nextNoteFlightId, -2);
             $result.= substr("00".$nextCompId, -2);
             $result.= $schedId;
