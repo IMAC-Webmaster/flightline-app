@@ -119,7 +119,7 @@
           <div class="field_container">Class:</div><div class="field_details" id="class-details">Some Class</div>
           <div class="field_container">Round:</div><div class="field_details" id="roundnum-details">Round Num</div>
           <div class="field_container">Type:</div><div class="field_details" id="roundtype-details">Known</div>
-          <div class="field_container">Scedule:</div><div class="field_details" id="roundsched-details"></div>
+          <div class="field_container">Schedule:</div><div class="field_details" id="roundsched-details"></div>
           <div class="field_container">Next Flight:</div><div class="field_details" id="nextflight-details"></div>
           <div class="roundinstructions_container">
            Some instructions here...

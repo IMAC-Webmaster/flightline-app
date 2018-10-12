@@ -10,6 +10,7 @@
 // 
 
 include_once ("include/functions.php");
+include_once ("include/data_functions.php");
 // URL
 //server/import-notaumatic.php?OPT=U&F=1&J=8&D=58&N1=0&N2=0&N3=0&N4=0&N5=0&N6=0&N7=0&N8=0&N9=0&N10=0&N11=0
 
@@ -42,7 +43,7 @@ Error code
 -1  --> Could not find the next pilot
 0   --> Fin Ok
 */
-
+$logRequests = true;
 $timezone = 'UTC';
 ini_set('date.timezone', $timezone);
 $dbfile = "flightline.db";
@@ -54,7 +55,7 @@ if (isset($_GET['F']))   $nautoflightid   = $_GET['F'];    else $nautoflightid =
 if (isset($_GET['C']))   $nautocompid     = $_GET['C'];    else $nautocompid = "";
 if (isset($_GET['J']))   $nautojugeid     = $_GET['J'];    else $nautojugeid = "";
 if (isset($_GET['D']))   $nautopilotid    = $_GET['D'];    else $nautopilotid = "";
-if (isset($_GET['P']))   $nautosequenceid = $_GET['P'];    else $nautosequenceid = "";
+if (isset($_GET['P']))   $nautoSchedId    = $_GET['P'];    else $nautoSchedId = "";
 
 // Connect to database - We need it so bail early if it is not there.
 try {
@@ -64,17 +65,9 @@ try {
     exit;
 }
 
-// Log the request:
-//$req = new HttpRequest();
-$req_dump = var_export($_REQUEST, true);
-$fp = fopen('request.log', 'a');
-fwrite($fp, '['.date("c").']'.$req_dump."\n");
-error_log("Received: " . $req_dump);
-fclose($fp);
-
-
 // Get the scores if they exist.
 $i = 0;
+$nautScores = array();
 foreach($_GET as $reqOpt => $reqVal)	{
     if ($reqOpt[0] === "N") {
 	$figureNumber = explode("N", $reqOpt);
@@ -95,6 +88,29 @@ foreach($_GET as $reqOpt => $reqVal)	{
         }
 	$i++;
     }
+}
+
+// Log the request:
+if ($logRequests == true && ($nautoption === 'N' || $nautoption === 'U')) {
+    // forward the result to redundancy IP address
+    // we are checking REDUNDANCY parameter in conf/conf.ffam.php to save sql queries here
+    // 
+    // set URL and other appropriate options
+    $url = "http://imac.lan/import-notaumatic.php"
+	    . "?OPT=".$nautoption
+	    . "&F=".$nautoflightid
+	    . "&D=".$nautopilotid
+	    . "&J=".$nautojugeid
+	    . "&C=".$nautocompid;
+    foreach($nautScores as $score)	{
+	$url .= "&N".$score['figpos']."=".$score['score'];
+    }
+
+    //$req_dump = var_export($_REQUEST, true);
+    $fp = fopen('request.log', 'a');
+    fwrite($fp, '['.date("c").']' . $url . "\n");
+    fclose($fp);
+    error_log("Received: " . $url);
 }
 
 switch ($nautoption) {
@@ -136,7 +152,14 @@ switch ($nautoption) {
             "scores"        => array()
         );
         
-        foreach ($nautnote as $score) {
+        foreach ($nautScores as $score) {
+            $s = array();
+            $s["figureNum"] = $score['figpos'];
+            $s["scoreTime"] = time();
+            $s["breakFlag"] = $score['breakFlag'];
+            $s["score"]     = $score['score'];
+            $s["comment"]   = null;
+            /*
             $s = array(
                 "figureNum" => $score['figpos'],
                 "scoreTime" => time(),
@@ -144,7 +167,8 @@ switch ($nautoption) {
                 "score"     => $score['score'],
                 "comment"   => null
             );
-            array_push($sheet['scores'], $score);
+            */
+            array_push($sheet['scores'], $s);
         }
         array_push($sheets, $sheet);
         if (postSheets(json_encode($sheets, JSON_PRETTY_PRINT)))
@@ -172,14 +196,13 @@ switch ($nautoption) {
         $bl_abort = false;
         if (!is_numeric($nautoflightid)) $bl_abort = true;
         if (!is_numeric($nautocompid))   $bl_abort = true;
-        if ($nautosequenceid == "")      $bl_abort = true;
+        if ($nautoSchedId == "")         $bl_abort = true;
 
         if ($bl_abort) {
             echo "return:100&H:".date('YmdHis', time());
         } else {
-            //$flightStatusReturn = getFlightStatus($nautoflightid, $nautocompid, $nautosequenceid, $nautopilotid);
             // Notauscore does not care about the pilot except for updates.   Should ignore it for now (0 = no pilot...).
-            $flightStatusReturn = getFlightStatus($nautoflightid, $nautocompid, $nautosequenceid, 0);
+            $flightStatusReturn = getFlightStatus($nautoflightid, $nautocompid, $nautoSchedId, 0);
 
             // The returned string can be...   OK:STATUS:Message, ERROR:STATUS:Message, ERROR:STATUS:Message
             // Thefirst part is the result of the request.
@@ -192,15 +215,15 @@ switch ($nautoption) {
             // P = Paused
             // C = Completed
             // 
-            //$status = checkFlightIsOpen($nautoflightid, $nautocompid, $nautosequenceid, $nautopilotid);
-            
-            list($flightStatusResult, $flightStatus, $flightStatusMsg) = explode(":", $flightStatusReturn, 2);
+            //$status = checkFlightIsOpen($nautoflightid, $nautocompid, $nautoSchedId, $nautopilotid);
+            error_log("Got: " . $flightStatusReturn);
+            list($flightStatusResult, $flightStatus, $flightStatusMsg) = explode(":", $flightStatusReturn, 3);
             switch ($flightStatusResult) {
                 case "OK":
                     switch ($flightStatus) {
                         case "O":
                             // We have a flight...   Lets go!
-                            //updateFlightStatus("O", $nautoflightid, $nautocompid, $nautosequenceid, $nautopilotid);
+                            //updateFlightStatus("O", $nautoflightid, $nautocompid, $nautoSchedId, $nautopilotid);
                             echo "return:0"."&H:".date('YmdHis', time());
                             break;
                         case "U": // Unflown
@@ -211,6 +234,7 @@ switch ($nautoption) {
                             echo "return:100&H:".date('YmdHis', time());
                             break;
                     }
+                    break;
 
                 case "ERROR":
                     // Bad error occurred (structural).   Display error bells and whistles.
@@ -225,6 +249,7 @@ switch ($nautoption) {
             }
         }
         break;
+
     case "P":  
         // The Notaumatic is asking for the next pilot to fly	(test)	
         // Is a "next pilot" selected ?

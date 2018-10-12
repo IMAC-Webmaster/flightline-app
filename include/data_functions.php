@@ -167,6 +167,34 @@ function getRound() {
     db_rollback:
 }
 
+function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    $query = "select r.roundId, r.phase from round r inner join "
+            ."flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':noteFlightId', $noteFlightId);
+            $statement->bindValue(':imacClass', convertCompIDToClass($compId));
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return "ERROR:X:DB Error.";
+        }
+    } else {
+        return "ERROR:X:DB Error.";
+    }
+    
+    if ($round = $res->fetchArray()){
+        return "OK:" . $round["phase"] . ":Round found";
+    } else {
+        return "ERROR:X:Could not find round.";
+    }
+}
+
 function getFlightsForRound($roundId) {
     global $db;
     global $result;
@@ -1791,7 +1819,7 @@ function postPilots($pilotsArray = null) {
     return $sqlite_data;
 }
 
-function postSheets($sheetArray = null) {
+function postSheets($sheetJSON = null) {
     global $db;
     global $result;
     global $message;
@@ -1801,58 +1829,109 @@ function postSheets($sheetArray = null) {
     $message = null;
     $sqlite_data = null;
     $result = "success";
-    if (is_null($sheetArray))
+    if (is_null($sheetJSON)) {
         $sheetArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
-    
-    error_log("postSheets -> " . var_dump($sheetArray, true));
+    } else {
+        $sheetArray = @json_decode($sheetJSON);
+    }
+        
+    //error_log("postSheets -> " . print_r($sheetArray, true));
     /***********/
     if (!beginTrans())
         goto db_rollback;
 
-    $query = "select r.roundId from round r inner join flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':imacClass', convertCompIDToClass($sheet["compId"]));
-            $statement->bindValue(':noteFlightId', $sheet["noteFlightId"]);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
-
-    if ($res === FALSE) {
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-        goto db_rollback;
-    } else {
-        $round = $res->fetchArray();
-    }    
-
     $verboseMsgs = array();
     foreach($sheetArray as $sheet) {
-        $query =      "insert into sheet (roundId, flightId, pilotId, judgeNum) "
-                    . "values (:roundId, :flightId, :pilotId, :judgeNum);";
+        //error_log("Processing sheet: " . print_r($sheet, true));
+
+        $query = "select r.roundId, f.flightId from round r inner join flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId";
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':imacClass', convertCompIDToClass($sheet->compId));
+                $statement->bindValue(':noteFlightId', $sheet->noteFlightId);
+                $res = $statement->execute();
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+
+        if ($res === FALSE) {
+            $result  = 'error';
+            if ($message == null) { $message = 'query error'; }
+            goto db_rollback;
+        } else {
+            if (!$round = $res->fetchArray()) {
+                $result  = 'error';
+                $message = 'could not find the round!';
+                goto db_rollback;
+            }
+        }
+
+        $query = "select sheetId from sheet where roundId = :roundId and flightId = :flightId and pilotId = :pilotId and judgeNum = :judgeNum";
+        //error_log ($query . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':roundId', $round["roundId"]);
+                $statement->bindValue(':flightId', $round["flightId"]);
+                $statement->bindValue(':pilotId', $sheet->pilotId);
+                $statement->bindValue(':judgeNum', $sheet->judgeNum);
+                $res = $statement->execute();
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+
+        if ($res === FALSE) {
+            $result  = 'error';
+            if ($message == null) { $message = 'query error'; }
+            goto db_rollback;
+        } else {
+            $oldsheet = $res->fetchArray();
+            
+            if (isset($oldsheet["sheetId"])) {
+                $sheetId = $oldsheet["sheetId"];
+                $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum "
+                            . "where sheetId = :sheetId;";
+            } else {
+                $sheetId = null;
+                $query =    "insert into sheet (roundId, flightId, pilotId, judgeNum) "
+                            . "values (:roundId, :flightId, :pilotId, :judgeNum);";
+            }
+            //error_log ($query . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
+        }
+        
+        
         
         if ($statement = $db->prepare($query)) {
             try {
-                $statement->bindValue(':pilotId', $sheet["pilotId"]);
-                $statement->bindValue(':roundId', $round["roundId"]);
+                $statement->bindValue(':pilotId',  $sheet->pilotId);
+                $statement->bindValue(':roundId',  $round["roundId"]);
                 $statement->bindValue(':flightId', $round["flightId"]);
-                $statement->bindValue(':judgeNum', $sheet["judgeNum"]);
+                $statement->bindValue(':judgeNum', $sheet->judgeNum);
+                if (!is_null($sheetId)) {
+                    $statement->bindValue(':sheetId', $sheetId);                
+                }
                 if (!$res = $statement->execute()) {            
                     $result  = 'error';
                     $message = "Could not insert sheet. Err: " . $db->lastErrorMsg();
                     error_log($message);
                     goto db_rollback;
                 } else {
-                    $lastSheetId = $db->lastInsertRowID();
-                    $verboseMsgs[] = "Inserted sheet with Id: " . $lastSheetId;
-                    error_log("Inserted sheet with Id: " . $lastSheetId);
+                    if (is_null($sheetId)) {
+                        $sheetId = $db->lastInsertRowID();
+                    }
+                    $verboseMsgs[] = "Inserted sheet with Id: " . $sheetId;
+                    error_log("Inserted sheet with Id: " . $sheetId);
                 }
             } catch (Exception $e) {
                 $result  = 'error';
@@ -1867,27 +1946,28 @@ function postSheets($sheetArray = null) {
 
         
         // Now insert the scores!
-        foreach($sheet["scores"] as $score) {
-            $query =    "insert into score (sheetId, figureNum, scoreTime, breakFlag, score, comment) "
-                        . "values (:sheetId, :figureNum, :scoreTime, :breakFlag, :comment);";
+        foreach($sheet->scores as $score) {
+            $query =    "replace into score (sheetId, figureNum, scoreTime, breakFlag, score, comment) "
+                        . "values (:sheetId, :figureNum, :scoreTime, :breakFlag, :score, :comment);";
 
+            //error_log ($query . " " . $sheetId . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
 
             if ($statement = $db->prepare($query)) {
                 try {
-                    $statement->bindValue(':sheetId', $lastSheetId);
-                    $statement->bindValue(':figureNum', $score["figureNum"]);
-                    $statement->bindValue(':scoreTime', $score["scoreTime"]);
-                    $statement->bindValue(':breakFlag', $score["breakFlag"]);
-                    $statement->bindValue(':score', $score["score"]);
-                    $statement->bindValue(':comment', $score["comment"]);
+                    $statement->bindValue(':sheetId',   $sheetId);
+                    $statement->bindValue(':figureNum', $score->figureNum);
+                    $statement->bindValue(':scoreTime', $score->scoreTime);
+                    $statement->bindValue(':breakFlag', $score->breakFlag);
+                    $statement->bindValue(':score',     $score->score);
+                    $statement->bindValue(':comment',   $score->comment);
                     if (!$res = $statement->execute()) {            
                         $result  = 'error';
-                        $message = "Could not insert score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId . " Err: " . $db->lastErrorMsg();
+                        $message = "Could not insert score for figure " . $score->figureNum . " of sheet " . $sheetId . " Err: " . $db->lastErrorMsg();
                         error_log($message);
                         goto db_rollback;
                     } else {
-                        $verboseMsgs[] = "Inserted score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId;
-                        error_log("Inserted score for figure " . $score["figureNum"] . " of sheet " . $lastSheetId);
+                        $verboseMsgs[] = "Inserted score for figure " . $score->figureNum . " of sheet " . $sheetId;
+                        error_log("Inserted score for figure " . $score->figureNum . " of sheet " . $sheetId);
                     }
                 } catch (Exception $e) {
                     $result  = 'error';
