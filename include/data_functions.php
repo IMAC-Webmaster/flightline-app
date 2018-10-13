@@ -1770,8 +1770,9 @@ function postPilots($pilotsArray = null) {
 
     $result = "success";
     $verboseMsgs = array();
+    error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
     foreach($pilotsArray as $pilotId => $pilot) {
-        //echo "$pilotId: " . print_r($pilot, true);
+        error_log("Inserting Pilot:$pilotId " . print_r($pilot, true));
         $query = "INSERT into pilot (pilotId, primaryId, secondaryId, fullName, airplane, freestyle, imacClass, in_customclass1, in_customclass2, active) "
                 ."VALUES(:pilotId, :primaryId, :secondaryId, :fullName, :airplane, :freestyle, :imacClass, :in_customclass1, :in_customclass2, :active)";
         if ($statement = $db->prepare($query)) {
