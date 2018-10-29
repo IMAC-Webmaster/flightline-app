@@ -1,4 +1,8 @@
 /nbproject/private/
+/db/
+!/db/placeholder
+/log/
+!/log/placeholder
 *.db
 *.db-shm
 *.db-wal

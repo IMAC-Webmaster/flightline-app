@@ -46,7 +46,7 @@ Error code
 $logRequests = true;
 $timezone = 'UTC';
 ini_set('date.timezone', $timezone);
-$dbfile = "flightline.db";
+$dbfile = "db/flightline.db";
 date_default_timezone_set($timezone);    
 
 
@@ -107,7 +107,7 @@ if ($logRequests == true && ($nautoption === 'N' || $nautoption === 'U')) {
     }
 
     //$req_dump = var_export($_REQUEST, true);
-    $fp = fopen('request.log', 'a');
+    $fp = fopen('log/request.log', 'a');
     fwrite($fp, '['.date("c").']' . $url . "\n");
     fclose($fp);
     error_log("Received: " . $url);

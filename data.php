@@ -4,7 +4,7 @@ include_once 'include/data_functions.php';
 ini_set("display_errors", 0);
 
 // Database details
-$dbfile = 'flightline.db';
+$dbfile = 'db/flightline.db';
 
 
 // Get job (and id)
