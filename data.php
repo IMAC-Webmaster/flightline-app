@@ -120,7 +120,7 @@ $data = array(
 );
 
 if (!isSet($data["data"]) || $data["data"] == null)
-    unset ($data["data"]);
+    $data["data"] = array();
 
 if (!isSet($data["verboseMsgs"]) || $data["verboseMsgs"] == null)
     unset($data["verboseMsgs"]);
