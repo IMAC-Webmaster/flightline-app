@@ -7,6 +7,7 @@ $(document).ready(function() {
   var table_pilotlist = null;
   var table_roundlist = $('#table_roundlist').DataTable({
     "ajax": "data.php?job=get_rounds",
+    "processing": false,
     "columns": [
       { "data": "roundId"},
       { "data": "imacClass"},
@@ -32,6 +33,8 @@ $(document).ready(function() {
         "sNext":        " ",
         "sLast":        " "
       },
+      "sEmptyTable": "There are no rounds defined.   Click 'Add Round' to add a round.",
+      "sLoadingRecords": "Loading...",
       "sLengthMenu":    "Records per page: _MENU_",
       "sInfo":          "Total of _TOTAL_ records (showing _START_ to _END_)",
       "sInfoFiltered":  "(filtered from _MAX_ total records)"
