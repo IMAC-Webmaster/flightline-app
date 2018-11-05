@@ -6,11 +6,19 @@
     <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
     <link rel="stylesheet" href="/include/css/font-awesome.min.css">
+
+    <!--
+    This one is the bundle.
+    <link rel="stylesheet" type="text/css" href="include/DataTables/dataTables.css"/>
+    <script type="text/javascript" src="include/DataTables/datatables.js"></script>
+    -->
+    <link rel="stylesheet" type="text/css" href="../include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
     <link rel="stylesheet" href="layout.css">
-    <script charset="utf-8" src="/include/DataTables/jQuery-1.12.3/jquery-1.12.3.js"></script>
-    <script type="text/javascript" src="/include/DataTables/datatables.js"></script> 
-    <script charset="utf-8" src="/include/jquery-validation-1.17.0/jquery.validate.js"></script>
-    <script charset="utf-8" src="webapp.js"></script>
+    <script type="text/javascript" src="../include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
+    <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
+    <script type="text/javascript" src="include/jquery-validation-1.17.0/jquery.validate.js"></script>
+    <script type="text/javascript" src="webapp.js"></script>
   </head>
   <body>
 
@@ -131,7 +139,7 @@
                   <th>Pilot ID</th>
                   <th>Pilot Name</th>
                   <th>Flight ID</th>
-                  <th>Next Flight Selection</th>
+                  <th>Next Flight</th>
                   <th>Notaumatic Hint</th>
                   <th>Class ID</th>
                 </tr>

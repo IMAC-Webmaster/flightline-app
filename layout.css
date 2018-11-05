@@ -239,7 +239,6 @@ button.button:active {
 }
 
 .dataTables_paginate {
-  position: absolute;
   bottom: 0;
   left: 0;
 }

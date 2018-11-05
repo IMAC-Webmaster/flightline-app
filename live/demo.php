@@ -13,9 +13,13 @@
 <html>
     <head>
         <link rel="stylesheet" href="a.css">
-        <link rel="stylesheet" href="/layout.css">
-        <script type="text/javascript" charset="utf-8" src="/include/DataTables/jQuery-1.12.3/jquery-1.12.3.js"></script>
-        <script type="text/javascript" charset="utf-8" src="/include/DataTables/datatables.js"></script> 
+        <link rel="stylesheet" href="../layout.css">
+
+        <link rel="stylesheet" type="text/css" href="../include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap.css"/>
+        <script type="text/javascript" src="../include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
+        <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
+        <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
+        
         <script>
             $(document).ready( function () {
                 $.fn.dataTable.ext.errMode = 'none';
@@ -30,10 +34,11 @@
                     ajax: 'jsondata.php',
                     dom: 't',
                     paging: false,
-                    columnDefs: [ {
-                      targets: "_all",
-                      render: function ( data, type, row ) { return (typeof data === "object") ? renderScore(data, type, row) : data; }
-                    } ],
+                    order: [],
+                    columnDefs: [ 
+                        { targets: "_all", render: function ( data, type, row ) { return (typeof data === "object") ? renderScore(data, type, row) : data; } },
+                        { targets: "_all", "orderable": false }
+                    ],
                     columns: [
                         { data: "Number", className: "num"},
                         { data: "Figure", className: "desc"}<?php
@@ -50,16 +55,12 @@
                     if (typeof score.features !== "undefined") {
                         var classes = "score";
                         for (var i = 0, len = score.features.length; i < len; i++) {
-                          //console.log ("Adding class: " + score.features[i]);
                           classes = classes + " " + score.features[i];
                         }
-                        //console.log (score.value + " " + type + " " + row);
                     }
                     return ("<div class='" + classes + "'>" + score.value + "</div>");
                 }
-                
-                
-                
+
                 function checkColumns (dtArr, jsData) {
                     var maxCol = 0;
                     jsData.forEach(function(element) {
@@ -99,7 +100,7 @@
             <h2>Pilot: Dan Carroll</h2>
             <h2>Round: 3 Known</h2>
             <h2>Class: Intermediate</h2>
-            <table id="example" class="display" width="70%">
+            <table id="example" class="datatable" width="70%">
             <thead>
                 <tr>
                     <th class='desc'>Num.</th>

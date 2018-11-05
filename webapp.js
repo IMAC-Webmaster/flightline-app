@@ -28,10 +28,10 @@ $(document).ready(function() {
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "oLanguage": {
       "oPaginate": {
-        "sFirst":       " ",
-        "sPrevious":    " ",
-        "sNext":        " ",
-        "sLast":        " "
+        "sFirst":       "<",
+        "sPrevious":    "<",
+        "sNext":        ">",
+        "sLast":        ">"
       },
       "sEmptyTable": "There are no rounds defined.   Click 'Add Round' to add a round.",
       "sLoadingRecords": "Loading...",
@@ -206,10 +206,10 @@ $(document).ready(function() {
       "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
       "oLanguage": {
         "oPaginate": {
-          "sFirst":       " ",
-          "sPrevious":    " ",
-          "sNext":        " ",
-          "sLast":        " "
+          "sFirst":       "<",
+          "sPrevious":    "<",
+          "sNext":        ">",
+          "sLast":        ">"
         },
         "sLengthMenu":    "Records per page: _MENU_",
         "sInfo":          "Total of _TOTAL_ records (showing _START_ to _END_)",
