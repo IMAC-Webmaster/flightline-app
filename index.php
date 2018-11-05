@@ -20,7 +20,7 @@
 
       <button type="button" class="button" id="add_round">Add round</button>
 
-      <table class="datatable" id="table_roundlist">
+      <table class="datatable clickable" id="table_roundlist">
         <thead>
           <tr>
             <th>RoundNum</th>
