@@ -51,6 +51,9 @@ switch ($job) {
     case 'post_pilots':
         postPilots();
         break;
+    case "post_sequences":
+        postSequences();
+        break;
     case 'get_rounds':
         getRounds();
         break;
@@ -98,6 +101,9 @@ switch ($job) {
         break;
     case 'delete_round':
         deleteRound();
+        break;
+    case 'get_flight_scores':
+        getFlightScores(5, 3);
         break;
     default:
         $result  = 'error';

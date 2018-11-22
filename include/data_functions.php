@@ -770,7 +770,7 @@ function setNextFlight() {
 
  
     if (!beginTrans())
-        goto end_set_next_flight;
+        goto db_rollback;
 
     // Now do the update
 
@@ -783,12 +783,12 @@ function setNextFlight() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage(); 
-            goto end_set_next_flight;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = $db->lastErrorMsg();
-        goto end_set_next_flight;
+        goto db_rollback;
     }
 
     $query = "INSERT INTO nextFlight(nextNoteFlightId, nextCompId, nextPilotId) "
@@ -802,12 +802,12 @@ function setNextFlight() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage(); 
-            goto end_set_next_flight;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = $db->lastErrorMsg();
-        goto end_set_next_flight;
+        goto db_rollback;
     }
 
     if (commitTrans("There was a problem setting the next flight. ") ) {
@@ -815,7 +815,7 @@ function setNextFlight() {
         $message = 'Next flight set to ' . $noteFlightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
     }
     
-    end_set_next_flight:
+    db_rollback:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
@@ -1017,7 +1017,7 @@ function addRound() {
         $flightLineId = null;
     }
     if (!beginTrans())
-        goto end_add_round;
+        goto db_rollback;
 
     $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) ";
     $query .= "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
@@ -1036,17 +1036,17 @@ function addRound() {
             if (!$res || $db->lastErrorCode() != 0) {
                 $result  = 'error';
                 $message = 'query error: ' . $db->lastErrorMsg();
-                goto end_add_round;
+                goto db_rollback;
             }
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();   
-            goto end_add_round;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = "1:" . $db->lastErrorMsg();;
-        goto end_add_round;
+        goto db_rollback;
     }
     $newRoundId = $db->lastInsertRowID();
 
@@ -1075,12 +1075,12 @@ function addRound() {
         } catch (Exception $e) {
           $result  = 'error';
           $message = 'query error: ' . $e->getMessage(); 
-          goto end_add_round;
+          goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = "2:" . $db->lastErrorMsg();;
-        goto end_add_round;
+        goto db_rollback;
     }
 
     for ($i = 1; $i <= $sequences; $i++) {
@@ -1095,12 +1095,12 @@ function addRound() {
             } catch (Exception $e) {
                 $result  = 'error';
                 $message = 'query error: ' . $e->getMessage(); 
-                goto end_add_round;
+                goto db_rollback;
             }
         } else {
             $result  = 'error';
             $message = "3:" . $db->lastErrorMsg();;
-            goto end_add_round;
+            goto db_rollback;
         }
         $newNoteFlightId++;
     }
@@ -1110,7 +1110,7 @@ function addRound() {
         $message = 'Inserted new round (' . $newRoundId . ') into class ' . $imacClass . '.';
     }
 
-    end_add_round:
+    db_rollback:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
@@ -1146,7 +1146,7 @@ function editRound() {
     }
 
     if (!beginTrans())
-        goto end_edit_round;
+        goto db_rollback;
     
     $roundId = null;
     $query  = "select * from round ";
@@ -1163,24 +1163,24 @@ function editRound() {
                 // Null?
                 $result  = 'error';
                 $message = 'Could not find the right round to edit.'; 
-                goto end_edit_round;
+                goto db_rollback;
             } else {
                 $roundId = $round["roundId"];
                 if ($round["phase"] != "U") {
                     $result  = 'error';
                     $message = 'Cannot edit a round that is already open.'; 
-                    goto end_edit_round; 
+                    goto db_rollback; 
                 }
             }
         } catch (Exception $e) {
           $result  = 'error';
           $message = 'query error: ' . $e->getMessage(); 
-          goto end_edit_round;
+          goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = $db->lastErrorMsg();
-        goto end_edit_round;
+        goto db_rollback;
     }
 
     $query  = "update round set imacClass = :imacClass, imacType = :imacType, roundNum = :roundNum, schedId = :schedId, sequences = :sequences ";
@@ -1200,12 +1200,12 @@ function editRound() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();   
-            goto end_edit_round;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = $db->lastErrorMsg();
-        goto end_edit_round;
+        goto db_rollback;
     }
 
     $query  = "delete from flight ";
@@ -1218,12 +1218,12 @@ function editRound() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();   
-            goto end_edit_round;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = $db->lastErrorMsg();
-        goto end_edit_round;
+        goto db_rollback;
     }
 
     $newNoteFlightId = 1;
@@ -1250,13 +1250,13 @@ function editRound() {
         } catch (Exception $e) {
           $result  = 'error';
           $message = 'query error: ' . $e->getMessage(); 
-          goto end_edit_round;
+          goto db_rollback;
         }
     } else {
         $err = $db->lastErrorMsg();
         $result  = 'error';
         $message = $err;
-        goto end_edit_round;
+        goto db_rollback;
     }
     //echo "NFID: $newNoteFlightId\nSEQ:$sequences\nRnd:$roundId\n";
 
@@ -1273,13 +1273,13 @@ function editRound() {
             } catch (Exception $e) {
                 $result  = 'error';
                 $message = 'query error: ' . $e->getMessage(); 
-                goto end_edit_round;
+                goto db_rollback;
             }
         } else {
             $err = $db->lastErrorMsg();
             $result  = 'error';
             $message = $err;
-            goto end_edit_round;
+            goto db_rollback;
         }
         $newNoteFlightId++;
     }
@@ -1289,7 +1289,7 @@ function editRound() {
         $message = 'Edited round (' . $roundId . ') sucessfully.';
     }
     
-    end_edit_round:
+    db_rollback:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
@@ -1502,12 +1502,12 @@ function deleteRound() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();
-            goto end_delete_round;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = "Unknown DB error";
-        goto end_delete_round;
+        goto db_rollback;
     }
     
     $query = "delete from flight where roundId = :roundId;";
@@ -1518,15 +1518,15 @@ function deleteRound() {
         } catch (Exception $e) {
             $result  = 'error';
             $message = 'query error: ' . $e->getMessage();
-            goto end_delete_round;
+            goto db_rollback;
         }
     } else {
         $result  = 'error';
         $message = "Unknown DB error";
-        goto end_delete_round;
+        goto db_rollback;
     }
     
-    end_delete_round:
+    db_rollback:
     if ($result == "error") {
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
@@ -1770,6 +1770,15 @@ function postPilots($pilotsArray = null) {
 
     $result = "success";
     $verboseMsgs = array();
+
+
+    if (is_null($sequenceArray)) {
+        error_log("Could not decode JSON: " . json_last_error_msg());
+        $result  = 'error';
+        $message = "Could not decode JSON: " . json_last_error_msg();
+        goto db_rollback;
+    }
+
     error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
     foreach($pilotsArray as $pilotId => $pilot) {
         error_log("Inserting Pilot:$pilotId " . print_r($pilot, true));
@@ -1810,6 +1819,281 @@ function postPilots($pilotsArray = null) {
     if (commitTrans("Could not add the pilots. ") ) {
         $result  = 'success';
         $message = 'Pilots have been added.';
+    }
+    
+    db_rollback:
+    if ($result == "error"){
+        $db->exec("ROLLBACK;");
+        if ($message == null) { $message = 'query error'; }
+    }       
+    return $sqlite_data;
+}
+
+function getFlightScores($flightId, $pilotId) {
+    // select s.*, f.sequenceNum 
+    // from sheet s inner join flight f on s.flightId = f.flightId
+    // where s.flightId = 2 and s.pilotId = 3;
+    
+    // Gets all of the sheets and scores from the given flight for the given pilot.
+    
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+    
+    $message = null;
+    $sqlite_data = null;
+
+    // Get sheets
+    $query = "select s.*, f.sequenceNum " .
+             "from sheet s inner join flight f on s.flightId = f.flightId " .
+             "where s.flightId = :flightId and s.pilotId = :pilotId;";
+
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':flightId', $flightId);
+            $statement->bindValue(':pilotId', $pilotId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+        }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE){
+      $result  = 'error';
+      if ($message == null) { $message = 'query error'; }
+    } else {
+        $result  = 'success';
+        $message = 'query success';
+        while ($sheet = $res->fetchArray()) {
+            
+            $sheetArr = array(
+                "sheetId"      => $sheet['sheetId'],
+                "roundId"      => $sheet['roundId'],
+                "flightId"     => $sheet['flightId'],
+                "pilotId"      => $sheet['pilotId'],
+                "judgeNum"     => $sheet['judgeNum'],
+                "judgeName"    => $sheet['judgeName'],
+                "scribeName"   => $sheet['scribeName'],
+                "mppFlag"      => $sheet['mppFlag'],
+                "flightZeroed" => $sheet['flightZeroed'],                
+                "zeroReason"   => $sheet['zeroReason'],
+                "sequenceNum"  => $sheet['sequenceNum'],
+                "scores"       => array()
+            );
+                // Get sheets
+            $query = "select * from score ".
+                "where sheetId = :sheetId;";
+
+            if ($score_statement = $db->prepare($query)) {
+                try {
+                    $score_statement->bindValue(':sheetId', $sheet['sheetId']);
+                    $score_res = $score_statement->execute();
+                } catch (Exception $e) {
+                    $result  = 'error';
+                    $message = 'query error: ' . $e->getMessage();          
+                }
+            } else {
+                $score_res = FALSE;
+                $err = error_get_last();
+                $message = $err['message'];
+            }
+
+            if ($score_res === FALSE){
+              $result  = 'error';
+              if ($message == null) { $message = 'query error'; }
+            } else {
+                $result  = 'success';
+                $message = 'query success';
+                while ($score = $score_res->fetchArray()) {
+                    $scoreArr = array(
+                        "figureNum"    => $score['figureNum'],
+                        "scoreTime"    => $score['scoreTime'],
+                        "breakFlag"    => $score['breakFlag'],
+                        "score"        => $score['score'],
+                        "comment"      => $score['comment']
+                    );
+                    //error_log("Fig: " . print_r($scoreArr, true));
+                    $sheetArr['scores'][] = $scoreArr;
+                }
+            }
+            $sqlite_data[] = $sheetArr;
+        }
+    }
+}
+
+function postSequences($sequenceArray = null) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+    global $verboseMsgs;
+
+    $message = null;
+    $sqlite_data = null;
+    if (is_null($sequenceArray)) {
+        $sequenceArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    }
+
+    if (!beginTrans())
+        goto db_rollback;
+
+    $result = "success";
+    $verboseMsgs = array();
+
+    if (is_null($sequenceArray)) {
+        error_log("Could not decode JSON: " . json_last_error_msg());
+        $result  = 'error';
+        $message = "Could not decode JSON: " . json_last_error_msg();
+        goto db_rollback;
+    }
+
+    error_log("Ready to upload sequences...");
+    
+    //error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    foreach($sequenceArray as $sequence) {
+
+
+        // If there are rounds defined using this sequence, we must abort the delete, but can still replace later,...
+
+        $query = "SELECT count(*) as roundcount FROM round where schedId = :schedId";
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':schedId', $sequence->schedId);
+                $res = $statement->execute();
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+
+        if ($res === FALSE) {
+            $result  = 'error';
+            if ($message == null) { $message = 'query error'; }
+            goto db_rollback;
+        } else {
+            if (!$round = $res->fetchArray()) {
+                $result  = 'error';
+                $message = 'could not count the rounds!';
+                goto db_rollback;
+
+                error_log("Deleting sequence: " . $sequence->schedId);
+
+                $query = "DELETE FROM figure WHERE schedId = schedId; ";
+                if ($statement = $db->prepare($query)) {
+                    try {
+                        $statement->bindValue(':schedId', $sequence->schedId);
+                        $res = $statement->execute();
+                    } catch (Exception $e) {
+                        $result  = 'error';
+                        $message = 'query error: ' . $e->getMessage(); 
+                        goto db_rollback;
+                    }
+                } else {
+                    $result  = 'error';
+                    $message = $db->lastErrorMsg();
+                    goto db_rollback;
+                }
+
+                $query = "DELETE FROM schedule WHERE schedId = schedId; ";
+                if ($statement = $db->prepare($query)) {
+                    try {
+                        $statement->bindValue(':schedId', $sequence->schedId);
+                        $res = $statement->execute();
+                    } catch (Exception $e) {
+                        $result  = 'error';
+                        $message = 'query error: ' . $e->getMessage(); 
+                        goto db_rollback;
+                    }
+                } else {
+                    $result  = 'error';
+                    $message = $db->lastErrorMsg();
+                    goto db_rollback;
+                }
+            } else {
+                // The round is there, abort the delete.
+                error_log("Skipping delete because a round exists for sequence: " . $sequence->schedId);
+            }
+        }
+        
+        error_log("Inserting/Updating Sequence: " . $sequence->schedId);
+        $query = "INSERT or REPLACE into schedule (schedId, imacClass, imacType, description) "
+                ."VALUES(:schedId, :imacClass, :imacType, :description)";
+        if ($statement = $db->prepare($query)) {
+            try {
+                $statement->bindValue(':schedId', $sequence->schedId);
+                $statement->bindValue(':imacClass', $sequence->imacClass);
+                $statement->bindValue(':imacType', $sequence->imacType);
+                $statement->bindValue(':description', $sequence->description);
+
+                if (!$res = $statement->execute()) {            
+                    $result  = 'error';
+                    $message = "Could not insert Sequence: " . $sequence->schedId . " Err: " . $db->lastErrorMsg();
+                    error_log($message);
+                    goto db_rollback;
+                } else {
+                    $verboseMsgs[] = "Inserted Sequence: " . $sequence->schedId;
+                    error_log("Inserted Sequence: " . $sequence->schedId);
+                }
+            } catch (Exception $e) {
+                $result  = 'error';
+                $message = 'query error: ' . $e->getMessage(); 
+                goto db_rollback;
+            }
+        } else {
+            $result  = 'error';
+            $message = $db->lastErrorMsg();
+            goto db_rollback;
+        }
+        
+        foreach($sequence->figures as $figure) {
+            error_log("Inserting/Updating figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId);
+            $query = "INSERT or REPLACE into figure (figureNum, schedId, shortDesc, longDesc, spokenText, rule, k) "
+                    ."VALUES(:figureNum, :schedId, :shortDesc, :longDesc, :spokenText, :rule, :k)";
+            if ($statement = $db->prepare($query)) {
+                try {
+                    $statement->bindValue(':figureNum', $figure->figureNum);
+                    $statement->bindValue(':schedId', $sequence->schedId);
+                    $statement->bindValue(':shortDesc', $figure->shortDesc);
+                    $statement->bindValue(':longDesc', $figure->longDesc);
+                    $statement->bindValue(':spokenText', $figure->spokenText);
+                    $statement->bindValue(':rule', $figure->rule);
+                    $statement->bindValue(':k', $figure->k);
+
+                    if (!$res = $statement->execute()) {            
+                        $result  = 'error';
+                        $message = "Could not insert figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId . " Err: " . $db->lastErrorMsg();
+                        error_log($message);
+                        goto db_rollback;
+                    } else {
+                        $verboseMsgs[] = "Inserted figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId;
+                        error_log("Inserted figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId);
+                    }
+                } catch (Exception $e) {
+                    $result  = 'error';
+                    $message = 'query error: ' . $e->getMessage(); 
+                    goto db_rollback;
+                }
+            } else {
+                $result  = 'error';
+                $message = $db->lastErrorMsg();
+                goto db_rollback;
+            }
+        }
+
+    }
+    if (commitTrans("Could not add the sequences. ") ) {
+        $result  = 'success';
+        $message = 'Sequences have been added.';
     }
     
     db_rollback:
