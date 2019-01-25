@@ -1772,7 +1772,7 @@ function postPilots($pilotsArray = null) {
     $verboseMsgs = array();
 
 
-    if (is_null($sequenceArray)) {
+    if (is_null($pilotsArray)) {
         error_log("Could not decode JSON: " . json_last_error_msg());
         $result  = 'error';
         $message = "Could not decode JSON: " . json_last_error_msg();
