@@ -1,3 +1,6 @@
+
+
+
 html {
   font-size: 14px;
   overflow-y: scroll;
@@ -19,9 +22,16 @@ body {
   margin: 0;
 }
 
-h1, h2 {
+h1 {
   font-weight: normal;
   font-size: 1rem;
+}
+
+h2 {
+  font-weight: normal;
+  font-size: 1.5rem;
+  margin: 0 0 5px 0;
+  color: #a54d01;
 }
 
 a {
@@ -229,7 +239,6 @@ button.button:active {
 }
 
 .dataTables_paginate {
-  position: absolute;
   bottom: 0;
   left: 0;
 }
@@ -308,8 +317,9 @@ table.datatable thead th.sorting_asc:active {
 table.datatable tbody tr:nth-child(even) td {
   background-color: #eee;
 }
-table.datatable tbody tr:hover th,
-table.datatable tbody tr:hover td {
+
+table.clickable tbody tr:hover th,
+table.clickable tbody tr:hover td {
   background-color: #ffd;
 }
 table.datatable tbody tr:hover td.dataTables_empty {
