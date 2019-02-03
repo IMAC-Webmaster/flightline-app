@@ -1582,11 +1582,31 @@ function clearResults() {
         goto db_rollback;
     }
     
+    $query = "update round set phase = 'U';";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+    
     if (commitTrans("Could not clear result data. ") ) {
         $result  = 'success';
         $message = 'The result data has been cleared.';
     }
     
+    if (commitTrans("Could not clear result data. ") ) {
+        $result  = 'success';
+        $message = 'The result data has been cleared.';
+    }
+
     db_rollback:
     if ($result == "error"){
         $db->exec("ROLLBACK;");
