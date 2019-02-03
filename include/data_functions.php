@@ -1601,11 +1601,6 @@ function clearResults() {
         $result  = 'success';
         $message = 'The result data has been cleared.';
     }
-    
-    if (commitTrans("Could not clear result data. ") ) {
-        $result  = 'success';
-        $message = 'The result data has been cleared.';
-    }
 
     db_rollback:
     if ($result == "error"){
