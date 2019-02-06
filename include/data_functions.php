@@ -251,6 +251,19 @@ function getSheetsForFlight($flightId) {
     $sheetArray = array();
     
     while ($sheet = $res->fetchArray()){
+        $scoreArray = getScoresForSheet($sheet["sheetId"]);
+        $sanitisedScoreArray = array();
+        foreach ($scoreArray as $score) {
+            if (isset($score["mppFlag"])) {
+                $sheet["mppFlag"] = $score["mppFlag"];
+                // ToDo: Danger Will Robinson...   We really should persist this back to the DB.   It should be fixed below in getScoresForSheet.
+                // When we see an MPP score there we should save it to the mppFlag and remove the figure....
+            } else {
+                array_push($sanitisedScoreArray, $score);
+            }
+        }
+        // Now sanitised score array does not include the MPP 'score'.
+        
         $thisSheet = array(
             "sheetId"      => $sheet["sheetId"],
             "pilot"        => getPilot($sheet["pilotId"]),
@@ -261,11 +274,58 @@ function getSheetsForFlight($flightId) {
             "mppFlag"      => $sheet["mppFlag"],
             "flightZeroed" => $sheet["flightZeroed"],
             "zeroReason"   => $sheet["zeroReason"],
-            "scores"       => getScoresForSheet($sheet["sheetId"])
+            "scores"       => $sanitisedScoreArray
         );
         array_push($sheetArray, $thisSheet);
     }
     return $sheetArray;
+}
+
+function getMppFigNumForSheet($sheetId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    // Ok, now we need to know what the sequence looks like.
+    // If a figure is numbered 1 more than what the sequence has defined, or
+    // if the figure short description in the schedule is 'MPP' then this
+    // is the slot for MPP and we do NOT want to record it in the JSON array.
+    // Rather, we set the MPP flag if it is true...   getMppFigNumForSheet()
+    // will get the figure number for us...
+        
+    $query = "select figureNum, shortDesc from figure where schedId = " .
+             "( select schedId from round where roundId = ".
+             "( select roundId from flight where flightId = ".
+             "( select flightId from sheet where sheetId = :sheetId ) ) );";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':sheetId', $sheetId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
+    $maxFigNum = 0;  
+    $mppFigNum = "";
+    while ($figure = $res->fetchArray()){
+        if ($maxFigNum < $figure["figureNum"] ) {
+            $maxFigNum = $figure["figureNum"];
+        }
+        if ($figure["shortDesc"] == "MPP") {
+            $mppFigNum = $figure["shortDesc"];
+        }
+    }
+    
+    if ($mppFigNum === "")  // Definitely count it if it's called MPP.
+        $mppFigNum = ( $maxFigNum + 1 ); // Only count it if it's 1 more than what we have defined in score.
+    
+    $statement->close();
+    return $mppFigNum;
 }
 
 function getScoresForSheet($sheetId) {
@@ -274,6 +334,8 @@ function getScoresForSheet($sheetId) {
     global $message;
 
     $message = null;
+
+    $mppFigureNum = getMppFigNumForSheet($sheetId);
 
     $query = "select * from score where sheetId = :sheetId;";
     if ($statement = $db->prepare($query)) {
@@ -290,14 +352,24 @@ function getScoresForSheet($sheetId) {
     $scoreArray = array();
     
     while ($score = $res->fetchArray()){
-        $thisScore = array(
-            "figureNum"    => $score["figureNum"],
-            "scoreTime"    => $score["scoreTime"],
-            "breakFlag"    => $score["breakFlag"],
-            "score"        => $score["score"],
-            "comment"      => $score["comment"]
-        );
-        array_push($scoreArray, $thisScore);
+        if ($score["figureNum"] == $mppFigureNum) {
+            // Process this as an MPP.
+            $thisScore = array(
+                "figureNum"    => $score["figureNum"],
+                "mppFlag"      => $score["score"]
+            );
+            array_push($scoreArray, $thisScore);                
+        } else {
+            // Process this score as a normal sequence figure.
+            $thisScore = array(
+                "figureNum"    => $score["figureNum"],
+                "scoreTime"    => $score["scoreTime"],
+                "breakFlag"    => $score["breakFlag"],
+                "score"        => $score["score"],
+                "comment"      => $score["comment"]
+            );
+            array_push($scoreArray, $thisScore);
+        }
     }
     return $scoreArray;
 }
