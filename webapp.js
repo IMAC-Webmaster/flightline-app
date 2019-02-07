@@ -3,6 +3,8 @@ $(document).ready(function() {
   var schedulelist;
   var nextroundNums;
   var rounddata;
+  var buttonRefresh;
+
   // On page load: datatable
   var table_pilotlist = null;
   var table_roundlist = $('#table_roundlist').DataTable({
@@ -175,6 +177,7 @@ $(document).ready(function() {
 
   // Show lightbox
   function show_roundbox(data){
+    var roundId = data.roundId;
     $('.roundbox_bg').show();
     $('.roundbox_container').show();
     $('#class-details').text(data.imacClass);
@@ -217,15 +220,19 @@ $(document).ready(function() {
       }
     });
     fillNextFlight(data.roundId, null, null);
+    adjustNextFlightButtons(roundId);
+    buttonRefresh = setInterval(function() {
+        adjustNextFlightButtons(roundId);
+    }, 5000);
   }
   // Hide lightbox
   function hide_roundbox(){
+    clearInterval(buttonRefresh);    
     $('.roundbox_bg').hide();
     $('.roundbox_container').hide();
     if ( $.fn.dataTable.isDataTable( table_pilotlist ) ) {
         table_pilotlist.destroy();
     }
-    
   }
   
   function validateForm() {
@@ -780,7 +787,9 @@ $(document).ready(function() {
           table_roundlist.ajax.reload(function(){
             hide_loading_message();
             show_message("Set next flight to " + next_noteflightid + " pilot " + next_pilotid, 'success');
-            fillNextFlight($(this).data('roundid'), next_pilotname, next_seqnum);
+            fillNextFlight(next_roundid, next_pilotname, next_seqnum);
+            adjustNextFlightButtons(next_roundid);
+            // Reset the Buttons!
             $('.function_set_next_flight_button a').removeClass("highlighted_button");
             $(thisButton).addClass("highlighted_button");
           }, true);
@@ -869,6 +878,54 @@ $(document).ready(function() {
     } else {
       $('#nextflight-details').text("Sequence " + seqNum + " for pilot " + pilotName);   
     }
+  }
+
+ function adjustNextFlightButtons(roundId) {
+    //var roundId = $(this).data('roundId');
+    var request = $.ajax({
+      url:          'data.php?job=get_round_flightstatus&roundId=' + roundId,
+      cache:        false,
+      dataType:     'json',
+      contentType:  'application/json; charset=utf-8',
+      type:         'get'
+    });
+
+    request.done(function(output) {
+      if (output.result === 'success') {
+        var roundFlightData = output.data;        
+
+        $('.function_set_next_flight_button a').each(function() {
+            
+            var blFlightHasFinishedSheets = false;
+            var blFlightHasUnfinishedSheets = false;
+            var thisButtonId = $(this).attr("id")
+
+            console.log("Checking if next flight button " + this.id + " has some or all data.");
+
+            roundFlightData.forEach(function (flightSheetStatus) {
+                if (flightSheetStatus.buttonID === thisButtonId) {
+                    if (flightSheetStatus.phase === "D") {
+                        blFlightHasFinishedSheets = true;
+                    } else {
+                        blFlightHasUnfinishedSheets = true;
+                    } 
+                }
+            });
+            if (blFlightHasUnfinishedSheets === true) {
+                console.log("   At least some sheets not finished.")
+                $('#' + thisButtonId).removeClass("disabled_button");
+            } else if (blFlightHasFinishedSheets === true) {
+                console.log("   All sheets done!  Removing button.")
+                $('#' + thisButtonId).addClass("disabled_button");
+            }
+
+        });
+      }
+    });
+
+    request.fail(function(jqXHR, textStatus) {
+      show_message('Could not get the next flight data: ' + textStatus, 'error');
+    });
   }
 
   function highlightNextFlightButton(roundId, pilotId, noteFlightId, classId) {

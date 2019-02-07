@@ -369,12 +369,21 @@ table.datatable tbody td.functions .function_buttons a {
 table.datatable tbody td.functions .function_buttons .function_set_next_flight_button a{
   width: 110px;
 }
+
 table.datatable tbody td.functions .function_buttons a.highlighted_button:hover,
 table.datatable tbody td.functions .function_buttons a.highlighted_button:active,
 table.datatable tbody td.functions .function_buttons a.highlighted_button:focus,
 table.datatable tbody td.functions .function_buttons .highlighted_button {
   background-color: #f70;
 }
+
+table.datatable tbody td.functions .function_buttons a.disabled_button:hover,
+table.datatable tbody td.functions .function_buttons a.disabled_button:active,
+table.datatable tbody td.functions .function_buttons a.disabled_button:focus,
+table.datatable tbody td.functions .function_buttons .disabled_button {
+  visibility: hidden;
+}
+
 table.datatable tbody td.functions .function_buttons .function_set_next_flight1 a:before {
   font-size: 1.1rem;
 }

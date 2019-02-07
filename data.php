@@ -72,6 +72,9 @@ switch ($job) {
     case 'get_round_pilots':
         getRoundPilots();
         break;
+    case 'get_round_flightstatus':
+        getRoundFlightStatus();
+        break;
     case 'get_nextrnd_ids':
         getNextRndIds();
         break;

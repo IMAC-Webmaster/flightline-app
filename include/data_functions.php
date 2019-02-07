@@ -713,6 +713,65 @@ function getRoundPilots() {
     }
 }
 
+function getRoundFlightStatus() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    // Check out what flights we have for this round...   And their 'phase'.
+    $query = "select s.roundId, s.pilotId, s.flightId, r.imacClass, s.judgeNum, s.phase "
+            . "from round r inner join sheet s on r.roundId = s.roundId where r.roundId = :roundId;";
+    $query = "select r.imacClass, s.roundId, s.pilotId, f.noteFlightId, s.judgeNum, s.phase "
+            ."from round r inner join sheet s on r.roundId = s.roundId "
+            ."left join flight f on s.flightId = f.flightId where r.roundId = :roundId;";
+    
+    /****** 
+     *      The following data comes back for round 5 sportsman where we have 1 pilot (2),
+     *      2 sequences (8 and 9) and 2 judges (1, 2).   All sheets are done (D).
+     * 
+     * Sportsman|5|2|8|2|D
+     * Sportsman|5|2|8|1|D
+     * Sportsman|5|2|9|2|D
+     * Sportsman|5|2|9|1|D
+     *******/
+    if (isset($_GET['roundId']))  { $roundId   = $_GET['roundId'];  } else $roundId = null;
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+        }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE) {
+        $result  = 'error';
+        if ($message == null) { $message = 'query error'; }
+    } else {
+        $result  = 'success';
+        $message = 'query success';
+        while ($sheet = $res->fetchArray()) {
+            $btnId = $sheet['roundId'] . "_" . $sheet['pilotId'] . "_" . $sheet['noteFlightId'] . "_" . convertClassToCompID($sheet["imacClass"]);
+            $phase = $sheet['phase'];
+            
+            $sqlite_data[] = array(
+                "buttonID"      => $btnId,
+                "judgeNum"      => $sheet['judgeNum'],
+                "phase"         => $sheet['phase']
+            );
+        }
+    }
+}
+
 function getNextRndIds() {
     global $db;
     global $result;
