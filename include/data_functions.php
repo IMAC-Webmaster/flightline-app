@@ -274,6 +274,7 @@ function getSheetsForFlight($flightId) {
             "mppFlag"      => $sheet["mppFlag"],
             "flightZeroed" => $sheet["flightZeroed"],
             "zeroReason"   => $sheet["zeroReason"],
+            "phase"        => $sheet["phase"],
             "scores"       => $sanitisedScoreArray
         );
         array_push($sheetArray, $thisSheet);
@@ -1970,6 +1971,7 @@ function getFlightScores($flightId, $pilotId) {
                 "mppFlag"      => $sheet['mppFlag'],
                 "flightZeroed" => $sheet['flightZeroed'],                
                 "zeroReason"   => $sheet['zeroReason'],
+                "phase"        => $sheet['phase'],
                 "sequenceNum"  => $sheet['sequenceNum'],
                 "scores"       => array()
             );
@@ -2272,12 +2274,12 @@ function postSheets($sheetJSON = null) {
             
             if (isset($oldsheet["sheetId"])) {
                 $sheetId = $oldsheet["sheetId"];
-                $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum "
+                $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum, phase = :phase "
                             . "where sheetId = :sheetId;";
             } else {
                 $sheetId = null;
-                $query =    "insert into sheet (roundId, flightId, pilotId, judgeNum) "
-                            . "values (:roundId, :flightId, :pilotId, :judgeNum);";
+                $query =    "insert into sheet (roundId, flightId, pilotId, judgeNum, phase) "
+                            . "values (:roundId, :flightId, :pilotId, :judgeNum, :phase);";
             }
             //error_log ($query . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
         }
@@ -2290,6 +2292,7 @@ function postSheets($sheetJSON = null) {
                 $statement->bindValue(':roundId',  $round["roundId"]);
                 $statement->bindValue(':flightId', $round["flightId"]);
                 $statement->bindValue(':judgeNum', $sheet->judgeNum);
+                $statement->bindValue(':phase',    $sheet->phase);
                 if (!is_null($sheetId)) {
                     $statement->bindValue(':sheetId', $sheetId);                
                 }

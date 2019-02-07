@@ -149,9 +149,9 @@ switch ($nautoption) {
             "judgeNum"      => $nautojugeid,
             "compId"        => $nautocompid,
             "noteFlightId"  => $nautoflightid,
+            "phase"         => "S",   // Started...
             "scores"        => array()
         );
-        
         foreach ($nautScores as $score) {
             $s = array();
             $s["figureNum"] = $score['figpos'];
@@ -159,16 +159,12 @@ switch ($nautoption) {
             $s["breakFlag"] = $score['breakFlag'];
             $s["score"]     = $score['score'];
             $s["comment"]   = null;
-            /*
-            $s = array(
-                "figureNum" => $score['figpos'],
-                "scoreTime" => time(),
-                "breakFlag" => $score['breakFlag'],
-                "score"     => $score['score'],
-                "comment"   => null
-            );
-            */
+
             array_push($sheet['scores'], $s);
+        }
+        if ($nautoption === "U") {
+            // This is saving the sheet...  Mark it as done!
+            $sheet['phase'] = "D";
         }
         array_push($sheets, $sheet);
         if (postSheets(json_encode($sheets, JSON_PRETTY_PRINT)))
