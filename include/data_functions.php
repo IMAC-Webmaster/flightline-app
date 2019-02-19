@@ -69,22 +69,22 @@ function getRounds() {
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
             case "U":
-                $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
-                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Edit</span></a></li>';
-                $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Delete</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Edit</span></a></li>';
+                $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Delete</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "O":
-                $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
+                $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "P":
-                $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Start</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
+                $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
                 break;
             case "D":
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
@@ -120,17 +120,24 @@ function getRound() {
     $sqlite_data = null;
 
     // Get round  (imacClass, imacType, round number).
-    if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
-    if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType  = null;
-    if (isset($_GET['roundNum']))  { $roundNum   = $_GET['roundNum'];  } else $roundNum   = null;
+    if (isset($_GET['imacClass'])) { $imacClass = $_GET['imacClass'];}  else $imacClass = null;
+    if (isset($_GET['imacType']))  { $imacType  = $_GET['imacType']; }  else $imacType  = null;
+    if (isset($_GET['roundNum']))  { $roundNum  = $_GET['roundNum'];  } else $roundNum   = null;
+    if (isset($_GET['roundId']))   { $roundId   = $_GET['roundId'];  }  else $roundId   = null;
 
-    $query =  "select s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId ";
-    $query .= "where r.imacClass = :imacClass and r.imacType = :imacType and r.roundNum = :roundNum";
+    if ($roundId === null) {
+        $query =  "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId ";
+        $query .= "where r.imacClass = :imacClass and r.imacType = :imacType and r.roundNum = :roundNum";
+    } else {
+        $query =  "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId ";
+        $query .= "where r.roundId = :roundId";
+    }
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':imacClass',    $imacClass);
             $statement->bindValue(':imacType',     $imacType);
             $statement->bindValue(':roundNum',     $roundNum);
+            $statement->bindValue(':roundId',      $roundId);
             if (!$res = $statement->execute()) {            
                 $result  = 'error';
                 $message = "Could not get round data. Err: " . $db->lastErrorMsg();
@@ -154,6 +161,7 @@ function getRound() {
     $message = 'query success';
     while ($round = $res->fetchArray()){
         $sqlite_data = array(
+            "roundId"       => $round['roundId'],
             "imacClass"     => $round['imacClass'],
             "imacType"      => $round['imacType'],
             "roundNum"      => $round['roundNum'],
@@ -163,6 +171,391 @@ function getRound() {
             "phase"         => $round['phase'],
             "status"        => $round['status']
         );
+    }
+    db_rollback:
+}
+
+function getPilotsForRound($roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    if (!isset($roundId))
+        if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else { $roundId = null; }
+
+
+    // Get the full list of pilots for the round.
+    // If it's freestyle, use a special query..
+
+    if ($blIsFreestyleRound) {
+        $query = "select p.* "
+            . "from pilot p "
+            . "where p.freestyle = 1 and p.active = 1 ";
+    } else {
+        // Note: each round has 1 flight per sequence.
+        $query = "select p.* "
+            . "from pilot p inner join round r on p.imacClass = r.imacClass "
+            . "where p.active = 1 and r.roundId = :roundId ";
+    }
+    
+    if ($pilotId !== null) {
+        $query .= "and p.pilotId = :pilotId;";
+    } else {
+        $query .= ";";
+    }
+
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId', $roundId);
+            $statement->bindValue(':pilotId', $pilotId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+        }
+    } else {
+        $res = FALSE;
+        $err = error_get_last();
+        $message = $err['message'];
+    }
+
+    if ($res === FALSE) {
+        $result  = 'error';
+        if ($message == null) { $message = 'query error'; }
+    } else {
+        $result  = 'success';
+        $message = 'query success';
+        while ($row = $res->fetchArray()) {
+            $sqlite_data[] = array(
+                "pilotId"           => $row['pilotId'],
+                "pilotPrimaryId"    => $row['pilotPrimaryId'],
+                "fullName"          => $row['fullName'],
+                "airPlane"          => $row['airPlane'],
+                "freestyle"         => $row['freestyle'],
+                "imacClass"         => $row['imacClass'],
+                "active"            => $row['active'],
+                "in_customclass1"   => $row['in_customclass1'],
+                "in_customclass2"   => $row['in_customclass2']
+            );
+        }
+    }
+}
+
+function getPilotSheetsForRound($roundId = null, $pilotId = null, $flightId = null, $sequenceNum = null) {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    // getPilotSheetsForRound..
+    // We must have pilotId AND roundId
+    // We can then optionally have:
+    //    flightId - if we only want one flight data.
+    //    sequenceNum - Again, only sequence X from the round.
+    if (!isset($pilotId))
+        if (isset($_GET['pilotId']))     { $pilotId     = $_GET['pilotId'];     } else { $pilotId  = null; }
+    if (!isset($roundId))
+        if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else { $roundId = null; }
+    if (!isset($flightId))
+        if (isset($_GET['flightId']))    { $flightId    = $_GET['flightId'];    } else { $flightId   = null; }
+    if (!isset($sequenceNum))
+        if (isset($_GET['sequenceNum'])) { $sequenceNum = $_GET['sequenceNum']; } else { $sequenceNum   = null; }
+
+  
+    if ($flightId !== null) {
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
+        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId and s.flightId = :flightId;";
+    } else if ($sequenceNum !== null) {
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
+        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId and f.sequenceNum = :sequenceNum;";
+    } else {
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
+        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId;";
+    }
+    //print "r:$roundId p:$pilotId s:$sequenceNum f:$flightId\nq:$query\n";
+
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId',     $roundId);
+            $statement->bindValue(':pilotId',     $pilotId);
+            $statement->bindValue(':sequenceNum', $sequenceNum);
+            $statement->bindValue(':flightId',    $flightId);
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+            error_log($message);
+            goto db_rollback;
+        }
+    } else {
+        $err = error_get_last();
+        $message = $err['message'];
+        error_log($message);
+        goto db_rollback;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    $sqlite_data = array();
+    while ($row = $res->fetchArray()){
+        $sheet_data = array(
+            "pilotId"           => $row['pilotId'],
+            "flightId"          => $row['flightId'],
+            "sheetId"           => $row['sheetId'],
+            "judgeNum"          => $row['judgeNum'],
+            "judgeName"         => $row['judgeName'],
+            "scribeName"        => $row['scribeName'],
+            "comment"           => $row['comment'],
+            "mppFlag"           => $row['mppFlag'],
+            "flightZeroed"      => $row['flightZeroed'],
+            "zeroReason"        => $row['zeroReason'],
+            "phase"             => $row['phase'],
+            "noteFlightId"      => $row['noteFlightId'],
+            "sequenceNum"       => $row['sequenceNum']
+        );
+        array_push($sqlite_data, $sheet_data);
+    }
+    db_rollback:
+    //print_r($sqlite_data);
+    return ($sqlite_data);
+}
+
+
+function getScoresForRound() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    // getScoresForRound..
+    // We must have roundId or imacClass+imacType+roundNum
+    // We can then optionally have:
+    //    flightId - if we only want one flight data.
+    //    pilotId - if we only want one pilots data.
+    if (isset($_GET['imacClass']))   { $imacClass   = $_GET['imacClass'];   } else $imacClass   = null;
+    if (isset($_GET['imacType']))    { $imacType    = $_GET['imacType'];    } else $imacType    = null;
+    if (isset($_GET['roundNum']))    { $roundNum    = $_GET['roundNum'];    } else $roundNum    = null;
+    if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else $roundId     = null;
+    if (isset($_GET['flightId']))    { $flightId    = $_GET['flightId'];    } else $flightId    = null;
+    if (isset($_GET['sequenceNum'])) { $sequenceNum = $_GET['sequenceNum']; } else $sequenceNum = null;
+    if (isset($_GET['pilotId']))     { $pilotId     = $_GET['pilotId'];     } else $pilotId     = null;
+
+    getRound();
+    $round_data = $sqlite_data;
+    $round_data['schedule'] = getScheduleWithFigures($round_data['schedId']);
+
+    if ($round_data['imacType'] === "Freestyle") {
+        getPilotsForRound($round_data['roundId'], $pilotId, true);
+    } else {
+        getPilotsForRound($round_data['roundId'], $pilotId, false);            
+    }
+    $pilot_data = $sqlite_data;
+
+    foreach ($pilot_data as &$pilot) {
+        $pilot['sheets'] = getPilotSheetsForRound($roundId, $pilot['pilotId'], $flightId, $sequenceNum);
+        foreach ($pilot['sheets'] as &$sheet) {
+            // We know the pilot ID...  Remove it.
+            unset ($sheet['pilotId']);
+            $sheet['scores'] = getScoresForSheet($sheet['sheetId']);
+        }
+        //echo "r:" . $roundId . " p:" . $pilot['pilotId'] . " f:" . $flightId . " s:" . $sequenceNum . "\n";
+        //print_r($pilot);
+    }
+
+    /*
+    if ($sequenceNum === null) {
+        $query =  "select sc.*, f.*, sh.flightId from score sc inner join figure f on sc.figureNum = f.figureNum ";
+        $query .= "  inner join sheet sh on sh.sheetId = sc.sheetId ";
+        $query .= "  where sc.sheetId in (select sheetId from sheet where pilotId = :pilotId and flightId = :flightId) ";
+        $query .= "  and f.schedId = (select schedId from round where roundId = :roundId); ";
+    } else {
+        $query =  "select sc.*, f.*, sh.flightId from score sc inner join figure f on sc.figureNum = f.figureNum ";
+        $query .= "  inner join sheet sh on sh.sheetId = sc.sheetId ";
+        $query .= "  where sc.sheetId in (select sheetId from sheet where pilotId = :pilotId and flightId = (select flightId from flight where roundId = :roundId and sequenceNum = :sequenceNum)) ";
+        $query .= "  and f.schedId = (select schedId from round where roundId = :roundId); ";
+    }
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId',      $roundId);
+            $statement->bindValue(':flightId',     $flightId);
+            $statement->bindValue(':sequenceNum',  $sequenceNum);
+            $statement->bindValue(':pilotId',      $pilotId);
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get score data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+            error_log($message);
+            goto db_rollback;
+        }
+    } else {
+        $err = error_get_last();
+        $message = $err['message'];
+        error_log($message);
+        goto db_rollback;
+    }
+    $result  = 'success';
+    $message = 'query success';
+    $scores = array();
+    while ($round = $res->fetchArray()){
+        $thisFigure = array(
+            "flightId"   => $round['flightId'],
+            "sheetId"    => $round['sheetId'],
+            "figureNum"  => $round['figureNum'],
+            "shortDesc"  => $round['shortDesc'],
+            "score"      => $round['score'],
+            "breakFlag"  => $round['breakFlag'],
+            "scoreTime"  => $round['scoreTime']
+        );
+        array_push($scores, $thisFigure);
+    }
+    $round_data["scores"] = $scores;
+    */
+
+    $result  = 'success';
+    $message = 'query success';
+    $round_data["pilots"] = $pilot_data;
+    
+    $sqlite_data = $round_data;
+    db_rollback:
+}
+
+function getFlightOrderForRound() {
+    // After the scores are entered, we know what order they flew in...
+    // This will give us the list of pilot Ids in order from first to last.
+    // Pilots who did not fly will not be included.
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    if (isset($_GET['roundId'])) { $roundId  = $_GET['roundId']; } else $roundId  = null;
+    
+    // If we don't have a pilot ID, just choose the one with the most recent data entered...
+    // This is a todo...
+
+    $query  = "select distinct f.flightId, f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId ";
+    $query .= "    inner join pilot p on sh.pilotId = p.pilotId ";
+    $query .= "    inner join flight f on sh.flightId = f.flightId ";
+    $query .= "    where sh.roundId = :roundId ";
+    $query .= "    order by scoreTime;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundId',     $roundId);
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+            error_log($message);
+            goto db_rollback;
+        }
+    } else {
+        $err = error_get_last();
+        $message = $err['message'];
+        error_log($message);
+        goto db_rollback;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    $sqlite_data = array();
+    $i = 1;
+    while ($round = $res->fetchArray()){
+        $thisPilot = array(
+            "flightOrder"   => $i++,
+            "flightId"      => $round["flightId"],
+            "pilotId"       => $round["pilotId"],
+            "sequenceNum"   => $round["sequenceNum"],
+            "fillName"      => $round["fullName"]
+        );
+        array_push($sqlite_data, $thisPilot);
+    }
+    db_rollback:
+}
+
+function getSheetIdsForRound() {
+    // After the scores are entered, we know what order they flew in...
+    // This will give us the list of pilot Ids in order from first to last.
+    // Pilots who did not fly will not be included.
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+    $sqlite_data = null;
+
+    if (isset($_GET['roundNum'])) { $roundNum  = $_GET['roundNum']; } else $roundNum  = null;
+    
+    // If we don't have a pilot ID, just choose the one with the most recent data entered...
+    // This is a todo...
+
+    $query  = "select distinct f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId ";
+    $query .= "    inner join pilot p on sh.pilotId = p.pilotId ";
+    $query .= "    inner join flight f on sh.flightId = f.flightId ";
+    $query .= "    where sh.roundId = :roundNum ";
+    $query .= "    order by scoreTime;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':roundNum',     $roundNum);
+            if (!$res = $statement->execute()) {            
+                $result  = 'error';
+                $message = "Could not get data. Err: " . $db->lastErrorMsg();
+                error_log($message);
+                goto db_rollback;
+            }
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage();          
+            error_log($message);
+            goto db_rollback;
+        }
+    } else {
+        $err = error_get_last();
+        $message = $err['message'];
+        error_log($message);
+        goto db_rollback;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    $sqlite_data = array();
+    $i = 1;
+    while ($round = $res->fetchArray()){
+        $thisPilot = array(
+            "flightOrder"   => $i++,
+            "pilotId"       => $round["pilotId"],
+            "sequenceNum"   => $round["sequenceNum"],
+            "fillName"      => $round["fullName"]
+        );
+        array_push($sqlite_data, $thisPilot);
     }
     db_rollback:
 }
@@ -317,7 +710,7 @@ function getMppFigNumForSheet($sheetId) {
         if ($maxFigNum < $figure["figureNum"] ) {
             $maxFigNum = $figure["figureNum"];
         }
-        if ($figure["shortDesc"] == "MPP") {
+        if ( ($figure["shortDesc"] == "MPP Penalty") || ($figure["shortDesc"] == "Pilot & Panel?")) {
             $mppFigNum = $figure["shortDesc"];
         }
     }
@@ -494,6 +887,98 @@ function getPilot($pilotId) {
     return $sqlite_data;
 }
 
+function getScheduleWithFigures($schedId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $sequence_data = getSchedule($schedId);
+    $sequence_data['figures'] = getFiguresForSchedule($schedId);
+    return $sequence_data;
+}
+
+function getSchedule($schedId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    $query = "select * from schedule where schedId = :schedId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':schedId', $schedId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            return null;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return null;
+    }
+
+    if ($row = $res->fetchArray()){
+        $sqlite_data = array(
+            "schedId"         => $row["schedId"],
+            "imacClass"       => $row["imacClass"],
+            "imacType"        => $row["imacType"],
+            "description"     => $row["description"]
+        );
+    } else {
+        $sqlite_data = null;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    
+    return $sqlite_data;
+}
+
+function getFiguresForSchedule($schedId) {
+    global $db;
+    global $result;
+    global $message;
+
+    $message = null;
+
+    $query = "select * from figure where schedId = :schedId;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $statement->bindValue(':schedId', $schedId);
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            return null;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return null;
+    }
+
+    $sqlite_data = array();
+    while ($row = $res->fetchArray()){
+        $fig_data = array(
+            "figureNum"       => $row["figureNum"],
+            "schedId"         => $row["schedId"],
+            "shortDesc"       => $row["longDesc"],
+            "spokenText"      => $row["spokenText"],
+            "rule"            => $row["rule"],
+            "k"               => $row["k"]
+        );
+        array_push($sqlite_data, $fig_data);
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    
+    return $sqlite_data;
+}
+
 function getFlownRounds() {
     global $db;
     global $result;
@@ -657,6 +1142,7 @@ function getRoundResults() {
     }
 }
 
+
 function getRoundPilots() {
     global $db;
     global $result;
@@ -666,14 +1152,27 @@ function getRoundPilots() {
     $message = null;
     $sqlite_data = null;
 
-    // Get the full list of pilots for the round.
-    // Note: each round has 1 flight per sequence.
-    $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
-        . "from round r "
-        . "left join pilot p on p.imacClass = r.imacClass "
-        . "left join flight f on f.roundId = r.roundId "
-        . "where p.active = 1 and r.roundId = :roundId;";
     if (isset($_GET['roundId']))  { $roundId   = $_GET['roundId'];  } else $roundId = null;
+    if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType = null;
+
+    // Get the full list of pilots for the round.
+    // If it's freestyle, use a special query..
+
+    if ($imacType === "Freestyle") {
+        $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
+            . "from round r "
+            . "left join pilot p on p.freestyle = 1 "
+            . "left join flight f on f.roundId = r.roundId "
+            . "where p.active = 1 and r.roundId = :roundId;";
+    } else {
+        // Note: each round has 1 flight per sequence.
+        $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
+            . "from round r "
+            . "left join pilot p on p.imacClass = r.imacClass "
+            . "left join flight f on f.roundId = r.roundId "
+            . "where p.active = 1 and r.roundId = :roundId;";
+    }
+
     if ($statement = $db->prepare($query)) {
         try {
             $statement->bindValue(':roundId', $roundId);
@@ -1197,7 +1696,7 @@ function addRound() {
             if (!$flight || $flight["newNoteFlightId"] == null) {
                 // Null?
                 if (($imacClass == "Freestyle") || ($imacType == "Freestyle"))  {
-                    $newNoteFlightId = 91;
+                    $newNoteFlightId = 1;   // At one stage we were starting freestyle flights at 91..  Not sure why,..
                 } else {
                     $newNoteFlightId = 1;
                 }
