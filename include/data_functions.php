@@ -372,64 +372,17 @@ function getScoresForRound() {
             // We know the pilot ID...  Remove it.
             unset ($sheet['pilotId']);
             $sheet['scores'] = getScoresForSheet($sheet['sheetId']);
+            // Find the mpp (if it's there) and set it in the sheet.   Also remove it from the results.
+            foreach ($sheet['scores'] as $idx => &$score) {
+                if (isset($score['mppFlag'])) {
+                    $sheet['mppFlag'] = $score['mppFlag'];
+                    unset ($sheet['scores'][$idx]);
+                }
+            }
         }
         //echo "r:" . $roundId . " p:" . $pilot['pilotId'] . " f:" . $flightId . " s:" . $sequenceNum . "\n";
         //print_r($pilot);
     }
-
-    /*
-    if ($sequenceNum === null) {
-        $query =  "select sc.*, f.*, sh.flightId from score sc inner join figure f on sc.figureNum = f.figureNum ";
-        $query .= "  inner join sheet sh on sh.sheetId = sc.sheetId ";
-        $query .= "  where sc.sheetId in (select sheetId from sheet where pilotId = :pilotId and flightId = :flightId) ";
-        $query .= "  and f.schedId = (select schedId from round where roundId = :roundId); ";
-    } else {
-        $query =  "select sc.*, f.*, sh.flightId from score sc inner join figure f on sc.figureNum = f.figureNum ";
-        $query .= "  inner join sheet sh on sh.sheetId = sc.sheetId ";
-        $query .= "  where sc.sheetId in (select sheetId from sheet where pilotId = :pilotId and flightId = (select flightId from flight where roundId = :roundId and sequenceNum = :sequenceNum)) ";
-        $query .= "  and f.schedId = (select schedId from round where roundId = :roundId); ";
-    }
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',      $roundId);
-            $statement->bindValue(':flightId',     $flightId);
-            $statement->bindValue(':sequenceNum',  $sequenceNum);
-            $statement->bindValue(':pilotId',      $pilotId);
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get score data. Err: " . $db->lastErrorMsg();
-                error_log($message);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-            error_log($message);
-            goto db_rollback;
-        }
-    } else {
-        $err = error_get_last();
-        $message = $err['message'];
-        error_log($message);
-        goto db_rollback;
-    }
-    $result  = 'success';
-    $message = 'query success';
-    $scores = array();
-    while ($round = $res->fetchArray()){
-        $thisFigure = array(
-            "flightId"   => $round['flightId'],
-            "sheetId"    => $round['sheetId'],
-            "figureNum"  => $round['figureNum'],
-            "shortDesc"  => $round['shortDesc'],
-            "score"      => $round['score'],
-            "breakFlag"  => $round['breakFlag'],
-            "scoreTime"  => $round['scoreTime']
-        );
-        array_push($scores, $thisFigure);
-    }
-    $round_data["scores"] = $scores;
-    */
 
     $result  = 'success';
     $message = 'query success';
