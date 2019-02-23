@@ -57,6 +57,9 @@ switch ($job) {
     case 'get_rounds':
         getRounds();
         break;
+    case 'get_rounds_select_list':
+        getRoundsSelectList();
+        break;
     case 'get_round':
         getRound();
         break;
