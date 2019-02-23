@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-    <link rel="stylesheet" href="/include/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/include/fa/css/all.min.css">
 
     <!--
     This one is the bundle.

@@ -27,7 +27,7 @@ $(document).ready(function() {
       { targets: [0], visible: false  },
       { targets: [-1], "orderable": false }
     ],
-    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "lengthMenu": [[100, -1], [100, "All"]],
     "oLanguage": {
       "oPaginate": {
         "sFirst":       "<",
@@ -119,7 +119,7 @@ $(document).ready(function() {
     $("#imacType").val("Known");
     $("#sequences").val("1");
     $("#roundNum").val("");
-    $("#imacClass").show()
+    $("#imacClass").show();
     $("#sequences").show();
     $("#hidden_imacClass").hide();
     $("#hidden_sequences").hide();
@@ -137,7 +137,7 @@ $(document).ready(function() {
     }
     if (rounddata.imacType !== "Freestyle") {
         $('#imacClass').val(rounddata.imacClass);
-        $("#imacClass").show()
+        $("#imacClass").show();
         $("#sequences").show();
         $("#hidden_imacClass").hide();
         $("#hidden_sequences").hide();
@@ -146,7 +146,7 @@ $(document).ready(function() {
             $("#hidden_sequences").show();
         }
     } else {
-        $("#imacClass").hide()
+        $("#imacClass").hide();
         $("#sequences").hide();
         $("#hidden_imacClass").show();
         $("#hidden_sequences").show();
@@ -182,9 +182,9 @@ $(document).ready(function() {
     $('.roundbox_container').show();
     $('#class-details').text(data.imacClass);
     $('#roundsched-details').text(data.description);
-    if (data.sequences == 2) {
+    if (data.sequences === 2) {
         $('#roundtype-details').text(data.imacType + " Double");
-    } else if(data.imacType == 'Known') {
+    } else if(data.imacType === 'Known') {
         $('#roundtype-details').text(data.imacType + " Single");        
     } else {
         $('#roundtype-details').text(data.imacType);        
@@ -192,7 +192,7 @@ $(document).ready(function() {
     $('#roundnum-details').text(data.roundNum); 
     
     table_pilotlist = $('#table_pilotlist').DataTable({
-      "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId,
+      "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId + "&imacType=" + data.imacType,
       "columns": [
         { "data": "pilotId"},
         { "data": "fullName"},
@@ -206,7 +206,7 @@ $(document).ready(function() {
         { targets: [0, 5], visible: false  },
         { targets: [-2], "orderable": false }
       ],
-      "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+      "lengthMenu": [[50, 100, -1], [50, 100, "All"]],
       "oLanguage": {
         "oPaginate": {
           "sFirst":       "<",
@@ -265,7 +265,7 @@ $(document).ready(function() {
   function fillSchedules(imacClass, imacType) {
     var schedsel = document.getElementById("schedule");
     removeOptions(schedsel);
-    if (imacType === "Freestyle") imacClass = null;
+    if (imacType === "Freestyle") imacClass = "Freestyle";
     for (var sched in schedulelist) {
         if (schedulelist[sched].imacClass === imacClass  && schedulelist[sched].imacType === imacType) {
             var opt = document.createElement("option");
@@ -308,7 +308,7 @@ $(document).ready(function() {
   });
   // Escape keyboard key
   $(document).keyup(function(e){
-    if (e.keyCode == 27){
+    if (e.keyCode === 27){
       hide_lightbox();
       hide_roundbox();
     }
@@ -339,7 +339,7 @@ $(document).ready(function() {
     });
     
     next_round_request.done(function(output){
-      if (output.result == 'success'){
+      if (output.result === 'success'){
         $('.lightbox_content h2').text('Add Round');
         $('#form_round button').text('Add Round');
         $('#form_round').attr('class', 'form add');
@@ -372,7 +372,7 @@ $(document).ready(function() {
     });
     
     sched_request.done(function(output){
-      if (output.result == 'success'){
+      if (output.result === 'success'){
         $('.lightbox_content h2').text('Add Round');
         $('#form_round button').text('Add Round');
         $('#form_round').attr('class', 'form add');
@@ -416,7 +416,7 @@ $(document).ready(function() {
         type:         'get'
       });
       request.done(function(output){
-        if (output.result == 'success'){
+        if (output.result === 'success'){
           // Reload datable
           table_roundlist.ajax.reload(function(){
             hide_loading_message();
@@ -453,6 +453,7 @@ $(document).ready(function() {
     var round_class    = $(this).data('imacclass');
     var round_type     = $(this).data('imactype');
     var round_num      = $(this).data('roundnum');
+    var round_schedId  = $(this).data('schedid');
     var blGotSchedules = false;
     var blGotRounds    = false;
     var blGotRoundData = false;
@@ -468,7 +469,7 @@ $(document).ready(function() {
     });
     
     next_round_request.done(function(output){
-      if (output.result == 'success'){
+      if (output.result === 'success'){
 
         nextroundNums = output.data;
         blGotRounds = true;
@@ -497,7 +498,7 @@ $(document).ready(function() {
     });
     
     sched_request.done(function(output){
-      if (output.result == 'success'){
+      if (output.result === 'success'){
 
         schedulelist = output.data;
         blGotSchedules = true;
@@ -525,13 +526,14 @@ $(document).ready(function() {
       type:         'get'
     });
     round_request.done(function(output){
-      if (output.result == 'success'){
+      if (output.result === 'success'){
         $('.lightbox_content h2').text('Edit round');
         $('#form_round button').text('Edit round');
         $('#form_round').attr('class', 'form edit');
         $('#form_round').attr('data-imacClass', round_class);
         $('#form_round').attr('data-imacType', round_type);
         $('#form_round').attr('data-roundNum', round_num);
+        $('#form_round').attr('data-schedid', round_schedId);
         $('#form_round .field_container label.error').hide();
         $('#form_round .field_container').removeClass('valid').removeClass('error');
 
@@ -574,7 +576,7 @@ $(document).ready(function() {
         type:         'get'
       });
       request.done(function(output){
-        if (output.result == 'success'){
+        if (output.result === 'success'){
           // Reload datable
           table_roundlist.ajax.reload(function(){
             hide_loading_message();
@@ -814,17 +816,17 @@ $(document).ready(function() {
       $('#sequences').parent('.field_container').removeClass('error');
       $('#sequences-error').hide();
 
-      $("#imacClass").hide()
+      $("#imacClass").hide();
       $("#sequences").hide();
       $("#hidden_imacClass").show();
       $("#hidden_sequences").show();
     } else if ( $(this).val()==="Unknown") {
-      $("#imacClass").show()
+      $("#imacClass").show();
       $("#hidden_imacClass").hide();
       $("#sequences").hide();
       $("#hidden_sequences").show();
     } else {
-      $("#imacClass").show()
+      $("#imacClass").show();
       $("#sequences").show();
       $("#hidden_imacClass").hide();
       $("#hidden_sequences").hide();
@@ -851,7 +853,7 @@ $(document).ready(function() {
   });
 
   function fillNextFlight(roundId, pilotName, seqNum) {
-    if (pilotName == null || seqNum == null) {
+    if (pilotName === null || seqNum === null) {
         
       var request = $.ajax({
         url:          'data.php?job=get_next_flight&roundId=' + roundId,
@@ -898,7 +900,7 @@ $(document).ready(function() {
             
             var blFlightHasFinishedSheets = false;
             var blFlightHasUnfinishedSheets = false;
-            var thisButtonId = $(this).attr("id")
+            var thisButtonId = $(this).attr("id");
 
             console.log("Checking if next flight button " + this.id + " has some or all data.");
 
@@ -912,10 +914,10 @@ $(document).ready(function() {
                 }
             });
             if (blFlightHasUnfinishedSheets === true) {
-                console.log("   At least some sheets not finished.")
+                console.log("   At least some sheets not finished.");
                 $('#' + thisButtonId).removeClass("disabled_button");
             } else if (blFlightHasFinishedSheets === true) {
-                console.log("   All sheets done!  Removing button.")
+                console.log("   All sheets done!  Removing button.");
                 $('#' + thisButtonId).addClass("disabled_button");
             }
 

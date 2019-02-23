@@ -392,24 +392,28 @@ table.datatable tbody td.functions .function_buttons .function_set_next_flight2 
 }
 table.datatable tbody td.functions .function_buttons .function_start a:before {
   font-size: 1.1rem;
-  content: "\f04b";
+  /* content: "\f04b"; */
+}
+table.datatable tbody td.functions .function_buttons .function_scores a:before {
+  font-size: 1.1rem;
+  /* content: "\f682"; */
 }
 table.datatable tbody td.functions .function_buttons .function_finish a:before {
   font-size: 1.1rem;
-  content: "\f00c";
+  /* content: "\f00c"; */
 }
 table.datatable tbody td.functions .function_buttons .function_pause a:before {
   font-size: 1.1rem;
-  content: "\f04c";
+  /* content: "\f04c"; */
 }
 table.datatable tbody td.functions .function_buttons .function_edit a:before {
   font-size: 1.1rem;
-  content: "\f040";
+  /* content: "\f040"; */
 }
 table.datatable tbody td.functions .function_buttons .function_delete a:before {
   font-size: 1.2rem;
   line-height: 30px;
-  content: "\f1f8";
+  /* content: "\f1f8"; */
 }
 table.datatable tbody td.functions .function_buttons a:hover,
 table.datatable tbody td.functions .function_buttons a:active,

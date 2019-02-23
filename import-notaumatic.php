@@ -20,12 +20,13 @@ include_once ("include/data_functions.php");
 //http://localhost/html/import-notaumatic.php?OPT=P&C=1&F=1
 
 
-// OPT = Option (U pour update, T pour Test, H pour Heure, N pour note unique, P pour next Pilot)
-// C            = numéro de compétition - enum(Basic, Basic-Unkown, Sortsman, Sportsman-unknown etc,....
-// F		= numéro de vol
-// J		= numéro de juge
-// D		= numéro de dossard
-// Nx		= Notes
+// OPT = Option (U for update - i.e. save entire flight, T for Test - to check if the pilot/round/comp/seq is ok, 
+//              H for time??, N for note - the current and previous score, P for next pilot data.)
+// C            = Comp number i.e which class - enum(Basic, Sortsman, Intermediate etc,....
+// F		= Flight number (each sequence is a flight)
+// J		= Judge number
+// D		= Pilot Number
+// Nx		= Scores.
 /*
 Error code
 900 --> Could not get flight.
@@ -96,6 +97,7 @@ if ($logRequests == true && ($nautoption === 'N' || $nautoption === 'U')) {
     // we are checking REDUNDANCY parameter in conf/conf.ffam.php to save sql queries here
     // 
     // set URL and other appropriate options
+    // Not used for IMAC!
     $url = "http://imac.lan/import-notaumatic.php"
 	    . "?OPT=".$nautoption
 	    . "&F=".$nautoflightid
@@ -125,7 +127,7 @@ switch ($nautoption) {
          /************
          * Update the flight scores and save them.	
          * Get each score from the array and insert it.
-         * Create a JSON objec and pass it to postSheet..
+         * Create a JSON object and pass it to postSheet..
          * 
          *  {
          *      "pilotId": 6,

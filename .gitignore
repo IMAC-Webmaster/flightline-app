@@ -1,4 +1,4 @@
-/nbproject/private/
+/nbproject/
 *.db
 *.db-shm
 *.db-wal
@@ -6,3 +6,5 @@
 *.sqlite-shm
 *.sqlite-wal
 *.log
+*.sqbpro
+/datatables-dynamic-columns/

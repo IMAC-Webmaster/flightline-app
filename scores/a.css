@@ -1,0 +1,64 @@
+body {
+    font: 90%/1.45em "Helvetica Neue", HelveticaNeue, Verdana, Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+
+div.container {
+    min-width: 980px;
+    margin: 0 auto;
+}
+
+div.rounddetails {
+    display: inline;
+}
+
+td.num {
+    text-align: right;
+}
+
+td.desc {
+    text-align: left;
+}
+
+td.score {
+    text-align: center;
+}
+
+.new {
+    animation: flyin 1.5s ease forwards;
+    opacity: 0.5;
+    transform: scale(10);
+    color: red;
+
+    /* SEE NOTE IN JAVASCRIPT */
+    -webkit-filter: blur(4px);
+}
+input,
+button,
+select {
+    background-color: #fff1e6;
+    border: 1px solid black;
+    padding: 4px;
+    color: black;
+    font-family: 'Oxygen', Arial, Helvetica, sans-serif;
+    font-size: 1rem;
+    color: #666;
+}
+
+button.scoreboard {
+    background-color: whitesmoke;
+    margin: 2;
+    padding: 4;
+    color: black;
+}
+
+@keyframes flyin {
+   to { 
+     -webkit-filter: blur(0);
+     transform: scale(1);
+     opacity: 1;
+   }
+}
