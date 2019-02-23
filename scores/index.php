@@ -11,7 +11,7 @@
     <script type="text/javascript" src="../include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
     <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
     <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="/include/liveresults.js"></script>
+    <script type="text/javascript" src="/include/scores.js"></script>
     <script type="text/javascript" src="/include/helpers.js"></script>
     <script>
         $(document).ready( function () {

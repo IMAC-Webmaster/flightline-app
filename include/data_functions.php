@@ -69,28 +69,32 @@ function getRounds() {
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
             case "U":
-                $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Start</span></a></li>';
-                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Edit</span></a></li>';
-                $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Delete</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><i class="fas fa-play"></i></a></li>';
+                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-edit"></i></a></li>';
+                $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-trash"></i></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "O":
-                $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Pause</span></a></li>';
+                $functions .= '<li class="function_pause"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><i class="fas fa-pause"></i></a></li>';
+                $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 break;
             case "P":
-                $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><span>Start</span></a></li>';
+                $functions .= '<li class="function_start"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-play"></i></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
-                $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><span>Finalise</span></a></li>';
+                $functions .= '<li class="function_finish"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><i class="fas fa-check"></i></a></li>';
+                $functions .= '<li class="function_scores"><a data-roundid="'  . $round['roundId'] . '"><i class="fas fa-poll"></i></a></li>';
                 break;
             case "D":
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
+                $functions .= '<li class="function_scores"><a data-roundid="'  . $round['roundId'] . '"><i class="fas fa-poll"></i></a></li>';
                 break;
         }
         $functions .= '</ul></div>';
