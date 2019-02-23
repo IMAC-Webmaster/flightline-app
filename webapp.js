@@ -716,6 +716,11 @@ $(document).ready(function() {
     }
   });  // Pause round...
 
+  $(document).on('click', '.function_scores a', function(e){
+      var roundId = $(this).data('roundid');
+      window.location.replace('/scores/');
+  });
+
   // Set a paused round to be completed.
   $(document).on('click', '.function_finish a', function(e){
     e.preventDefault();

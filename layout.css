@@ -482,7 +482,6 @@ table.datatable tbody td.functions .function_buttons span {
   border-radius:         35px;
 }
 .roundbox_close:before {
-  content: '\f00d';
 }
 .roundbox_close:hover {
   color: #333;

@@ -120,7 +120,7 @@
     <div class="roundbox_bg"></div>
 
     <div class="roundbox_container">
-      <div class="roundbox_close"></div>
+      <div class="roundbox_close"><i class="fas fa-times"></i></div>
       <div class="roundbox_content">
         <h2>Round Details</h2>
         <div class="rounddetails_container">
