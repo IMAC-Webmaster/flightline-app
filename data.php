@@ -72,6 +72,9 @@ switch ($job) {
     case 'get_flown_rounds':
         getFlownRounds();
         break;
+    case 'get_latest_round_and_pilot':
+        getMostRecentPilotAndRound();
+        break;
     case 'get_flightline_data':
         getFlightLineData();
         break;

@@ -70,7 +70,7 @@ function getRounds() {
         switch($round["phase"]) {
             case "U":
                 $functions .= '<li class="function_start"><a data-imacclass="'  . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '" data-phase="' . $round['phase'] . '"><i class="fas fa-play"></i></a></li>';
-                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-edit"></i></a></li>';
+                $functions .= '<li class="function_edit"><a data-imacclass="'   . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-play"></i></a></li>';
                 $functions .= '<li class="function_delete"><a data-imacclass="' . $round['imacClass'] . '" data-schedid="'  . $round['schedId'] . '" data-imactype="' . $round['imacType'] . '" data-roundnum="' . $round['roundNum'] . '"><i class="fas fa-trash"></i></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
                 $functions .= '<li class="function_blankspace"><a><span>Spacer</span></a></li>';
@@ -335,7 +335,6 @@ function getPilotSheetsForRound($roundId = null, $pilotId = null, $flightId = nu
     //print_r($sqlite_data);
     return ($sqlite_data);
 }
-
 
 function getScoresForRound() {
     global $db;
@@ -763,7 +762,6 @@ function getPilots() {
     return $pilotArray;
 }
 
-
 function getUsers() {
     global $db;
     global $result;
@@ -834,6 +832,45 @@ function getPilot($pilotId) {
             "in_customclass2" => $pilot["in_customclass2"],
             "active"          => $pilot["active"]
         );
+    } else {
+        $sqlite_data = null;
+    }
+
+    $result  = 'success';
+    $message = 'query success';
+    
+    return $sqlite_data;
+}
+
+function getMostRecentPilotAndRound() {
+    global $db;
+    global $result;
+    global $message;
+    global $sqlite_data;
+
+    $message = null;
+
+    $query  = " select max(sc.scoreTime) as latestScoreTime, sh.roundId, sh.pilotId ";
+    $query .= " from score sc inner join sheet sh on sh.sheetId = sc.sheetId";
+    
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            return null;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        return null;
+    }
+
+    if ($row = $res->fetchArray()){
+        $sqlite_data["latestScoreTime"] = $row["latestScoreTime"];
+        $sqlite_data["roundId"] = $row["roundId"];
+        $sqlite_data["pilotId"] = $row["pilotId"];
     } else {
         $sqlite_data = null;
     }
@@ -1098,7 +1135,6 @@ function getRoundResults() {
         }
     }
 }
-
 
 function getRoundPilots() {
     global $db;
@@ -2169,7 +2205,37 @@ function clearResults() {
         $message = $db->lastErrorMsg();
         goto db_rollback;
     }
-    
+
+        $query = "delete from flight;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
+    $query = "delete from nextFlight;";
+    if ($statement = $db->prepare($query)) {
+        try {
+            $res = $statement->execute();
+        } catch (Exception $e) {
+            $result  = 'error';
+            $message = 'query error: ' . $e->getMessage(); 
+            goto db_rollback;
+        }
+    } else {
+        $result  = 'error';
+        $message = $db->lastErrorMsg();
+        goto db_rollback;
+    }
+
     $query = "update round set phase = 'U';";
     if ($statement = $db->prepare($query)) {
         try {
@@ -2240,10 +2306,6 @@ function clearPilots() {
         goto db_rollback;
     }
 
-    /*****
-     * Allow this for now.   But after testing we really want to enforce the integrity.
-     **/
-    error_log("Checking for sheets." . $result);
     if ($sheet = $res->fetchArray()) {
         if ($sheet["sheetCount"] > 0) {
             $result  = 'error';
@@ -2252,7 +2314,6 @@ function clearPilots() {
         }
     }
     error_log("Checking for sheets." . $sheet["sheetCount"]);
-    /**/
 
     $query = "delete from pilot ;";
     if ($statement = $db->prepare($query)) {

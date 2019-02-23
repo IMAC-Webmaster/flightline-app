@@ -137,6 +137,19 @@ function getPilotIndexFromId(id, data) {
     return idx;
 }
 
+function getMostRecentPilotAndFlight() {
+    var xhr;
+    var url = '/data.php?job=get_latest_round_and_pilot';
+    result = null;
+    xhr = $.ajax(url)
+        .done(function()
+        {
+            result = JSON.parse(xhr.responseText);
+            latestFlightInfo = result.data;
+        })
+        .fail();
+}
+
 function loadRoundData(roundId, pilotId, sequenceNum) {
     
     // If they selected nothing, then just clear table, and clear selects...
@@ -147,17 +160,13 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             $("#demotable thead tr").empty();
         }
         $('#pilotSel').hide();
-        // ToDo: start to get the live data...
+        getMostRecentPilotAndFlight();
+        loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
         return;
     }
     
     var url = '/data.php?job=get_scores_for_round&roundId=' + roundId;
-    if (pilotId !== null) {
-        //url += '&pilotId=' + pilotId;
-    }
-    if (sequenceNum !== null) {
-        //url += '&sequenceNum=' + sequenceNum;
-    }
+
     jqxhr = $.ajax(url)
         .done(function(){ 
             result = JSON.parse(jqxhr.responseText);
@@ -253,4 +262,4 @@ function populatePilotSelect(roundId) {
 }
 
 var data = {data: [], columns: [], pilot:[], round:[]};
-var jqxhr, table;
+var jqxhr, table, latestFlightInfo;
