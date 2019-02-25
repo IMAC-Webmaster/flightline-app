@@ -193,11 +193,8 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             parseRoundData(result.data);
             var p = getPilotIndexFromId(pilotId, result.data.pilots);
             if (p === null) {
-                p = 0;
-                if (typeof result.data.pilots[p].datatable === "undefined") {
-                    console.log("Could not find any pilot data in this round...");
-                    return;
-                }
+                console.log("Could not find any pilot data in this round...");
+                return;
             }
             // Fill empty pilot sheets here (based on whats in result.data.datable_columns)
             for (var dti in result.data.pilots[p].datatable) {

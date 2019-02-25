@@ -7,10 +7,12 @@
 
     <link rel="stylesheet" href="/include/css/layout.css">
     <link rel="stylesheet" href="/include/css/scores.css">
-    <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap.css"/>
+    <link rel="stylesheet" href="/include/fa/css/all.min.css">
+    <link rel="stylesheet" href="/include/css/slider.css">
+    <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
     <script type="text/javascript" src="/include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
     <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
+    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
     <script type="text/javascript" src="/include/js/scores.js"></script>
     <script type="text/javascript" src="/include/js/helpers.js"></script>
     <?php 
@@ -40,8 +42,7 @@
                 populatePilotSelect($(this).val(), null);
             });
 
-            var reloadInterval = setInterval(ajaxCall, 5000);
-            clearInterval(reloadInterval); // have to fix this...
+            var reloadInterval = null;
 
             if (currentRound !== null) {
                 populatePilotSelect(currentRound, currentPilot);
@@ -52,7 +53,15 @@
 
             function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
             $('#reload').click( function () { loadRoundData(currentRound, currentPilot, currentSequence); } );
-            $('#stoprefresh').click( function () { clearInterval(reloadInterval); } );
+            $('#testCheck').click( function () { 
+                if ($(this).is(':checked')) {
+                    reloadInterval = setInterval(ajaxCall, 5000);
+                    console.log("Enabled Autorefresh...");
+                } else {
+                    clearInterval(reloadInterval); 
+                    console.log("Disabled Autorefresh...");
+                }
+            } );
 
         });
     </script>
@@ -60,13 +69,16 @@
 </head>
 <body>
     <body>
-        <button id="reload" class='scoreboard'>Reload</button>
-        <button id="stoprefresh" class='scoreboard'>Stop Refresh</button>
+        <section class="slider-checkbox">
+          <input type="checkbox" id="testCheck" />
+          <label class="label" for="testCheck">Refresh (5 secs)</label>
+        </section>
+        <button id="reload" class='scoreboard'>Force Reload</button>
         <div id="page_container">
             <h1>Round Scores</h1>
-            <h2>Round Number: <div class="rounddetails" id="roundNum"></div></h2>
             <h2>Class: <div class="rounddetails" id="roundClass"></div></h2>
             <h2>Round Type: <div class="rounddetails" id="roundType"></div></h2>
+            <h2>Round Number: <div class="rounddetails" id="roundNum"></div></h2>
             <h2>Schedule: <div class="rounddetails" id="roundSchedule"></div></h2>
             <select id="roundSel"><option value=""></select>
             <select id="pilotSel"><option value=""></select>

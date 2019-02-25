@@ -94,7 +94,7 @@ select {
 
 button.scoreboard {
     background-color: whitesmoke;
-    margin: 2;
+    margin-top: 8px;
     padding: 4;
     color: black;
 }
