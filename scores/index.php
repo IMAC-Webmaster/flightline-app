@@ -20,10 +20,9 @@
     <script>
         $(document).ready( function () {
             var currentRound = <?php echo $roundId ?>, currentPilot = <?php echo $pilotId ?>, currentSequence = null;
-            var r = window.location.pathname.replace('/scores/','');
             var d = getMostRecentPilotAndFlight();
             $("#pilotSel").hide();
-            populateRoundSelect(r);
+            populateRoundSelect(currentRound);
 
             $('#pilotSel').change(function() {
                 currentRound = $('#roundSel option:selected').val();
@@ -44,12 +43,11 @@
             var reloadInterval = setInterval(ajaxCall, 5000);
             clearInterval(reloadInterval); // have to fix this...
 
-            if (r !== '' && (isNaN(r) === false)) {
-                console.log ("Loading round: " + r);
-                populatePilotSelect(r, null);
-                //loadRoundData(r, null, null);
-                //helpers.selectOption('roundSel', r);
-                //$('#roundSel').val(r);
+            if (currentRound !== null) {
+                populatePilotSelect(currentRound, currentPilot);
+                if (currentPilot !== null) {
+                    loadRoundData(currentRound, currentPilot, null);
+                }
             }
 
             function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
