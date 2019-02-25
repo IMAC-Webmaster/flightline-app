@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <title>Datatable with dynamic headers</title>
 
-    <link rel="stylesheet" href="../layout.css">
-    <link rel="stylesheet" href="a.css">
-    <link rel="stylesheet" type="text/css" href="../include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap.css"/>
-    <script type="text/javascript" src="../include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
-    <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
-    <script type="text/javascript" src="/include/scores.js"></script>
-    <script type="text/javascript" src="/include/helpers.js"></script>
+    <link rel="stylesheet" href="/include/css/layout.css">
+    <link rel="stylesheet" href="/include/css/scores.css">
+    <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap.css"/>
+    <script type="text/javascript" src="/include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
+    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
+    <script type="text/javascript" src="/include/js/scores.js"></script>
+    <script type="text/javascript" src="/include/js/helpers.js"></script>
     <script>
         $(document).ready( function () {
             var currentRound = null, currentPilot = null, currentSequence = null;
