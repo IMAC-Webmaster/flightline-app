@@ -12,7 +12,7 @@ function parseRoundData(round) {
     console.log("Got the info from the round data.  We need:");
     console.log("  " + (roundInfo['sheetCount'] + 2 ) + " colums for " + round.sequences  + " sheets per judge from " + roundInfo['judgeCount'] + " judges.");
     console.log("Building datatable data.");
-    var dataTable = {columns:[ {name:"Num.", data:"num"}, {name:"Figure", data:"fig"}], data:[]};
+    var dataTable = {columns:[ {title: "Num.", data:"num"}, {title: "Figure",  data:"fig"}], data:[]};
     // Lets do this for each pilot in the data!
     var judgeCols = {};
     for (var pIdx in round.pilots) {
@@ -23,10 +23,12 @@ function parseRoundData(round) {
                 fig: round.schedule.figures[fIdx].shortDesc
             };
             for (var sIdx in round.pilots[pIdx].sheets) {
-                var colName = " Seq " + round.pilots[pIdx].sheets[sIdx].sequenceNum + " Judge " + round.pilots[pIdx].sheets[sIdx].judgeNum;
-                var colData = "S" + round.pilots[pIdx].sheets[sIdx].sequenceNum + "J" + round.pilots[pIdx].sheets[sIdx].judgeNum;
+                var colSeqNum = round.pilots[pIdx].sheets[sIdx].sequenceNum;
+                var colJudgeNum = round.pilots[pIdx].sheets[sIdx].judgeNum;
+                var colName = " Seq " + colSeqNum + " Judge " + colJudgeNum;
+                var colData = "S" + colSeqNum + "J" + colJudgeNum;
                 myDataRow[colData] = round.pilots[pIdx].sheets[sIdx].scores[fIdx];
-                judgeCols[colData] = colName;
+                judgeCols[colData] = { title: colName, seqnum: colSeqNum, judgenum: colJudgeNum};
             }
             // We really only want to add  
             dataTable.data[pIdx].push(myDataRow);
@@ -36,7 +38,7 @@ function parseRoundData(round) {
     var colIds = Object.keys(judgeCols);
     colIds.sort();
     for (var colIdx in colIds) {
-        dataTable["columns"].push({data: colIds[colIdx], name: judgeCols[colIds[colIdx]]});
+        dataTable["columns"].push({data: colIds[colIdx], title: judgeCols[colIds[colIdx]].title, seqnum: judgeCols[colIds[colIdx]].seqnum, judgenum: judgeCols[colIds[colIdx]].judgenum});
     }
     
     round["datatable_columns"] = dataTable["columns"];
@@ -83,7 +85,8 @@ function handleAjaxResponse() {
 
     // Iterate each column and print table headers for Datatables
     $.each(data.columns, function (k, colObj) {
-        str = '<th>' + colObj.name + '</th>';
+        //str = '<th>' + colObj.name + '</th>';
+        str = '<th></th>';
         $(str).appendTo('#demotable>thead>tr');
     });
 
@@ -97,6 +100,7 @@ function handleAjaxResponse() {
         "columnDefs": [
             { "targets": [0, 1],    className: "desc" },
             { "targets": "_all",    className: "score" },
+            { "targets": "_all",    createdCell: function (td, cellData, rowData, row, col) { renderScoreContainer(td, cellData, rowData, row, col); } },
             { "targets": "_all",    render: function ( data, type, row ) { return (typeof data === "object") ? renderScore(data, type, row) : data; } }
         ],
         "fnInitComplete": function () {
@@ -118,14 +122,31 @@ function handleAjaxResponse() {
     
 }
 
-function renderScore (data, type, row) {
-    var classes = "score";
-    if (typeof data.features !== "undefined") {
-        for (var i = 0, len = data.features.length; i < len; i++) {
-          classes = classes + " " + data.features[i];
+function renderScoreContainer (td, cellData, rowData, row, col) {
+    if (typeof cellData === "object") {
+        if (cellData.breakFlag === 1) {
+            $(td).addClass("break");
+        }
+        if (cellData.comment !== null) {
+            // Add comment here!
+        }
+        if ((cellData.scoreTime + 30) > +new Date() ) { //Is this less than 30 seconds old?
+            $(td).addClass("new");
         }
     }
-    return ("<div class='" + classes + "'>" + data.score + "</div>");
+}
+
+function renderScore (d, t, r) {
+    var classes = "score";
+    if (typeof d.features !== "undefined") {
+        for (var i = 0, len = d.features.length; i < len; i++) {
+          classes = classes + " " + d.features[i];
+        }
+    }
+    if (d.breakFlag === 1) {
+        classes = classes + " break";
+    }
+    return ("<div class='" + classes + "'>" + d.score + "</div>");
 }
 function getPilotIndexFromId(id, data) {
     var idx = null;
@@ -151,7 +172,6 @@ function getMostRecentPilotAndFlight() {
 }
 
 function loadRoundData(roundId, pilotId, sequenceNum) {
-    
     // If they selected nothing, then just clear table, and clear selects...
     if (roundId === null || roundId === '') {
         if ( $.fn.DataTable.isDataTable( '#demotable' ) ) {
@@ -173,7 +193,11 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             parseRoundData(result.data);
             var p = getPilotIndexFromId(pilotId, result.data.pilots);
             if (p === null) {
-                return;
+                p = 0;
+                if (typeof result.data.pilots[p].datatable === "undefined") {
+                    console.log("Could not find any pilot data in this round...");
+                    return;
+                }
             }
             // Fill empty pilot sheets here (based on whats in result.data.datable_columns)
             for (var dti in result.data.pilots[p].datatable) {
@@ -186,7 +210,25 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             }
             
             data.data = result.data.pilots[p].datatable;
+            data.sheets = result.data.pilots[p].sheets;
             data.columns = result.data.datatable_columns;
+            for (col in data.columns) {
+                // Iterate over the columns and add the sheet data.
+                if (data.columns[col].data === "num" || data.columns[col].data === "fig") {
+                    ;
+                } else {
+                    for (var sheet in data.sheets) {
+                        if (data.sheets[sheet].sequenceNum === data.columns[col].seqnum && data.sheets[sheet].judgeNum === data.columns[col].judgenum) {
+                            // This is the sheet!   Delete the scores to save some memory...
+                            delete data.sheets[sheet].scores;
+                            data.columns[col]["sheet"] = data.sheets[sheet];
+                            if (data.sheets[sheet].mppFlag === 1) {
+                                data.columns[col]["className"] = "score mpp";
+                            }
+                        }
+                    }
+                }
+            }
             data.pilot = {
                 active: result.data.pilots[p].active,
                 fullName: result.data.pilots[p].fullName,
@@ -231,23 +273,24 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             console.log(msg);
             data.columns = new Array();
             data.data = new Array();
+            data.sheets = new Array();
         });
 }
 
-function populateRoundSelect() {
+function populateRoundSelect(selectedRound) {
     var xhr;
     var url = '/data.php?job=get_rounds';
     xhr = $.ajax(url)
         .done(function()
         {
             result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data');
+            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', selectedRound);
         })
         .fail();
     
 }
 
-function populatePilotSelect(roundId) {
+function populatePilotSelect(roundId, selectedPilot) {
     var xhr;
     var url = '/data.php?job=get_round_pilots&roundId=' + roundId;
     $("#pilotSel").show();
@@ -255,7 +298,7 @@ function populatePilotSelect(roundId) {
         .done(function()
         {
             result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot');
+            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
         })
         .fail();
     
