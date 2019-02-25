@@ -14,6 +14,7 @@
     <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
     <link rel="stylesheet" href="/include/css/layout.css">
     <link rel="stylesheet" href="include/fa/css/all.min.css">
+
     <script type="text/javascript" src="/include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
     <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
     <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
@@ -27,7 +28,10 @@
       <h1>Score! Flightline controller</h1>
 
       <button type="button" class="button" id="add_round">Add round</button>
-
+<section class="slider-checkbox">
+    <input type="checkbox" id="2">
+    <label class="label" for="2">Checkbox 2</label>
+  </section>
       <table class="datatable clickable" id="table_roundlist">
         <thead>
           <tr>
