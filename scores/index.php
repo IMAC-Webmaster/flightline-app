@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Datatable with dynamic headers</title>
+    <title>Round scores</title>
 
     <link rel="stylesheet" href="/include/css/layout.css">
     <link rel="stylesheet" href="/include/css/scores.css">
@@ -13,9 +13,13 @@
     <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap.js"></script>
     <script type="text/javascript" src="/include/js/scores.js"></script>
     <script type="text/javascript" src="/include/js/helpers.js"></script>
+    <?php 
+    if (isset($_GET['roundId'])) { $roundId = $_GET['roundId'];}  else $roundId = "null";
+    if (isset($_GET['pilotId'])) { $pilotId = $_GET['pilotId'];}  else $pilotId = "null";
+    ?>
     <script>
         $(document).ready( function () {
-            var currentRound = null, currentPilot = null, currentSequence = null;
+            var currentRound = <?php echo $roundId ?>, currentPilot = <?php echo $pilotId ?>, currentSequence = null;
             var r = window.location.pathname.replace('/scores/','');
             var d = getMostRecentPilotAndFlight();
             $("#pilotSel").hide();
