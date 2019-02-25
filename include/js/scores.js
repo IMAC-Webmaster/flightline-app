@@ -130,7 +130,8 @@ function renderScoreContainer (td, cellData, rowData, row, col) {
         if (cellData.comment !== null) {
             // Add comment here!
         }
-        if ((cellData.scoreTime + 30) > +new Date() ) { //Is this less than 30 seconds old?
+        var dateNow = +new Date();
+        if ((cellData.scoreTime + 30) > (dateNow / 1000) ) { //Is this less than 30 seconds old?
             $(td).addClass("new");
         }
     }
