@@ -193,8 +193,8 @@ button.button:active {
   top: 0;
   right: 0;
   background-color: #999;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 1.2rem;
   line-height: 30px;
   text-align: center;
@@ -264,7 +264,8 @@ button.button:active {
 }
 .dataTables_paginate a.previous,
 .dataTables_paginate a.next {
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 1.2rem;
   line-height: 30px;
 }
@@ -357,8 +358,8 @@ table.datatable tbody td.functions .function_buttons a {
   height: 30px;
   display: inline-block;
   background-color: #999;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   line-height: 29px;
   text-align: center;
   color: #fff;
@@ -392,28 +393,22 @@ table.datatable tbody td.functions .function_buttons .function_set_next_flight2 
 }
 table.datatable tbody td.functions .function_buttons .function_start a:before {
   font-size: 1.1rem;
-  /* content: "\f04b"; */
 }
 table.datatable tbody td.functions .function_buttons .function_scores a:before {
   font-size: 1.1rem;
-  /* content: "\f682"; */
 }
 table.datatable tbody td.functions .function_buttons .function_finish a:before {
   font-size: 1.1rem;
-  /* content: "\f00c"; */
 }
 table.datatable tbody td.functions .function_buttons .function_pause a:before {
   font-size: 1.1rem;
-  /* content: "\f04c"; */
 }
 table.datatable tbody td.functions .function_buttons .function_edit a:before {
   font-size: 1.1rem;
-  /* content: "\f040"; */
 }
 table.datatable tbody td.functions .function_buttons .function_delete a:before {
   font-size: 1.2rem;
   line-height: 30px;
-  /* content: "\f1f8"; */
 }
 table.datatable tbody td.functions .function_buttons a:hover,
 table.datatable tbody td.functions .function_buttons a:active,
@@ -469,8 +464,8 @@ table.datatable tbody td.functions .function_buttons span {
   position: absolute;
   top: 45px;
   right: 45px;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 20px;
   line-height: 35px;
   text-align: center;
@@ -482,6 +477,7 @@ table.datatable tbody td.functions .function_buttons span {
   border-radius:         35px;
 }
 .roundbox_close:before {
+  content: '\f00d';
 }
 .roundbox_close:hover {
   color: #333;
@@ -612,8 +608,8 @@ table.datatable tbody td.functions .function_buttons span {
   position: absolute;
   bottom: 0;
   right: -42px;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 20px;
   line-height: 32px;
   text-align: center;
@@ -689,8 +685,8 @@ table.datatable tbody td.functions .function_buttons span {
   position: absolute;
   top: 45px;
   right: 45px;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 20px;
   line-height: 35px;
   text-align: center;
@@ -811,8 +807,8 @@ table.datatable tbody td.functions .function_buttons span {
   position: absolute;
   bottom: 0;
   right: -42px;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 20px;
   line-height: 32px;
   text-align: center;
@@ -887,8 +883,8 @@ table.datatable tbody td.functions .function_buttons span {
   top: 0;
   left: 0;
   background-color: #f70;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 12px;
   line-height: 20px;
   text-align: center;
@@ -949,8 +945,8 @@ table.datatable tbody td.functions .function_buttons span {
   position: absolute;
   top: 80px;
   left: 0;
-  font-family: 'FontAwesome', Arial, Helvetica, sans-serif;
-  font-weight: normal;
+  font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;
+  font-weight: 900;
   font-size: 4rem;
   line-height: 4rem;
   text-align: center;

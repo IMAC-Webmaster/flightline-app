@@ -5,6 +5,12 @@ body {
     color: #333;
 }
 
+h1.pilotName {
+  font-weight: 700;
+  font-size: 2.2rem;
+  color: #000;
+  margin: 25px 0 0 0;
+}
 
 div.container {
     min-width: 980px;
@@ -27,6 +33,11 @@ td.score {
     text-align: center;
 }
 
+.dataTables_wrapper {
+    position: relative;
+    padding: 0 0 50px 0;
+}
+
 .new {
     animation: flyin 1.5s ease forwards;
     opacity: 0.5;
@@ -36,6 +47,39 @@ td.score {
     /* SEE NOTE IN JAVASCRIPT */
     -webkit-filter: blur(4px);
 }
+
+div.break::after {
+    font-size: 80%;
+    vertical-align: top;
+    color: red;
+    font-weight: bold;
+    content: " [br]";
+}
+
+.box::after {
+    font-size: 80%;
+    vertical-align: top;
+    color: red;
+    font-weight: bold;
+    content: " [bx]";
+}
+
+th.mpp::after {
+    font-size: 80%;
+    vertical-align: top;
+    color: red;
+    font-weight: bold;
+    content: " [mpp]";
+}
+
+table.datatable tbody tr:nth-child(even) td.break {
+    background-color: #fdd;
+}
+
+table.datatable tbody tr:nth-child(odd) td.break {
+    background-color: #fee;
+}
+
 input,
 button,
 select {

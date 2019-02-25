@@ -5,7 +5,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-    <link rel="stylesheet" href="/include/fa/css/all.min.css">
 
     <!--
     This one is the bundle.
@@ -14,6 +13,7 @@
     -->
     <link rel="stylesheet" type="text/css" href="../include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
     <link rel="stylesheet" href="layout.css">
+    <link rel="stylesheet" href="include/fa/css/all.min.css">
     <script type="text/javascript" src="../include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
     <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
     <script type="text/javascript" src="../include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
@@ -52,7 +52,7 @@
     <div class="lightbox_bg"></div>
 
     <div class="lightbox_container">
-      <div class="lightbox_close"></div>
+        <div class="lightbox_close"></div>
       <div class="lightbox_content">
         <h2>Add Round</h2>
         <form class="form add" id="form_round" data-id="" novalidate>
@@ -120,7 +120,7 @@
     <div class="roundbox_bg"></div>
 
     <div class="roundbox_container">
-      <div class="roundbox_close"><i class="fas fa-times"></i></div>
+      <div class="roundbox_close"></div>
       <div class="roundbox_content">
         <h2>Round Details</h2>
         <div class="rounddetails_container">

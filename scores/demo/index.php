@@ -12,7 +12,7 @@
 ?>
 <html>
     <head>
-        <link rel="stylesheet" href="../a.css">
+        <link rel="stylesheet" href="a.css">
         <link rel="stylesheet" href="/layout.css">
 
         <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap.css"/>

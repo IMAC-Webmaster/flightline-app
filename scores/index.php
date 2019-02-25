@@ -37,6 +37,7 @@
             });
 
             var reloadInterval = setInterval(ajaxCall, 5000);
+            clearInterval(reloadInterval); // have to fix this...
 
             function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
             $('#reload').click( function () { loadRoundData(currentRound, currentPilot, currentSequence); } );
@@ -56,9 +57,9 @@
             <h2>Class: <div class="rounddetails" id="roundClass"></div></h2>
             <h2>Round Type: <div class="rounddetails" id="roundType"></div></h2>
             <h2>Schedule: <div class="rounddetails" id="roundSchedule"></div></h2>
-            <h2>Pilot: <div class="rounddetails" id="pilotName"></div></h2>
             <select id="roundSel"><option value=""></select>
             <select id="pilotSel"><option value=""></select>
+            <h1 class='pilotName'>Pilot: <div class="rounddetails" id="pilotName"></div></h1>
             <table id="demotable" class="datatable" width="80%">
                 <thead><tr></tr></thead>
             </table>
