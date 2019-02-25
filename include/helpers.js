@@ -35,7 +35,7 @@ var helpers =
         }
         return newData;
     },
-    buildDropdown: function(result, dropdown, emptyMessage)
+    buildDropdown: function(result, dropdown, emptyMessage, selectedId)
     {
         dropdown.html('');
         if (emptyMessage !== null) {
@@ -44,7 +44,11 @@ var helpers =
         if(typeof result !== 'undefined' && result !== '')
         {
             $.each(result, function(k, v) {
-                dropdown.append('<option value="' + v.id + '">' + v.name + '</option>');
+                if (v.id == selectedId) {
+                    dropdown.append('<option selected value="' + v.id + '">' + v.name + '</option>');
+                } else {
+                    dropdown.append('<option value="' + v.id + '">' + v.name + '</option>');
+                }
             });
         }
     }

@@ -16,9 +16,10 @@
     <script>
         $(document).ready( function () {
             var currentRound = null, currentPilot = null, currentSequence = null;
+            var r = window.location.pathname.replace('/scores/','');
             var d = getMostRecentPilotAndFlight();
             $("#pilotSel").hide();
-            populateRoundSelect();
+            populateRoundSelect(r);
 
             $('#pilotSel').change(function() {
                 currentRound = $('#roundSel option:selected').val();
@@ -33,11 +34,19 @@
                     currentSequence = null;
                     loadRoundData(currentRound, currentPilot, currentSequence);
                 }
-                populatePilotSelect($(this).val());
+                populatePilotSelect($(this).val(), null);
             });
 
             var reloadInterval = setInterval(ajaxCall, 5000);
             clearInterval(reloadInterval); // have to fix this...
+
+            if (r !== '' && (isNaN(r) === false)) {
+                console.log ("Loading round: " + r);
+                populatePilotSelect(r, null);
+                //loadRoundData(r, null, null);
+                //helpers.selectOption('roundSel', r);
+                //$('#roundSel').val(r);
+            }
 
             function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
             $('#reload').click( function () { loadRoundData(currentRound, currentPilot, currentSequence); } );

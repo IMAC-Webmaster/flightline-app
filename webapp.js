@@ -718,7 +718,7 @@ $(document).ready(function() {
 
   $(document).on('click', '.function_scores a', function(e){
       var roundId = $(this).data('roundid');
-      window.location.replace('/scores/');
+      window.location.assign('/scores/' + roundId);
   });
 
   // Set a paused round to be completed.
@@ -939,11 +939,12 @@ $(document).ready(function() {
     $('.function_set_next_flight_button a').removeClass("highlighted_button");
     $('#' + roundId + '_' + pilotId + '_' + noteFlightId + '_' + classId).addClass("highlighted_button");
   }
-});
 
-function removeOptions(selectbox) {
-  var i;
-  for(i = selectbox.options.length - 1 ; i > 0 ; i--) {
-    selectbox.remove(i);
+  function removeOptions(selectbox) {
+    var i;
+    for(i = selectbox.options.length - 1 ; i > 0 ; i--) {
+      selectbox.remove(i);
+    }
   }
-}
+
+});

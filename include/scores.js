@@ -193,7 +193,11 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             parseRoundData(result.data);
             var p = getPilotIndexFromId(pilotId, result.data.pilots);
             if (p === null) {
-                return;
+                p = 0;
+                if (typeof result.data.pilots[p].datatable === "undefined") {
+                    console.log("Could not find any pilot data in this round...");
+                    return;
+                }
             }
             // Fill empty pilot sheets here (based on whats in result.data.datable_columns)
             for (var dti in result.data.pilots[p].datatable) {
@@ -273,20 +277,20 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
         });
 }
 
-function populateRoundSelect() {
+function populateRoundSelect(selectedRound) {
     var xhr;
     var url = '/data.php?job=get_rounds';
     xhr = $.ajax(url)
         .done(function()
         {
             result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data');
+            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', selectedRound);
         })
         .fail();
     
 }
 
-function populatePilotSelect(roundId) {
+function populatePilotSelect(roundId, selectedPilot) {
     var xhr;
     var url = '/data.php?job=get_round_pilots&roundId=' + roundId;
     $("#pilotSel").show();
@@ -294,7 +298,7 @@ function populatePilotSelect(roundId) {
         .done(function()
         {
             result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot');
+            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
         })
         .fail();
     
