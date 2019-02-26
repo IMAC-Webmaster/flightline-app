@@ -28,10 +28,6 @@
       <h1>Score! Flightline controller</h1>
 
       <button type="button" class="button" id="add_round">Add round</button>
-<section class="slider-checkbox">
-    <input type="checkbox" id="2">
-    <label class="label" for="2">Checkbox 2</label>
-  </section>
       <table class="datatable clickable" id="table_roundlist">
         <thead>
           <tr>
