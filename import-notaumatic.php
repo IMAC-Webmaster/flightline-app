@@ -25,6 +25,7 @@ include_once ("include/data_functions.php");
 // C            = Comp number i.e which class - enum(Basic, Sortsman, Intermediate etc,....
 // F		= Flight number (each sequence is a flight)
 // J		= Judge number
+// L		= Line number (new option...  not sure how it works yet)
 // D		= Pilot Number
 // Nx		= Scores.
 /*
@@ -92,7 +93,7 @@ foreach($_GET as $reqOpt => $reqVal)	{
 }
 
 // Log the request:
-if ($logRequests == true && ($nautoption === 'N' || $nautoption === 'U')) {
+if ($logRequests == true ) {
     // forward the result to redundancy IP address
     // we are checking REDUNDANCY parameter in conf/conf.ffam.php to save sql queries here
     // 
@@ -108,7 +109,6 @@ if ($logRequests == true && ($nautoption === 'N' || $nautoption === 'U')) {
 	$url .= "&N".$score['figpos']."=".$score['score'];
     }
 
-    //$req_dump = var_export($_REQUEST, true);
     $fp = fopen('log/request.log', 'a');
     fwrite($fp, '['.date("c").']' . $url . "\n");
     fclose($fp);
@@ -200,7 +200,7 @@ switch ($nautoption) {
             echo "return:100&H:".date('YmdHis', time());
         } else {
             // Notauscore does not care about the pilot except for updates.   Should ignore it for now (0 = no pilot...).
-            $flightStatusReturn = getFlightStatus($nautoflightid, $nautocompid, $nautoSchedId, 0);
+            $flightStatusReturn = getFlightStatus($nautoflightid, $nautocompid, $nautoSchedId, $nautopilotid);
 
             // The returned string can be...   OK:STATUS:Message, ERROR:STATUS:Message, ERROR:STATUS:Message
             // Thefirst part is the result of the request.
@@ -236,12 +236,14 @@ switch ($nautoption) {
 
                 case "ERROR":
                     // Bad error occurred (structural).   Display error bells and whistles.
+                    error_log("ERROR: " . $flightStatusMsg);
                     echo "return:900&H:".date('YmdHis', time());
                     break;
 
 
                 default:
                     // Unhandled return!
+                    error_log("ERROR: " . $flightStatusReturn);
                     echo "return:100&H:".date('YmdHis', time());
                     break;
             }
@@ -270,7 +272,6 @@ switch ($nautoption) {
         $nextFlight = $res->fetchArray();
         if (!$nextFlight || $nextFlight["nextPilotId"] === null || $nextFlight["nextPilotId"] <= 0) {
             echo "return:-1";
-            //print_r($nextFlight);
             break;
         } else {
             $nextNoteFlightId = $nextFlight["nextNoteFlightId"];

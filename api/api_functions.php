@@ -1,5 +1,17 @@
 <?php
 
+function createEmptyResultsObject() {
+    return array(
+      "result"          => null,
+      "message"         => null,
+      "requestId"       => null,
+      "requestTime"     => null,
+      "verboseMsgs"     => array(),
+      "source"          => null,
+      "data"            => null
+    );
+}
+
 function beginTrans($failureMsg = "") {
     global $db;
     global $result;
@@ -31,7 +43,7 @@ function commitTrans($failureMsg = "") {
     }
 }
 
-function getRounds() {
+function getRounds(&$resultObj) {
     global $db;
     global $result;
     global $message;
@@ -49,6 +61,7 @@ function getRounds() {
             if (!$res = $statement->execute()) {            
                 $result  = 'error';
                 $message = "Could not get round data. Err: " . $db->lastErrorMsg();
+                array_push($resultObj["verboseMsgs"], $message);
                 error_log($message);
                 goto db_rollback;
             }
@@ -112,6 +125,9 @@ function getRounds() {
         );
     }
     db_rollback:
+    $resultObj["result"] = $result;
+    $resultObj["message"] = $message;
+    $resultObj["data"] = $sqlite_data;
 }
 
 function getRound() {
@@ -179,14 +195,14 @@ function getRound() {
     db_rollback:
 }
 
-function getPilotsForRound($roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
+function getPilotsForRound(&$resultObj, $roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
     global $db;
     global $result;
     global $message;
-    global $sqlite_data;
+    //global $sqlite_data;
 
     $message = null;
-    $sqlite_data = null;
+    $sqlite_data = array();
 
     if (!isset($roundId))
         if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else { $roundId = null; }
@@ -218,7 +234,7 @@ function getPilotsForRound($roundId = null, $pilotId = null, $blIsFreestyleRound
             $statement->bindValue(':pilotId', $pilotId);
             $res = $statement->execute();
         } catch (Exception $e) {
-            $result  = 'error';
+            $result = 'error';
             $message = 'query error: ' . $e->getMessage();          
         }
     } else {
@@ -234,7 +250,7 @@ function getPilotsForRound($roundId = null, $pilotId = null, $blIsFreestyleRound
         $result  = 'success';
         $message = 'query success';
         while ($row = $res->fetchArray()) {
-            $sqlite_data[] = array(
+            $resultObj["data"][] = array(
                 "pilotId"           => $row['pilotId'],
                 "pilotPrimaryId"    => $row['pilotPrimaryId'],
                 "fullName"          => $row['fullName'],
@@ -362,12 +378,13 @@ function getScoresForRound() {
     $round_data = $sqlite_data;
     $round_data['schedule'] = getScheduleWithFigures($round_data['schedId']);
 
+    $resultObj = createEmptyResultsObject();
     if ($round_data['imacType'] === "Freestyle") {
-        getPilotsForRound($round_data['roundId'], $pilotId, true);
+        getPilotsForRound($resultObj, $round_data['roundId'], $pilotId, true);
     } else {
-        getPilotsForRound($round_data['roundId'], $pilotId, false);
+        getPilotsForRound($resultObj, $round_data['roundId'], $pilotId, false);            
     }
-    $pilot_data = $sqlite_data;
+    $pilot_data = $resultObj["data"];
 
     foreach ($pilot_data as &$pilot) {
         $pilot['sheets'] = getPilotSheetsForRound($roundId, $pilot['pilotId'], $flightId, $sequenceNum);
@@ -520,7 +537,6 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
     global $db;
     global $result;
     global $message;
-    global $sqlite_data;
 
     $message = null;
     $imacClass = convertCompIDToClass($compId);
@@ -554,9 +570,10 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
         }
         
         // Is the pilot in there?
-        getRoundPilots($round["roundId"], $round["imacType"]);
+        $resultObj = createEmptyResultsObject();
+        getRoundPilots($resultObj, $round["roundId"], $round["imacType"]);
         $blFoundPilot = false;
-        foreach($sqlite_data as $pilot) {
+        foreach($resultObj["data"] as $pilot) {
             if ($pilot["pilotId"] == $pilotId) {
                 $blFoundPilot = true;
             }
@@ -1163,7 +1180,7 @@ function getRoundResults() {
     }
 }
 
-function getRoundPilots($roundId = null, $imacType = null) {
+function getRoundPilots(&$resultObj, $roundId = null, $imacType = null) {
     global $db;
     global $result;
     global $message;
@@ -1231,6 +1248,9 @@ function getRoundPilots($roundId = null, $imacType = null) {
             );
         }
     }
+    $resultObj["result"] = $result;
+    $resultObj["message"] = $message;
+    $resultObj["data"] = $sqlite_data;
 }
 
 function getRoundFlightStatus() {
