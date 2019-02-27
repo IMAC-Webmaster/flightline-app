@@ -7,4 +7,8 @@
 *.sqlite-wal
 *.log
 *.sqbpro
-/datatables-dynamic-columns/
+
+#IntelliJ
+*.iml
+.idea/
+
