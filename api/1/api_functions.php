@@ -12,31 +12,24 @@ function createEmptyResultsObject() {
     );
 }
 
-function beginTrans($failureMsg = "") {
+function beginTrans(&$resultObj, $failureMsg = "") {
     global $db;
-    global $result;
-    global $message;
 
-    $message = null;
     if (!$db->exec("BEGIN TRANSACTION;")) {
         $db->enableExceptions(true);
-        $result  = 'error';
-        $message = $failureMsg . "Error was: " . $db->lastErrorMsg();
+        $resultObj["result"] = 'error';
+        $resultObj["message"] = $failureMsg . "Error was: " . $db->lastErrorMsg();
         return false;
     } else {
         return true;
     }
 }
 
-function commitTrans($failureMsg = "") {
+function commitTrans(&$resultObj, $failureMsg = "") {
     global $db;
-    global $result;
-    global $message;
-
-    $message = null;
     if (!$db->exec("COMMIT;")) {
-        $result  = 'error';
-        $message = $failureMsg . "Error was: " . $db->lastErrorMsg();
+        $resultObj["result"] = 'error';
+        $resultObj["message"] = $failureMsg . "Error was: " . $db->lastErrorMsg();
         return false;
     } else {
         return true;
@@ -45,12 +38,14 @@ function commitTrans($failureMsg = "") {
 
 function getRounds(&$resultObj) {
     global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
+    $localResultObject = createEmptyResultsObject();
 
-    $message = null;
-    $sqlite_data = null;
+//    global $result;
+//    global $message;
+//    global $sqlite_data;
+//
+//    $message = null;
+//    $sqlite_data = null;
 
     // Get rounds
     $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status "
@@ -58,26 +53,29 @@ function getRounds(&$resultObj) {
 
     if ($statement = $db->prepare($query)) {
         try {
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get round data. Err: " . $db->lastErrorMsg();
-                array_push($resultObj["verboseMsgs"], $message);
-                error_log($message);
+            if (!$res = $statement->execute()) {
+                $resultObj["result"]  = 'error';
+                $resultObj["message"] = "Could not get round data. Err: " . $db->lastErrorMsg();
+                array_push($resultObj["verboseMsgs"], $resultObj["message"]);
+                error_log($resultObj["message"]);
                 goto db_rollback;
             }
         } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
+            $resultObj["result"]  = 'error';
+            $resultObj["message"] = 'query error: ' . $e->getMessage();
+            array_push($resultObj["verboseMsgs"], $resultObj["message"]);
             goto db_rollback;
         }
     } else {
-        $result  = 'error';
-        $message = 'query error: ' . $e->getMessage();
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = 'query error: ' . $db->lastErrorMsg();
+        array_push($resultObj["verboseMsgs"], $resultObj["message"]);
         goto db_rollback;
     }
 
-    $result  = 'success';
-    $message = 'query success';
+    $resultObj["result"]  = 'success';
+    $resultObj["message"]  = 'query success';
+
     while ($round = $res->fetchArray()) {
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
@@ -111,7 +109,7 @@ function getRounds(&$resultObj) {
                 break;
         }
         $functions .= '</ul></div>';
-        $sqlite_data[] = array(
+        $resultObj["data"][] = array(
             "roundId"       => $round['roundId'],
             "imacClass"     => $round['imacClass'],
             "imacType"      => $round['imacType'],
@@ -125,9 +123,6 @@ function getRounds(&$resultObj) {
         );
     }
     db_rollback:
-    $resultObj["result"] = $result;
-    $resultObj["message"] = $message;
-    $resultObj["data"] = $sqlite_data;
 }
 
 function getRound() {
@@ -1356,6 +1351,7 @@ function setNextFlight() {
     global $db;
     global $result;
     global $message;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
@@ -1440,8 +1436,8 @@ function setNextFlight() {
         return;
     }
 
- 
-    if (!beginTrans())
+
+    if (!beginTrans($transResult))
         goto db_rollback;
 
     // Now do the update
@@ -1482,7 +1478,7 @@ function setNextFlight() {
         goto db_rollback;
     }
 
-    if (commitTrans("There was a problem setting the next flight. ") ) {
+    if (commitTrans($transResult, "There was a problem setting the next flight. ") ) {
         $result  = 'success';
         $message = 'Next flight set to ' . $noteFlightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
     }
@@ -1663,6 +1659,7 @@ function addRound() {
     global $db;
     global $result;
     global $message;
+    $transResult = createEmptyResultsObject();
     
     $message = null;
 
@@ -1688,7 +1685,7 @@ function addRound() {
     if ($flightLineId < 1) {
         $flightLineId = null;
     }
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
 
     $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) ";
@@ -1777,7 +1774,7 @@ function addRound() {
         $newNoteFlightId++;
     }
     
-    if (commitTrans("There was a problem adding the round. ") ) {
+    if (commitTrans($transResult,"There was a problem adding the round. ") ) {
         $result  = 'success';
         $message = 'Inserted new round (' . $newRoundId . ') into class ' . $imacClass . '.';
     }
@@ -1793,6 +1790,7 @@ function editRound() {
     global $db;
     global $result;
     global $message;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
 
@@ -1817,7 +1815,7 @@ function editRound() {
         return;
     }
 
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
     
     $roundId = null;
@@ -1956,7 +1954,7 @@ function editRound() {
         $newNoteFlightId++;
     }
 
-    if (commitTrans("There was a problem editing the round. ") ) {
+    if (commitTrans($transResult,"There was a problem editing the round. ") ) {
         $result  = 'success';
         $message = 'Edited round (' . $roundId . ') sucessfully.';
     }
@@ -2218,10 +2216,11 @@ function clearResults() {
     global $db;
     global $result;
     global $message;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
 
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
     
     $query = "delete from score;";
@@ -2299,7 +2298,7 @@ function clearResults() {
         goto db_rollback;
     }
     
-    if (commitTrans("Could not clear result data. ") ) {
+    if (commitTrans($transResult,"Could not clear result data. ") ) {
         $result  = 'success';
         $message = 'The result data has been cleared.';
     }
@@ -2309,7 +2308,7 @@ function clearResults() {
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
     }       
-    return $sqlite_data;
+    return true;
 }
 
 function clearPilots() {
@@ -2317,11 +2316,12 @@ function clearPilots() {
     global $result;
     global $message;
     global $sqlite_data;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
 
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
     
     $query = "delete from nextFlight;";
@@ -2378,7 +2378,7 @@ function clearPilots() {
         goto db_rollback;
     }
 
-    if (commitTrans("Could not clear pilots. ") ) {
+    if (commitTrans($transResult,"Could not clear pilots. ") ) {
         $result  = 'success';
         $message = 'The pilots have been cleared.';
     }
@@ -2395,11 +2395,12 @@ function clearSchedules() {
     global $db;
     global $result;
     global $message;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
-    
-    if (!beginTrans())
+
+    if (!beginTrans($transResult))
         goto db_rollback;
     if (isset($_GET['scheduleType'])){ $schedType = $_GET['scheduleType'];} else $schedType = null;
 
@@ -2461,7 +2462,7 @@ function clearSchedules() {
         goto db_rollback;
     }
 
-    if (commitTrans("Could not clear schedule data. ") ) {
+    if (commitTrans($transResult,"Could not clear schedule data. ") ) {
         $result  = 'success';
         $message = 'Schedules have been cleared.';
     }
@@ -2480,13 +2481,14 @@ function postPilots($pilotsArray = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
     if (is_null($pilotsArray))
         $pilotsArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
 
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
 
     $result = "success";
@@ -2537,7 +2539,7 @@ function postPilots($pilotsArray = null) {
             goto db_rollback;
         }
     }
-    if (commitTrans("Could not add the pilots. ") ) {
+    if (commitTrans($transResult, "Could not add the pilots. ") ) {
         $result  = 'success';
         $message = 'Pilots have been added.';
     }
@@ -2550,7 +2552,7 @@ function postPilots($pilotsArray = null) {
     return $sqlite_data;
 }
 
-function getFlightScores($flightId, $pilotId) {
+function getFlightScores(&$resultObj, $flightId, $pilotId) {
     // select s.*, f.sequenceNum 
     // from sheet s inner join flight f on s.flightId = f.flightId
     // where s.flightId = 2 and s.pilotId = 3;
@@ -2655,6 +2657,7 @@ function postSequences($sequenceArray = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2662,7 +2665,7 @@ function postSequences($sequenceArray = null) {
         $sequenceArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
     }
 
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
 
     $result = "success";
@@ -2813,7 +2816,7 @@ function postSequences($sequenceArray = null) {
         }
 
     }
-    if (commitTrans("Could not add the sequences. ") ) {
+    if (commitTrans($transResult, "Could not add the sequences. ") ) {
         $result  = 'success';
         $message = 'Sequences have been added.';
     }
@@ -2832,6 +2835,7 @@ function postSheets($sheetJSON = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
+    $transResult = createEmptyResultsObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2844,7 +2848,7 @@ function postSheets($sheetJSON = null) {
         
     //error_log("postSheets -> " . print_r($sheetArray, true));
     /***********/
-    if (!beginTrans())
+    if (!beginTrans($transResult))
         goto db_rollback;
 
     $verboseMsgs = array();
@@ -2990,7 +2994,7 @@ function postSheets($sheetJSON = null) {
         }        
     }
 
-    if (commitTrans("Could not add the sheet.") ) {
+    if (commitTrans($transResult, "Could not add the sheet.") ) {
         $result  = 'success';
         $message = 'Sheet has been added.';
     }

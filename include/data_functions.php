@@ -653,6 +653,15 @@ function getSheetsForFlight($flightId) {
             "phase"        => $sheet["phase"],
             "scores"       => $sanitisedScoreArray
         );
+
+        // If pilot ID is null then what todo?   In a better API we'll pass a resultsObject here so we can add error messages.
+        // For now, lets put the wrong pilotId into the comments section.
+
+        if ($thisSheet["comment"] == "" || $thisSheet["comment"] == null) {
+            $thisSheet["comment"] = "ERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+        } else {
+            $thisSheet["comment"] = $thisSheet["comment"] . "\nERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+        }
         array_push($sheetArray, $thisSheet);
     }
     return $sheetArray;
