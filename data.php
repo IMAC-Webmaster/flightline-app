@@ -156,5 +156,6 @@ if (!isSet($data["requestId"]) || $data["requestId"] == null)
     unset($data["requestId"]);
 
 // Convert PHP array to JSON array
+header('Content-Type: application/json');
 $json_data = json_encode($data, JSON_PRETTY_PRINT);
 print $json_data;

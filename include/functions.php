@@ -87,3 +87,22 @@ function array_strip(&$arr) {
         unset ($arr[$i]);
     }
 }
+
+function dbConnect($dbfile) {
+    global $db;
+    try {
+        $db = new SQLite3($dbfile);
+        $db->busyTimeout(5000);
+        // WAL mode has better control over concurrency.
+        // Source: https://www.sqlite.org/wal.html
+        $db->exec('PRAGMA journal_mode = wal;');
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+function dbDisconnect() {
+    global $db;
+    $db->close();
+}

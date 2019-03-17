@@ -1,15 +1,21 @@
 <?php
 
-function createEmptyResultsObject() {
+function createEmptyResultObject() {
     return array(
       "result"          => null,
       "message"         => null,
-      "requestId"       => null,
+      //"requestId"       => null,
       "requestTime"     => null,
       "verboseMsgs"     => array(),
-      "source"          => null,
+      //"source"          => null,
       "data"            => null
     );
+}
+
+function mergeResultMessages(&$resultObj, $resultObjToAppend) {
+    if (!empty($resultObjToAppend["verboseMsgs"])) {
+        $resultObj["verboseMsgs"] = array_merge ($resultObj["verboseMsgs"], $resultObjToAppend["verboseMsgs"]);
+    }
 }
 
 function beginTrans(&$resultObj, $failureMsg = "") {
@@ -36,45 +42,50 @@ function commitTrans(&$resultObj, $failureMsg = "") {
     }
 }
 
-function getRounds(&$resultObj) {
+function doSQL (&$resultObj, $query, $paramArr = null) {
     global $db;
-    $localResultObject = createEmptyResultsObject();
 
-//    global $result;
-//    global $message;
-//    global $sqlite_data;
-//
-//    $message = null;
-//    $sqlite_data = null;
+    try {
+        if ($statement = $db->prepare($query)) {
+            if (isset($paramArr) && is_array($paramArr)) {
+                foreach ($paramArr as $key => $value) {
+                    $statement->bindValue(":$key", $value);
+                }
+            }
+            if (!$res = $statement->execute()) {
+                $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
+                $resultObj["result"]  = 'error';
+                $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
+                array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": Could not get data. Err: " . $db->lastErrorMsg()));
+                error_log($resultObj["message"]);
+                return false;
+            }
+        } else {
+            $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
+            $resultObj["result"]  = 'error';
+            $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
+            array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": Could not get data. Err: " . $db->lastErrorMsg()));
+            return false;
+        }
+    } catch (Exception $e) {
+        $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
+        array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": query error: " . $e->getMessage()));
+        error_log($resultObj["message"]);
+        return false;
+    }
+    return $res;
+}
 
+function getRounds(&$resultObj) {
     // Get rounds
     $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status "
            . "from round r left join schedule s on s.schedId = r.schedId order by r.imacClass, r.imacType, r.roundNum;";
 
-    if ($statement = $db->prepare($query)) {
-        try {
-            if (!$res = $statement->execute()) {
-                $resultObj["result"]  = 'error';
-                $resultObj["message"] = "Could not get round data. Err: " . $db->lastErrorMsg();
-                array_push($resultObj["verboseMsgs"], $resultObj["message"]);
-                error_log($resultObj["message"]);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $resultObj["result"]  = 'error';
-            $resultObj["message"] = 'query error: ' . $e->getMessage();
-            array_push($resultObj["verboseMsgs"], $resultObj["message"]);
-            goto db_rollback;
-        }
-    } else {
-        $resultObj["result"]  = 'error';
-        $resultObj["message"] = 'query error: ' . $db->lastErrorMsg();
-        array_push($resultObj["verboseMsgs"], $resultObj["message"]);
+    $res = doSQL($resultObj, $query);
+    if ($res === false)
         goto db_rollback;
-    }
-
-    $resultObj["result"]  = 'success';
-    $resultObj["message"]  = 'query success';
 
     while ($round = $res->fetchArray()) {
         $functions  = '<div class="function_buttons"><ul>';
@@ -109,6 +120,9 @@ function getRounds(&$resultObj) {
                 break;
         }
         $functions .= '</ul></div>';
+
+        $resultObj["result"]  = 'success';
+        $resultObj["message"]  = 'query success';
         $resultObj["data"][] = array(
             "roundId"       => $round['roundId'],
             "imacClass"     => $round['imacClass'],
@@ -122,60 +136,53 @@ function getRounds(&$resultObj) {
             "functions"     => $functions
         );
     }
+    $res->finalize();
     db_rollback:
 }
 
-function getRound() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
+function getRound(&$resultObj, $paramArray = null) {
 
-    $message = null;
-    $sqlite_data = null;
-
-    // Get round  (imacClass, imacType, round number).
-    if (isset($_GET['imacClass'])) { $imacClass = $_GET['imacClass'];}  else $imacClass = null;
-    if (isset($_GET['imacType']))  { $imacType  = $_GET['imacType']; }  else $imacType  = null;
-    if (isset($_GET['roundNum']))  { $roundNum  = $_GET['roundNum'];  } else $roundNum   = null;
-    if (isset($_GET['roundId']))   { $roundId   = $_GET['roundId'];  }  else $roundId   = null;
+    if ($paramArray === null) {
+        // Go old school...   With the query string...
+        if (isset($_GET['imacClass'])) { $imacClass = $_GET['imacClass'];}  else $imacClass = null;
+        if (isset($_GET['imacType']))  { $imacType  = $_GET['imacType']; }  else $imacType  = null;
+        if (isset($_GET['roundNum']))  { $roundNum  = $_GET['roundNum'];  } else $roundNum   = null;
+        if (isset($_GET['roundId']))   { $roundId   = $_GET['roundId'];  }  else $roundId   = null;
+    } else {
+        $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
+        $imacType = isset($paramArray["imacType"]) ? $paramArray["imacType"] : null;
+        $imacClass = isset($paramArray["imacClass"]) ? $paramArray["imacClass"] : null;
+        $roundNum = isset($paramArray["roundNum"]) ? $paramArray["roundNum"] : null;
+    }
 
     if ($roundId === null) {
-        $query =  "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId ";
-        $query .= "where r.imacClass = :imacClass and r.imacType = :imacType and r.roundNum = :roundNum";
-    } else {
-        $query =  "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId ";
-        $query .= "where r.roundId = :roundId";
-    }
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':imacClass',    $imacClass);
-            $statement->bindValue(':imacType',     $imacType);
-            $statement->bindValue(':roundNum',     $roundNum);
-            $statement->bindValue(':roundId',      $roundId);
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get round data. Err: " . $db->lastErrorMsg();
-                error_log($message);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-            error_log($message);
-            goto db_rollback;
+        if ($imacType === "Freestyle") {
+            $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId "
+                . "where r.imacType like :imacType and r.roundNum = :roundNum";
+        } else {
+            $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId "
+                . "where r.imacClass like :imacClass and r.imacType like :imacType and r.roundNum = :roundNum";
         }
     } else {
-        $err = error_get_last();
-        $message = $err['message'];
-        error_log($message);
-        goto db_rollback;
+        $query =  "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status from round r left join schedule s on s.schedId = r.schedId "
+                . "where r.roundId = :roundId";
     }
 
-    $result  = 'success';
-    $message = 'query success';
+    $pArr = array(
+        "imacClass" => $imacClass,
+        "imacType" => $imacType,
+        "roundNum" => $roundNum,
+        "roundId" => $roundId
+    );
+    $res = doSQL($resultObj, $query, $pArr);
+    if ($res === false)
+        goto db_rollback;
+
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
     while ($round = $res->fetchArray()){
-        $sqlite_data = array(
+        $resultObj["data"] = array(
             "roundId"       => $round['roundId'],
             "imacClass"     => $round['imacClass'],
             "imacType"      => $round['imacType'],
@@ -187,21 +194,23 @@ function getRound() {
             "status"        => $round['status']
         );
     }
+    $res->finalize();
     db_rollback:
 }
 
-function getPilotsForRound(&$resultObj, $roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
-    global $db;
-    global $result;
-    global $message;
-    //global $sqlite_data;
+function getPilotsForRound(&$resultObj, $paramArr) {
+    //$roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
 
-    $message = null;
-    $sqlite_data = array();
-
-    if (!isset($roundId))
-        if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else { $roundId = null; }
-
+    if (isset($paramArr) && is_array($paramArr)) {
+        $roundId = isset($paramArr["roundId"]) ? $paramArr["roundId"] : null;
+        $pilotId = isset($paramArr["pilotId"]) ? $paramArr["pilotId"] : null;
+        $blIsFreestyleRound = isset($paramArr["blIsFreestyleRound"]) ? $paramArr["blIsFreestyleRound"] : false;
+    } else {
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Please supply the parameter array.";
+        array_push($resultObj["verboseMsgs"], "ERROR: Please supply the parameter array.");
+        goto db_rollback;
+    }
 
     // Get the full list of pilots for the round.
     // If it's freestyle, use a special query..
@@ -223,107 +232,69 @@ function getPilotsForRound(&$resultObj, $roundId = null, $pilotId = null, $blIsF
         $query .= ";";
     }
 
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId', $roundId);
-            $statement->bindValue(':pilotId', $pilotId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
-    }
+    $pArr = array(
+        "roundId" => $roundId,
+        "pilotId" => $pilotId
+    );
+    $res = doSQL($resultObj, $query, $pArr);
+    if ($res === false)
+        goto db_rollback;
 
-    if ($res === FALSE) {
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        $result  = 'success';
-        $message = 'query success';
-        while ($row = $res->fetchArray()) {
-            $resultObj["data"][] = array(
-                "pilotId"           => $row['pilotId'],
-                "pilotPrimaryId"    => $row['pilotPrimaryId'],
-                "fullName"          => $row['fullName'],
-                "airPlane"          => $row['airPlane'],
-                "freestyle"         => $row['freestyle'],
-                "imacClass"         => $row['imacClass'],
-                "active"            => $row['active'],
-                "in_customclass1"   => $row['in_customclass1'],
-                "in_customclass2"   => $row['in_customclass2']
-            );
-        }
+    while ($row = $res->fetchArray()) {
+        $resultObj["data"][] = array(
+            "pilotId"           => $row['pilotId'],
+            "primaryId"         => $row['primaryId'],
+            "fullName"          => $row['fullName'],
+            "airplane"          => $row['airplane'],
+            "freestyle"         => $row['freestyle'],
+            "imacClass"         => $row['imacClass'],
+            "active"            => $row['active'],
+            "in_customclass1"   => $row['in_customclass1'],
+            "in_customclass2"   => $row['in_customclass2']
+        );
     }
+    $res->finalize();
+    db_rollback:
 }
 
-function getPilotSheetsForRound($roundId = null, $pilotId = null, $flightId = null, $sequenceNum = null) {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-
-    $message = null;
-    $sqlite_data = null;
-
+/**
+ * @param $resultObj
+ * @param $roundId
+ * @param $pilotId
+ * @param null $flightId
+ * @param null $sequenceNum
+ * @return array
+ */
+function getPilotSheetsForRound(&$resultObj, $roundId, $pilotId, $flightId = null, $sequenceNum = null) {
     // getPilotSheetsForRound..
     // We must have pilotId AND roundId
     // We can then optionally have:
     //    flightId - if we only want one flight data.
     //    sequenceNum - Again, only sequence X from the round.
-    if (!isset($pilotId))
-        if (isset($_GET['pilotId']))     { $pilotId     = $_GET['pilotId'];     } else { $pilotId  = null; }
-    if (!isset($roundId))
-        if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else { $roundId = null; }
-    if (!isset($flightId))
-        if (isset($_GET['flightId']))    { $flightId    = $_GET['flightId'];    } else { $flightId   = null; }
-    if (!isset($sequenceNum))
-        if (isset($_GET['sequenceNum'])) { $sequenceNum = $_GET['sequenceNum']; } else { $sequenceNum   = null; }
-
   
     if ($flightId !== null) {
-        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
-        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId and s.flightId = :flightId;";
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId "
+               . " where s.pilotId = :pilotId and s.roundId = :roundId and s.flightId = :flightId;";
     } else if ($sequenceNum !== null) {
-        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
-        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId and f.sequenceNum = :sequenceNum;";
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId "
+               . " where s.pilotId = :pilotId and s.roundId = :roundId and f.sequenceNum = :sequenceNum;";
     } else {
-        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId ";
-        $query .=  "where s.pilotId = :pilotId and s.roundId = :roundId;";
+        $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId "
+               . " where s.pilotId = :pilotId and s.roundId = :roundId;";
     }
-    //print "r:$roundId p:$pilotId s:$sequenceNum f:$flightId\nq:$query\n";
 
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',     $roundId);
-            $statement->bindValue(':pilotId',     $pilotId);
-            $statement->bindValue(':sequenceNum', $sequenceNum);
-            $statement->bindValue(':flightId',    $flightId);
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get data. Err: " . $db->lastErrorMsg();
-                error_log($message);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-            error_log($message);
-            goto db_rollback;
-        }
-    } else {
-        $err = error_get_last();
-        $message = $err['message'];
-        error_log($message);
+    $pArr = array(
+        "roundId" => $roundId,
+        "pilotId" => $pilotId,
+        "flightId" => $flightId,
+        "sequenceNum" => $sequenceNum
+    );
+    $res = doSQL($resultObj, $query, $pArr);
+    if ($res === false)
         goto db_rollback;
-    }
 
-    $result  = 'success';
-    $message = 'query success';
-    $sqlite_data = array();
+
+    $resultObj['data'] = array();
     while ($row = $res->fetchArray()){
         $sheet_data = array(
             "pilotId"           => $row['pilotId'],
@@ -340,53 +311,81 @@ function getPilotSheetsForRound($roundId = null, $pilotId = null, $flightId = nu
             "noteFlightId"      => $row['noteFlightId'],
             "sequenceNum"       => $row['sequenceNum']
         );
-        array_push($sqlite_data, $sheet_data);
+        array_push($resultObj['data'], $sheet_data);
     }
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
     db_rollback:
-    //print_r($sqlite_data);
-    return ($sqlite_data);
+    return ($resultObj['data']);
 }
 
-function getScoresForRound() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-
-    $message = null;
-    $sqlite_data = null;
+function getScoresForRound(&$resultObj, $paramArray = null) {
 
     // getScoresForRound..
     // We must have roundId or imacClass+imacType+roundNum
     // We can then optionally have:
     //    flightId - if we only want one flight data.
     //    pilotId - if we only want one pilots data.
-    if (isset($_GET['imacClass']))   { $imacClass   = $_GET['imacClass'];   } else $imacClass   = null;
-    if (isset($_GET['imacType']))    { $imacType    = $_GET['imacType'];    } else $imacType    = null;
-    if (isset($_GET['roundNum']))    { $roundNum    = $_GET['roundNum'];    } else $roundNum    = null;
-    if (isset($_GET['roundId']))     { $roundId     = $_GET['roundId'];     } else $roundId     = null;
-    if (isset($_GET['flightId']))    { $flightId    = $_GET['flightId'];    } else $flightId    = null;
-    if (isset($_GET['sequenceNum'])) { $sequenceNum = $_GET['sequenceNum']; } else $sequenceNum = null;
-    if (isset($_GET['pilotId']))     { $pilotId     = $_GET['pilotId'];     } else $pilotId     = null;
 
-    getRound();
-    $round_data = $sqlite_data;
-    $round_data['schedule'] = getScheduleWithFigures($round_data['schedId']);
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
+    $imacType = isset($paramArray["imacType"]) ? $paramArray["imacType"] : null;
+    $imacClass = isset($paramArray["imacClass"]) ? $paramArray["imacClass"] : null;
+    $roundNum = isset($paramArray["roundNum"]) ? $paramArray["roundNum"] : null;
+    $flightId = isset($paramArray["flightId"]) ? $paramArray["flightId"] : null;
+    $sequenceNum = isset($paramArray["sequenceNum"]) ? $paramArray["sequenceNum"] : null;
+    $pilotId = isset($paramArray["pilotId"]) ? $paramArray["pilotId"] : null;
 
-    $resultObj = createEmptyResultsObject();
+    $roundResultObj = createEmptyResultObject();
+    getRound($roundResultObj, array(
+        "roundId" => $roundId,
+        "imacType" => $imacType,
+        "imacClass" => $imacClass,
+        "roundNum" => $roundNum
+    ));
+    mergeResultMessages($resultObj, $roundResultObj);
+
+    $round_data = $roundResultObj["data"];
+    $schedResultObj = createEmptyResultObject();
+    $round_data['schedule'] = getScheduleWithFigures($schedResultObj, $round_data['schedId']);
+    mergeResultMessages($resultObj, $schedResultObj);
+
+    $pArr = array(
+        "roundId" => $roundId,
+        "pilotId" => $pilotId,
+        "blIsFreestyleRound" => true
+        // ToDo: Fix this!!!!    Who cares if it is a freestyle round..  Let getPilotsForRound fix it...
+    );
+
     if ($round_data['imacType'] === "Freestyle") {
-        getPilotsForRound($resultObj, $round_data['roundId'], $pilotId, true);
+        $pArr["blIsFreestyleRound"] = true;
     } else {
-        getPilotsForRound($resultObj, $round_data['roundId'], $pilotId, false);            
+        $pArr["blIsFreestyleRound"] = false;
     }
-    $pilot_data = $resultObj["data"];
+    $pilotsResultObj = createEmptyResultObject();
+    getPilotsForRound($pilotsResultObj, $pArr);
+    mergeResultMessages($resultObj, $pilotsResultObj);
+
+    $pilot_data = $pilotsResultObj["data"];
 
     foreach ($pilot_data as &$pilot) {
-        $pilot['sheets'] = getPilotSheetsForRound($roundId, $pilot['pilotId'], $flightId, $sequenceNum);
+        // Now, we depending on our parameters, we might only want one pilot's data...
+        if (isset($pilotId) && $pilotId != $pilot['pilotId']) {
+            continue;
+        }
+        $sheetResultObj = createEmptyResultObject();
+        getPilotSheetsForRound($sheetResultObj, $roundId, $pilot['pilotId'], $flightId, $sequenceNum);
+        $pilot['sheets'] = $sheetResultObj["data"];
+        mergeResultMessages($resultObj, $sheetResultObj);
         foreach ($pilot['sheets'] as &$sheet) {
             // We know the pilot ID...  Remove it.
             unset ($sheet['pilotId']);
-            $sheet['scores'] = getScoresForSheet($sheet['sheetId']);
+            $scoresResultObj = createEmptyResultObject();
+            getScoresForSheet($scoresResultObj, $sheet['sheetId']);
+            $sheet['scores'] = $scoresResultObj["data"];
+            mergeResultMessages($resultObj, $scoresResultObj);
+
             // Find the mpp (if it's there) and set it in the sheet.   Also remove it from the results.
             foreach ($sheet['scores'] as $idx => &$score) {
                 if (isset($score['mppFlag'])) {
@@ -395,138 +394,99 @@ function getScoresForRound() {
                 }
             }
         }
-        //echo "r:" . $roundId . " p:" . $pilot['pilotId'] . " f:" . $flightId . " s:" . $sequenceNum . "\n";
-        //print_r($pilot);
     }
 
-    $result  = 'success';
-    $message = 'query success';
     $round_data["pilots"] = $pilot_data;
-    
-    $sqlite_data = $round_data;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $resultObj["data"] = $round_data;
     db_rollback:
 }
 
-function getFlightOrderForRound() {
+function getFlightOrderForRound(&$resultObj, $roundId) {
     // After the scores are entered, we know what order they flew in...
     // This will give us the list of pilot Ids in order from first to last.
     // Pilots who did not fly will not be included.
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
 
-    $message = null;
-    $sqlite_data = null;
-
-    if (isset($_GET['roundId'])) { $roundId  = $_GET['roundId']; } else $roundId  = null;
-    
     // If we don't have a pilot ID, just choose the one with the most recent data entered...
     // This is a todo...
 
-    $query  = "select distinct f.flightId, f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId ";
-    $query .= "    inner join pilot p on sh.pilotId = p.pilotId ";
-    $query .= "    inner join flight f on sh.flightId = f.flightId ";
-    $query .= "    where sh.roundId = :roundId ";
-    $query .= "    order by scoreTime;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',     $roundId);
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get data. Err: " . $db->lastErrorMsg();
-                error_log($message);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-            error_log($message);
-            goto db_rollback;
-        }
-    } else {
-        $err = error_get_last();
-        $message = $err['message'];
-        error_log($message);
-        goto db_rollback;
-    }
+    $query  = "select distinct f.flightId, f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId "
+            . "    inner join pilot p on sh.pilotId = p.pilotId "
+            . "    inner join flight f on sh.flightId = f.flightId "
+            . "    where sh.roundId = :roundId "
+            . "    order by scoreTime;";
 
-    $result  = 'success';
-    $message = 'query success';
-    $sqlite_data = array();
+    $pArr = array(
+        "roundId" => $roundId
+    );
+    $res = doSQL($resultObj, $query, $pArr);
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj['data'] = array();
     $i = 1;
-    while ($round = $res->fetchArray()){
+    while ($row = $res->fetchArray()){
         $thisPilot = array(
             "flightOrder"   => $i++,
-            "flightId"      => $round["flightId"],
-            "pilotId"       => $round["pilotId"],
-            "sequenceNum"   => $round["sequenceNum"],
-            "fillName"      => $round["fullName"]
+            "flightId"      => $row["flightId"],
+            "pilotId"       => $row["pilotId"],
+            "sequenceNum"   => $row["sequenceNum"],
+            "fillName"      => $row["fullName"]
         );
-        array_push($sqlite_data, $thisPilot);
+        array_push($resultObj['data'], $thisPilot);
     }
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
     db_rollback:
 }
 
-function getSheetIdsForRound() {
+function getSheetIdsForRound(&$resultObj, $roundId) {
     // After the scores are entered, we know what order they flew in...
-    // This will give us the list of pilot Ids in order from first to last.
+    // This will give us the list of sheet Ids in order from first to last.
     // Pilots who did not fly will not be included.
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
 
-    $message = null;
-    $sqlite_data = null;
 
-    if (isset($_GET['roundNum'])) { $roundNum  = $_GET['roundNum']; } else $roundNum  = null;
-    
     // If we don't have a pilot ID, just choose the one with the most recent data entered...
     // This is a todo...
 
-    $query  = "select distinct f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId ";
-    $query .= "    inner join pilot p on sh.pilotId = p.pilotId ";
-    $query .= "    inner join flight f on sh.flightId = f.flightId ";
-    $query .= "    where sh.roundId = :roundNum ";
-    $query .= "    order by scoreTime;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundNum',     $roundNum);
-            if (!$res = $statement->execute()) {            
-                $result  = 'error';
-                $message = "Could not get data. Err: " . $db->lastErrorMsg();
-                error_log($message);
-                goto db_rollback;
-            }
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-            error_log($message);
-            goto db_rollback;
-        }
-    } else {
-        $err = error_get_last();
-        $message = $err['message'];
-        error_log($message);
-        goto db_rollback;
-    }
+    $query  = "select distinct f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId "
+            . "    inner join pilot p on sh.pilotId = p.pilotId "
+            . "    inner join flight f on sh.flightId = f.flightId "
+            . "    where sh.roundId = :roundNum "
+            . "    order by scoreTime;";
 
-    $result  = 'success';
-    $message = 'query success';
-    $sqlite_data = array();
+    $pArr = array(
+        "roundId" => $roundId
+    );
+    $res = doSQL($resultObj, $query, $pArr);
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj['data'] = array();
+
     $i = 1;
-    while ($round = $res->fetchArray()){
+    while ($row = $res->fetchArray()){
         $thisPilot = array(
             "flightOrder"   => $i++,
-            "pilotId"       => $round["pilotId"],
-            "sequenceNum"   => $round["sequenceNum"],
-            "fillName"      => $round["fullName"]
+            "pilotId"       => $row["pilotId"],
+            "sequenceNum"   => $row["sequenceNum"],
+            "fillName"      => $row["fullName"]
         );
-        array_push($sqlite_data, $thisPilot);
+        array_push($resultObj['data'], $thisPilot);
     }
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
     db_rollback:
 }
+
+
+/**********
+ * This is for import-notaumatic...   It's also in data_functions, which this file will eventually replace.
+ * Just comment it out for now.
+ *
 
 function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
     global $db;
@@ -539,10 +499,10 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
     if ($imacClass === "Freestyle" ) {
         // For now these are the same...
         $query = "select r.roundId, r.phase, r.imacType, r.schedId from round r inner join "
-            ."flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId ";
+               . "flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId ";
     } else {
         $query = "select r.roundId, r.phase, r.imacType, r.schedId from round r inner join "
-            ."flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId ";   
+               . "flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId ";
     }
     
     if ($statement = $db->prepare($query)) {
@@ -565,7 +525,7 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
         }
         
         // Is the pilot in there?
-        $resultObj = createEmptyResultsObject();
+        $resultObj = createEmptyResultObject();
         getRoundPilots($resultObj, $round["roundId"], $round["imacType"]);
         $blFoundPilot = false;
         foreach($resultObj["data"] as $pilot) {
@@ -582,66 +542,63 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
         return "ERROR:X:Could not find round.";
     }
 }
+*******/
+/*******
+ * @param $resultObj - The result object.
+ * @param $roundId   - The ID of the round that we wish to get the results from.
+ * @return array     - The array of data to be sent back.
+ */
 
-function getFlightsForRound($roundId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
-
+function getFlightsForRound(&$resultObj, $roundId) {
+    // Get all of the flights associated with this round.   Including the sheets.
     error_log("Getting flights for round " . $roundId);
     $query = "select * from flight where roundId = :roundId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId', $roundId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
 
-    $flightArray = array();
-    
+    $res = doSQL($resultObj, $query,  array("roundId" => $roundId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj['data'] = array();
+    $sheetResultObj = createEmptyResultObject();
+
     while ($flight = $res->fetchArray()){
         $thisFlight = array(
             "flightId"     => $flight["flightId"],
             "noteFlightId" => $flight["noteFlightId"],
             "sequenceNum"  => $flight["sequenceNum"],
-            "sheets"       => getSheetsForFlight($flight["flightId"])
+            "sheets"       => getSheetsForFlight($sheetResultObj, $flight["flightId"])
         );
-        array_push($flightArray, $thisFlight);
+        array_push($resultObj['data'], $thisFlight);
+        mergeResultMessages($resultObj, $sheetResultObj);
     }
-    return $flightArray;
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj['data'];
 }
 
-function getSheetsForFlight($flightId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+/**
+ * @param $resultObj
+ * @param $flightId
+ * @return array
+ */
+function getSheetsForFlight(&$resultObj, $flightId) {
 
     $query = "select * from sheet where flightId = :flightId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':flightId', $flightId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
+    $res = doSQL($resultObj, $query, array("flightId" => $flightId));
+    if ($res === false)
+        goto db_rollback;
 
-    $sheetArray = array();
+    $resultObj["data"] = array();
+    $scoreResultObj = createEmptyResultObject();
     
     while ($sheet = $res->fetchArray()){
-        $scoreArray = getScoresForSheet($sheet["sheetId"]);
+        getScoresForSheet($scoreResultObj, $sheet["sheetId"]);
+        mergeResultMessages($resultObj, $scoreResultObj);
         $sanitisedScoreArray = array();
-        foreach ($scoreArray as $score) {
+        foreach ($scoreResultObj["data"] as $score) {
             if (isset($score["mppFlag"])) {
                 $sheet["mppFlag"] = $score["mppFlag"];
                 // ToDo: Danger Will Robinson...   We really should persist this back to the DB.   It should be fixed below in getScoresForSheet.
@@ -651,10 +608,10 @@ function getSheetsForFlight($flightId) {
             }
         }
         // Now sanitised score array does not include the MPP 'score'.
-        
+        $pilotResultObj = createEmptyResultObject();
         $thisSheet = array(
             "sheetId"      => $sheet["sheetId"],
-            "pilot"        => getPilot($sheet["pilotId"]),
+            "pilot"        => getPilot($pilotResultObj, $sheet["pilotId"]),
             "judgeNum"     => $sheet["judgeNum"],
             "judgeName"    => $sheet["judgeName"],
             "scribeName"   => $sheet["scribeName"],
@@ -665,17 +622,43 @@ function getSheetsForFlight($flightId) {
             "phase"        => $sheet["phase"],
             "scores"       => $sanitisedScoreArray
         );
-        array_push($sheetArray, $thisSheet);
+        mergeResultMessages($resultObj, $pilotResultObj);
+
+
+        // If pilot ID is null then what todo?   Lets make a note of it in the verboseMsgs messages...
+        // For now, lets put the wrong pilotId into the comments section.
+        if ($thisSheet["pilot"] == null) {
+            $resultObj["result"]  = 'warn';
+            array_push($resultObj["verboseMsgs"], ("WARN: Pilot " . $sheet["pilotId"] . " does not exist."));
+            if ($thisSheet["comment"] == "" || $thisSheet["comment"] == null) {
+                $thisSheet["comment"] = "ERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+            } else {
+                $thisSheet["comment"] = $thisSheet["comment"] . "\nERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+            }
+        } else {
+            // Pilot is ok...
+            if (isset($resultObj["debug"]) && $resultObj["debug"] === true) {
+                error_log("DEBUG: Pilot " . $sheet["pilotId"] . " is OK.");
+                array_push($resultObj["verboseMsgs"], ("INFO: Pilot " . $sheet["pilotId"] . " is OK."));
+            }
+        }
+
+        array_push($resultObj["data"], $thisSheet);
     }
-    return $sheetArray;
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getMppFigNumForSheet($sheetId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+/**
+ * @param $resultObj
+ * @param $sheetId
+ * @return int|string
+ */
+function getMppFigNumForSheet(&$resultObj, $sheetId) {
 
     // Ok, now we need to know what the sequence looks like.
     // If a figure is numbered 1 more than what the sequence has defined, or
@@ -684,23 +667,20 @@ function getMppFigNumForSheet($sheetId) {
     // Rather, we set the MPP flag if it is true...   getMppFigNumForSheet()
     // will get the figure number for us...
         
-    $query = "select figureNum, shortDesc from figure where schedId = " .
-             "( select schedId from round where roundId = ".
-             "( select roundId from flight where flightId = ".
-             "( select flightId from sheet where sheetId = :sheetId ) ) );";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':sheetId', $sheetId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
+    $query  = "select figureNum, shortDesc from figure where schedId = "
+            . "( select schedId from round where roundId = "
+            . "( select roundId from flight where flightId = "
+            . "( select flightId from sheet where sheetId = :sheetId ) ) );";
+
+    $mppFigNum = "";
+    $res = doSQL($resultObj, $query, array("sheetId" => $sheetId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
 
     $maxFigNum = 0;  
-    $mppFigNum = "";
+
     while ($figure = $res->fetchArray()){
         if ($maxFigNum < $figure["figureNum"] ) {
             $maxFigNum = $figure["figureNum"];
@@ -712,34 +692,27 @@ function getMppFigNumForSheet($sheetId) {
     
     if ($mppFigNum === "")  // Definitely count it if it's called MPP.
         $mppFigNum = ( $maxFigNum + 1 ); // Only count it if it's 1 more than what we have defined in score.
-    
-    $statement->close();
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
     return $mppFigNum;
 }
 
-function getScoresForSheet($sheetId) {
-    global $db;
-    global $result;
-    global $message;
+function getScoresForSheet(&$resultObj, $sheetId) {
 
-    $message = null;
-
-    $mppFigureNum = getMppFigNumForSheet($sheetId);
+    $mppResultObj = createEmptyResultObject();
+    $mppFigureNum = getMppFigNumForSheet($mppResultObj, $sheetId);
+    mergeResultMessages($resultObj, $mppResultObj);
 
     $query = "select * from score where sheetId = :sheetId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':sheetId', $sheetId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
 
-    $scoreArray = array();
-    
+    $res = doSQL($resultObj, $query, array("sheetId" => $sheetId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
     while ($score = $res->fetchArray()){
         if ($score["figureNum"] == $mppFigureNum) {
             // Process this as an MPP.
@@ -747,7 +720,7 @@ function getScoresForSheet($sheetId) {
                 "figureNum"    => $score["figureNum"],
                 "mppFlag"      => $score["score"]
             );
-            array_push($scoreArray, $thisScore);                
+            array_push($resultObj["data"], $thisScore);
         } else {
             // Process this score as a normal sequence figure.
             $thisScore = array(
@@ -757,32 +730,25 @@ function getScoresForSheet($sheetId) {
                 "score"        => $score["score"],
                 "comment"      => $score["comment"]
             );
-            array_push($scoreArray, $thisScore);
+            array_push($resultObj["data"], $thisScore);
         }
     }
-    return $scoreArray;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getPilots() {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+function getPilots(&$resultObj) {
 
     $query = "select * from pilot;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
+    $res = doSQL($resultObj, $query);
+    if ($res === false)
+        goto db_rollback;
 
-    $pilotArray = array();
-    
+    $resultObj["data"] = array();
+
     while ($pilot = $res->fetchArray()){
         $thisPilot = array(
             "pilotId"         => $pilot["pilotId"],
@@ -796,33 +762,29 @@ function getPilots() {
             "in_customclass2" => $pilot["in_customclass2"],
             "active"          => $pilot["active"]
         );
-        array_push($pilotArray, $thisPilot);
+        array_push($resultObj["data"], $thisPilot);
     }
-    return $pilotArray;
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getUsers() {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+/**
+ * @param $resultObj
+ * @return array
+ */
+function getUsers(&$resultObj) {
 
     $query = "select * from user;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            if (!$res = $statement->execute()) {
-                return null;
-            }
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
-        return null;
-    }
+    $res = doSQL($resultObj, $query);
+    if ($res === false)
+        goto db_rollback;
 
-    $userArray = array();
-    
+    $resultObj["data"] = array();
+
     while ($user = $res->fetchArray()){
         $thisUser = array(
             "userId"          => $user["userId"],
@@ -830,36 +792,28 @@ function getUsers() {
             "password"        => $user["password"],
             "address"         => $user["address"]
         );
-        array_push($userArray, $thisUser);
+        array_push($resultObj["data"], $thisUser);
     }
-    return $userArray;
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getPilot($pilotId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+function getPilot(&$resultObj, $pilotId) {
 
     $query = "select * from pilot where pilotId = :pilotId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':pilotId', $pilotId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return null;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return null;
-    }
+    $res = doSQL($resultObj, $query, array("pilotId" => $pilotId));
+    if ($res === false)
+        goto db_rollback;
 
-    if ($pilot = $res->fetchArray()){
-        $sqlite_data = array(
+    $resultObj["data"] = array();
+    $pilot = $res->fetchArray();
+
+    if ($pilot){
+        $resultObj["data"] = array(
             "pilotId"         => $pilot["pilotId"],
             "primaryId"       => $pilot["primaryId"],
             "secondaryId"     => $pilot["secondaryId"],
@@ -871,129 +825,91 @@ function getPilot($pilotId) {
             "in_customclass2" => $pilot["in_customclass2"],
             "active"          => $pilot["active"]
         );
+        $resultObj["result"]  = 'success';
     } else {
-        $sqlite_data = null;
+        $resultObj["result"]  = 'warn';
+        $resultObj["data"] = null;
+        array_push($resultObj["verboseMsgs"], "DEBUG: Could not find pilot with ID:" . $pilotId);
     }
 
-    $result  = 'success';
-    $message = 'query success';
-    
-    return $sqlite_data;
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getMostRecentPilotAndRound() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
+function getMostRecentPilotAndRound(&$resultObj) {
 
-    $message = null;
+    $query  = "select max(sc.scoreTime) as latestScoreTime, sh.roundId, sh.pilotId "
+            . "from score sc inner join sheet sh on sh.sheetId = sc.sheetId";
 
-    $query  = " select max(sc.scoreTime) as latestScoreTime, sh.roundId, sh.pilotId ";
-    $query .= " from score sc inner join sheet sh on sh.sheetId = sc.sheetId";
-    
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return null;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return null;
-    }
+    $res = doSQL($resultObj, $query);
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
 
     if ($row = $res->fetchArray()){
-        $sqlite_data["latestScoreTime"] = $row["latestScoreTime"];
-        $sqlite_data["roundId"] = $row["roundId"];
-        $sqlite_data["pilotId"] = $row["pilotId"];
+        $resultObj["data"]["latestScoreTime"] = $row["latestScoreTime"];
+        $resultObj["data"]["roundId"] = $row["roundId"];
+        $resultObj["data"]["pilotId"] = $row["pilotId"];
     } else {
-        $sqlite_data = null;
+        $resultObj["data"] = null;
     }
 
-    $result  = 'success';
-    $message = 'query success';
-    
-    return $sqlite_data;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getScheduleWithFigures($schedId) {
-    global $db;
-    global $result;
-    global $message;
+function getScheduleWithFigures(&$resultObj, $schedId) {
 
-    $sequence_data = getSchedule($schedId);
-    $sequence_data['figures'] = getFiguresForSchedule($schedId);
+    $tmpResultObj = createEmptyResultObject();
+    $sequence_data = getSchedule($tmpResultObj, $schedId);
+    if (isset($sequence_data)) {
+        $sequence_data['figures'] = getFiguresForSchedule($tmpResultObj, $schedId);
+    }
+    mergeResultMessages($resultObj, $tmpResultObj);
     return $sequence_data;
 }
 
-function getSchedule($schedId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+function getSchedule(&$resultObj, $schedId) {
 
     $query = "select * from schedule where schedId = :schedId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':schedId', $schedId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return null;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return null;
-    }
+    $res = doSQL($resultObj, $query, array("schedId" => $schedId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
 
     if ($row = $res->fetchArray()){
-        $sqlite_data = array(
+        $resultObj["data"] = array(
             "schedId"         => $row["schedId"],
             "imacClass"       => $row["imacClass"],
             "imacType"        => $row["imacType"],
             "description"     => $row["description"]
         );
     } else {
-        $sqlite_data = null;
+        $resultObj["data"] = null;
     }
 
-    $result  = 'success';
-    $message = 'query success';
-    
-    return $sqlite_data;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getFiguresForSchedule($schedId) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+function getFiguresForSchedule(&$resultObj, $schedId) {
 
     $query = "select * from figure where schedId = :schedId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':schedId', $schedId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return null;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return null;
-    }
+    $res = doSQL($resultObj, $query, array("schedId" => $schedId));
+    if ($res === false)
+        goto db_rollback;
 
-    $sqlite_data = array();
+    $resultObj["data"] = array();
     while ($row = $res->fetchArray()){
         $fig_data = array(
             "figureNum"       => $row["figureNum"],
@@ -1003,45 +919,32 @@ function getFiguresForSchedule($schedId) {
             "rule"            => $row["rule"],
             "k"               => $row["k"]
         );
-        array_push($sqlite_data, $fig_data);
+        array_push($resultObj["data"], $fig_data);
     }
 
-    $result  = 'success';
-    $message = 'query success';
-    
-    return $sqlite_data;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getFlownRounds() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-
-    $message = null;
-
+/**
+ * @param $resultObj
+ * @return array
+ */
+function getFlownRounds(&$resultObj) {
     // Get the flown rounds as one big JSON object.
     // Keep as much of the non Score! like data out of it....
 
-    $query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId where phase = 'D';";
     $query = "select * from round where phase = 'D';";
-    //$query = "select r.*, s.description from round r inner join schedule s on r.schedId = s.schedId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
-            return;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return;
-    }
 
-    $roundArray = array();
+    $res = doSQL($resultObj, $query);
+    if ($res === false)
+        goto db_rollback;
 
+    $resultObj["data"] = array();
+    $flightResultObj = createEmptyResultObject();
     while ($round = $res->fetchArray()){
         $thisRound = array(
             "roundId"       => $round["roundId"],
@@ -1056,123 +959,171 @@ function getFlownRounds() {
             "sequences"     => $round["sequences"],
             "phase"         => $round["phase"],
             "status"        => $round["status"],
-            "flights"       => getFlightsForRound($round["roundId"])
+            "flights"       => getFlightsForRound($flightResultObj, $round["roundId"])
         );
-        array_push($roundArray, $thisRound);
+        array_push($resultObj["data"], $thisRound);
+        $flightResultObj = null;
     }
-    return $roundArray;
+    mergeResultMessages($resultObj, $flightResultObj);
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
-function getFlightLineData() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
+/**
+ * @param $resultObj
+ * @param $roundId
+ * @return array
+ */
+function getFlownRound(&$resultObj, $roundId) {
+    // Get the flown rounds as one big JSON object.
+    // Keep as much of the non Score! like data out of it....
 
-    $message = null;
-    $sqlite_data = null;
+    $query = "select * from round where phase = 'D' and roundId = :roundId;";
+
+    $res = doSQL($resultObj, $query, array("roundId" => $roundId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+    $flightResultObj = createEmptyResultObject();
+    while ($round = $res->fetchArray()){
+        $thisRound = array(
+            "roundId"       => $round["roundId"],
+            "flightLine"    => $round["flightLine"],
+            "imacType"      => $round["imacType"], // Known, Unknown, Freestyle
+            "imacClass"     => $round["imacClass"],
+            "roundNum"      => $round["roundNum"],
+            "compRoundNum"  => $round["compRoundNum"],
+            "startTime"     => $round["startTime"],
+            "finishTime"    => $round["finishTime"],
+            "schedId"       => $round["schedId"],
+            "sequences"     => $round["sequences"],
+            "phase"         => $round["phase"],
+            "status"        => $round["status"],
+            "flights"       => getFlightsForRound($flightResultObj, $round["roundId"])
+        );
+        array_push($resultObj["data"], $thisRound);
+        $flightResultObj = null;
+    }
+    mergeResultMessages($resultObj, $flightResultObj);
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
+}
+
+/**
+ * @param $resultObj
+ * @return array
+ */
+function getFlightLineData(&$resultObj) {
 
     // Get everything we have.    Send it back to the requestor as JSON.
     // Keep as much of the non Score! like data out of it....
 
-    $sqlite_data = array(
-        "flightLineId" => getStateValue("flightLineId"),
+    $tmpResultObj = createEmptyResultObject();
+    $resultObj["data"] = array(
+        "flightLineId" => getStateValue($tmpResultObj,"flightLineId"),
         "flightLineAPIVersion" => getFlightLineAPIVersion(),
-        "flightLineName" => getStateValue("flightLineName"),
-        "flightLineUrl" => getStateValue("flightLineUrl"),
+        "flightLineName" => getStateValue($tmpResultObj,"flightLineName"),
+        "flightLineUrl" => getStateValue($tmpResultObj,"flightLineUrl"),
         "users" => array(),
         "pilots" => array(),
         "rounds" => array()
     );
+    mergeResultMessages($resultObj, $tmpResultObj);
 
-    $sqlite_data["users"] = getUsers();
-    $sqlite_data["pilots"] = getPilots();
-    $sqlite_data["rounds"] = getFlownRounds();
+    $userResultObj = createEmptyResultObject();
+    $resultObj["data"]["users"] = getUsers($userResultObj);
+    mergeResultMessages($resultObj, $userResultObj);
 
-    return $sqlite_data;
+    $pilotResultObj = createEmptyResultObject();
+    $resultObj["data"]["pilots"] = getPilots($pilotResultObj);
+    mergeResultMessages($resultObj, $pilotResultObj);
+
+    $roundResultObj = createEmptyResultObject();
+    $resultObj["data"]["rounds"] = getFlownRounds($roundResultObj);
+    mergeResultMessages($resultObj, $roundResultObj);
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    return $resultObj["data"];
 }
 
-function getRoundResults() {
+/**
+ * @param $resultObj
+ * @param $roundId
+ * @return array
+ */
+function getRoundResults(&$resultObj, $roundId) {
     global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-
-    $message = null;
-    $sqlite_data = null;
-
     // Get the full data for a round.
     $query = "select * from round where roundId = :roundId;";
-    if (isset($_GET['roundId']))  { $roundId   = $_GET['roundId'];  } else $roundId = null;
 
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',   $roundId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
-    }
+    $res = doSQL($resultObj, $query, array("roundId" => $roundId));
+    if ($res === false)
+        goto db_rollback;
 
-    if ($res === FALSE){
-      $result  = 'error';
-      if ($message == null) { $message = 'query error'; }
+    $resultObj["data"] = array();
+
+    $round = $res->fetchArray(SQLITE3_ASSOC);
+
+    if (!$round) {
+        error_log("WARN: Round " . $roundId . " does not exist.");
     } else {
-        $result  = 'success';
-        $message = 'query success';
-        $round = $res->fetchArray(SQLITE3_ASSOC);
-        
-        if (!$round) {
-            $sqlite_data = array();
-        } else {
-            $flight_stmt = $db->prepare("select * from flight where roundId = :roundId;");
-            $flight_stmt->bindValue(':roundId',   $round["roundId"]);
-            $flight_res = $flight_stmt->execute();
-            $flights = array();
-            while ($flight = $flight_res->fetchArray(SQLITE3_ASSOC)){
-                // Get the sheets to add to this flight.
-                unset($flight["roundId"]);
-                $sheet_stmt = $db->prepare("select * from sheet where noteFlightId = :noteFlightId;");
-                $sheet_stmt->bindValue(':noteFlightId',   $flight["noteFlightId"]);
-                $sheet_res = $sheet_stmt->execute();
-                $sheets = array();
-                while ($sheet = $sheet_res->fetchArray(SQLITE3_ASSOC)){
-                    // Get the scores to add to this sheet.
-                    unset($sheet["noteFlightId"]);
-                    $score_stmt = $db->prepare("select * from score where sheetId = :sheetId;");
-                    $score_stmt->bindValue(':sheetId',   $sheet["sheetId"]);
-                    $score_res = $score_stmt->execute();
-                    $scores = array();
-                    while ($score = $score_res->fetchArray(SQLITE3_ASSOC)){
-                        unset($score["sheetId"]);
-                        $scores[] = $score;  
-                    }
-                    $score_res->finalize();
-                    $score_stmt->close();
-                    $sheet["scores"] = $scores;
-                    $sheets[] = $sheet;   
+        $flight_stmt = $db->prepare("select * from flight where roundId = :roundId;");
+        $flight_stmt->bindValue(':roundId',   $round["roundId"]);
+        $flight_res = $flight_stmt->execute();
+        $flights = array();
+        while ($flight = $flight_res->fetchArray(SQLITE3_ASSOC)){
+            // Get the sheets to add to this flight.
+            unset($flight["roundId"]);
+            $sheet_stmt = $db->prepare("select * from sheet where noteFlightId = :noteFlightId;");
+            $sheet_stmt->bindValue(':noteFlightId',   $flight["noteFlightId"]);
+            $sheet_res = $sheet_stmt->execute();
+            $sheets = array();
+            while ($sheet = $sheet_res->fetchArray(SQLITE3_ASSOC)){
+                // Get the scores to add to this sheet.
+                unset($sheet["noteFlightId"]);
+                $score_stmt = $db->prepare("select * from score where sheetId = :sheetId;");
+                $score_stmt->bindValue(':sheetId',   $sheet["sheetId"]);
+                $score_res = $score_stmt->execute();
+                $scores = array();
+                while ($score = $score_res->fetchArray(SQLITE3_ASSOC)){
+                    unset($score["sheetId"]);
+                    $scores[] = $score;
                 }
-                $sheet_res->finalize();
-                $sheet_stmt->close();
-                $flight["sheets"] = $sheets;
-                $flights[] = $flight;
+                $score_res->finalize();
+                $score_stmt->close();
+                $sheet["scores"] = $scores;
+                $sheets[] = $sheet;
             }
-            $flight_res->finalize();
-            $flight_stmt->close();
-            $round["flights"] = $flights;
-
-            $res->finalize();
-            $statement->close();
-            $result  = 'success';
-            $message = 'query success';
-            $sqlite_data = $round;
+            $sheet_res->finalize();
+            $sheet_stmt->close();
+            $flight["sheets"] = $sheets;
+            $flights[] = $flight;
         }
+        $flight_res->finalize();
+        $flight_stmt->close();
+        $round["flights"] = $flights;
+
+        $res->finalize();
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'query success';
+        $resultObj["data"] = $round;
     }
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
 }
 
 function getRoundPilots(&$resultObj, $roundId = null, $imacType = null) {
@@ -1351,7 +1302,7 @@ function setNextFlight() {
     global $db;
     global $result;
     global $message;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
@@ -1621,32 +1572,21 @@ function getSchedlist() {
     }
 }
 
-function getStateValue($key) {
-    global $db;
-    global $result;
-    global $message;
-
-    $message = null;
+function getStateValue(&$resultObj, $key) {
 
     $query = "select value from state where key = :key;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':key', $key);
-            if (!$res = $statement->execute()) {
-                return null;
-            }
-        } catch (Exception $e) {
-            return null;
-        }
-    } else {
+    $res = doSQL($resultObj, $query, array("key" => $key));
+    if ($res === false)
         return null;
-    }
+
+    $resultObj["data"] = array();
 
     $state = $res->fetchArray();
     if (!$state) {
         // Null.   
         return null;
     } else {
+        $resultObj["data"][$key] = $state["value"];
         return $state["value"];
     }
 }
@@ -1659,7 +1599,7 @@ function addRound() {
     global $db;
     global $result;
     global $message;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
     
     $message = null;
 
@@ -1681,15 +1621,15 @@ function addRound() {
     if ($imacType == "Freestyle") $imacClass = "Freestyle";
     if ($imacType != "Known" ) $sequences = 1;
 
-    $flightLineId = getStateValue("flightLineId");
+    $flightLineId = getStateValue($transResult, "flightLineId");
     if ($flightLineId < 1) {
         $flightLineId = null;
     }
     if (!beginTrans($transResult))
         goto db_rollback;
 
-    $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) ";
-    $query .= "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
+    $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) "
+           .  "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
 
     if ($statement = $db->prepare($query)) {
         try {
@@ -1714,7 +1654,7 @@ function addRound() {
         }
     } else {
         $result  = 'error';
-        $message = "1:" . $db->lastErrorMsg();;
+        $message = "1:" . $db->lastErrorMsg();
         goto db_rollback;
     }
     $newRoundId = $db->lastInsertRowID();
@@ -1790,7 +1730,7 @@ function editRound() {
     global $db;
     global $result;
     global $message;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
 
@@ -1878,8 +1818,8 @@ function editRound() {
         goto db_rollback;
     }
 
-    $query  = "delete from flight ";
-    $query .= "where roundId = :roundId;";
+    $query  = "delete from flight "
+            . "where roundId = :roundId;";
 
     if ($statement = $db->prepare($query)) {
         try {
@@ -2216,7 +2156,7 @@ function clearResults() {
     global $db;
     global $result;
     global $message;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
 
@@ -2316,7 +2256,7 @@ function clearPilots() {
     global $result;
     global $message;
     global $sqlite_data;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2395,7 +2335,7 @@ function clearSchedules() {
     global $db;
     global $result;
     global $message;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2481,7 +2421,7 @@ function postPilots($pilotsArray = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2657,7 +2597,7 @@ function postSequences($sequenceArray = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
@@ -2835,7 +2775,7 @@ function postSheets($sheetJSON = null) {
     global $message;
     global $sqlite_data;
     global $verboseMsgs;
-    $transResult = createEmptyResultsObject();
+    $transResult = createEmptyResultObject();
 
     $message = null;
     $sqlite_data = null;
