@@ -81,7 +81,7 @@ switch ($job) {
             getRoundResults($resultObj);
             break;
         case 'get_round_pilots':
-            getRoundPilots($resultObj);
+            getRoundPilotFlights($resultObj);
             break;
         case 'get_round_flightstatus':
             getRoundFlightStatus($resultObj);

@@ -179,8 +179,6 @@ function getRound(&$resultObj, $paramArray = null) {
         goto db_rollback;
 
 
-    $resultObj["result"]  = 'success';
-    $resultObj["message"] = 'query success';
     while ($round = $res->fetchArray()){
         $resultObj["data"] = array(
             "roundId"       => $round['roundId'],
@@ -194,6 +192,8 @@ function getRound(&$resultObj, $paramArray = null) {
             "status"        => $round['status']
         );
     }
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
     $res->finalize();
     db_rollback:
 }
@@ -526,7 +526,7 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
         
         // Is the pilot in there?
         $resultObj = createEmptyResultObject();
-        getRoundPilots($resultObj, $round["roundId"], $round["imacType"]);
+        getRoundPilotFlights($resultObj, $round["roundId"], $round["imacType"]);
         $blFoundPilot = false;
         foreach($resultObj["data"] as $pilot) {
             if ($pilot["pilotId"] == $pilotId) {
@@ -1126,21 +1126,20 @@ function getRoundResults(&$resultObj, $roundId) {
     return $resultObj["data"];
 }
 
-function getRoundPilots(&$resultObj, $roundId = null, $imacType = null) {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-
-    $message = null;
-    $sqlite_data = null;
-    if (!isset($roundId))
-        if (isset($_GET['roundId']))  { $roundId   = $_GET['roundId'];  } else { $roundId = null; }
-    if (!isset($imacType))
-        if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else { $imacType = null; }
+function getRoundPilotFlights(&$resultObj, $roundId = null, $imacType = null) {
 
     // Get the full list of pilots for the round.
     // If it's freestyle, use a special query..
+    // It's messy but efficient to do it this way.
+    // ToDo: Look at a better way.
+
+    if ($imacType === null) {
+        // No idea what the round type is, grab it and see..
+        $roundResultObj = createEmptyResultObject();
+        getRound($roundResultObj, array("roundId" => $roundId));
+        mergeResultMessages($resultObj, $roundResultObj);
+        $imacType = $roundResultObj["data"]["imacType"];
+    }
 
     if ($imacType === "Freestyle") {
         $query = "select r.*, p.pilotId, p.fullName, p.airplane, f.noteFlightId, f.sequenceNum "
@@ -1157,46 +1156,35 @@ function getRoundPilots(&$resultObj, $roundId = null, $imacType = null) {
             . "where p.active = 1 and r.roundId = :roundId;";
     }
 
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId', $roundId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+    $res = doSQL($resultObj, $query, array("roundId" => $roundId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+
+    while ($row = $res->fetchArray()) {
+        $sequenceNum = $row['sequenceNum'];
+        $btnId = $row['roundId'] . "_" . $row['pilotId'] . "_" . $row['noteFlightId'] . "_" . convertClassToCompID($row["imacClass"]);
+        $functions  = '<div class="function_buttons"><ul>';
+        $functions .= '<li class="function_set_next_flight_button"><a id="' . $btnId . '" data-pilotname="' . $row['fullName'] . '" data-roundid="' . $row['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $row['pilotId'] . '" data-noteflightid="'   . $row['noteFlightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
+        $functions .= '</ul></div>';
+        $noteHint = "Pilot:" . $row['pilotId'] . " Flight:" . $row['noteFlightId'] . " Comp:" . convertClassToCompID($row["imacClass"]) . " Schedule:" . $row["schedId"];
+        $resultObj["data"][] = array(
+            "pilotId"       => $row['pilotId'],
+            "fullName"      => $row['fullName'],
+            "noteFlightId"  => $row['noteFlightId'],
+            "functions"     => $functions,
+            "noteHint"      => $noteHint,
+            "compId"        => convertClassToCompID($row["imacClass"])
+        );
     }
 
-    if ($res === FALSE) {
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        $result  = 'success';
-        $message = 'query success';
-        while ($round = $res->fetchArray()) {
-            $sequenceNum = $round['sequenceNum'];
-            $btnId = $round['roundId'] . "_" . $round['pilotId'] . "_" . $round['noteFlightId'] . "_" . convertClassToCompID($round["imacClass"]);
-            $functions  = '<div class="function_buttons"><ul>';
-            $functions .= '<li class="function_set_next_flight_button"><a id="' . $btnId . '" data-pilotname="' . $round['fullName'] . '" data-roundid="' . $round['roundId'] . '" data-seqnum="' . $sequenceNum . '" data-pilotid="'   . $round['pilotId'] . '" data-noteflightid="'   . $round['noteFlightId'] . '">Sequence ' . $sequenceNum . '</a></li>';
-            $functions .= '</ul></div>';
-            $notehint = "Pilot:" . $round['pilotId'] . " Flight:" . $round['noteFlightId'] . " Comp:" . convertClassToCompID($round["imacClass"]) . " Schedule:" . $round["schedId"];
-            $sqlite_data[] = array(
-                "pilotId"       => $round['pilotId'],
-                "fullName"      => $round['fullName'],
-                "noteFlightId"  => $round['noteFlightId'],
-                "functions"     => $functions,
-                "noteHint"      => $notehint,
-                "compId"        => convertClassToCompID($round["imacClass"])
-            );
-        }
-    }
-    $resultObj["result"] = $result;
-    $resultObj["message"] = $message;
-    $resultObj["data"] = $sqlite_data;
+    $resultObj["result"] = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    // So far have not needed it.
+    //return $resultObj["data"];
 }
 
 function getRoundFlightStatus() {

@@ -74,6 +74,11 @@ Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
     ));
 });
 
+Flight::route ("/rounds/@roundId:[0-9]+/pilotflights", function($roundId) {
+    global $resultObj;
+    getRoundPilotFlights($resultObj, $roundId);
+});
+
 Flight::route ("/rounds/@roundId:[0-9]+/pilots/@pilotId:[0-9]+", function($roundId, $pilotId) {
     global $resultObj;
     getPilotsForRound($resultObj, array(

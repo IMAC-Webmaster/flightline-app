@@ -8,7 +8,8 @@ $(document).ready(function() {
   // On page load: datatable
   var table_pilotlist = null;
   var table_roundlist = $('#table_roundlist').DataTable({
-    "ajax": "data.php?job=get_rounds",
+    // Oldway: "ajax": "data.php?job=get_rounds",
+    "ajax": "/api/1/rounds/",
     "processing": false,
     "columns": [
       { "data": "roundId"},
@@ -16,7 +17,7 @@ $(document).ready(function() {
       { "data": "imacType" },
       { "data": "roundNum",       "sClass": "integer" },
       { "data": "description" },
-      { "data": "schedId",    "visible": false },
+      { "data": "schedId",        "visible": false },
       { "data": "sequences",      "render": function ( data, type, row ) { return renderSequence(data); } },
       { "data": "phase",          "render": function ( data, type, row ) { return renderPhase(data); } },
       { "data": "status" },
@@ -192,7 +193,8 @@ $(document).ready(function() {
     $('#roundnum-details').text(data.roundNum); 
     
     table_pilotlist = $('#table_pilotlist').DataTable({
-      "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId + "&imacType=" + data.imacType,
+      // OldWay: "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId + "&imacType=" + data.imacType,
+      "ajax": "api/1/rounds/" + data.roundId + "/pilotflights",
       "columns": [
         { "data": "pilotId"},
         { "data": "fullName"},
