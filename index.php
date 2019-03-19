@@ -20,6 +20,7 @@
       <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
       <script type="text/javascript" src="/libs/jquery-validation/dist/jquery.validate.min.js"></script>
       <script type="text/javascript" src="/include/js/webapp.js"></script>
+      <script type="text/javascript" src="/include/js/helpers.js"></script>
   </head>
   <body>
 

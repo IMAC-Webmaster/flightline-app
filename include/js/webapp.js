@@ -209,6 +209,9 @@ $(document).ready(function() {
         { targets: [-2], "orderable": false }
       ],
       "lengthMenu": [[50, 100, -1], [50, 100, "All"]],
+      "initComplete": function(settings, json) {
+        fillNextFlight(data.roundId, null, null);
+      },
       "oLanguage": {
         "oPaginate": {
           "sFirst":       "<",
@@ -221,7 +224,6 @@ $(document).ready(function() {
         "sInfoFiltered":  "(filtered from _MAX_ total records)"
       }
     });
-    fillNextFlight(data.roundId, null, null);
     adjustNextFlightButtons(roundId);
     buttonRefresh = setInterval(function() {
         adjustNextFlightButtons(roundId);
@@ -333,7 +335,8 @@ $(document).ready(function() {
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data.php?job=get_nextrnd_ids',
+      // Oldwar: url:          'data.php?job=get_nextrnd_ids',
+      url:          '/api/1/rounds/nextids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -366,7 +369,8 @@ $(document).ready(function() {
 
     // Now get the schedules.
     var sched_request = $.ajax({
-      url:          'data.php?job=get_schedlist',
+      //Oldway: url:          'data.php?job=get_schedlist',
+      url:          'api/1/schedules',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -408,14 +412,16 @@ $(document).ready(function() {
       hide_ipad_keyboard();
       hide_lightbox();
       show_loading_message();
-      var form_data = $('#form_round').serialize();
+      var formObject = helpers.getFormData($('#form_round'));
+
       var request   = $.ajax({
-        url:          'data.php?job=add_round',
+        //Oldway: url:          'data.php?job=add_round',
+        url:          'api/1/rounds',
         cache:        false,
-        data:         form_data,
+        data:         JSON.stringify(formObject),
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
-        type:         'get'
+        type:         'post'
       });
       request.done(function(output){
         if (output.result === 'success'){
@@ -863,7 +869,8 @@ $(document).ready(function() {
     if (pilotName === null || seqNum === null) {
         
       var request = $.ajax({
-        url:          'data.php?job=get_next_flight&roundId=' + roundId,
+        //Oldway: url:          'data.php?job=get_next_flight&roundId=' + roundId,
+        url:          'api/1/rounds/' + roundId + '/nextflight',
         cache:        false,
         dataType:     'json',
         contentType:  'application/json; charset=utf-8',
@@ -892,7 +899,8 @@ $(document).ready(function() {
  function adjustNextFlightButtons(roundId) {
     //var roundId = $(this).data('roundId');
     var request = $.ajax({
-      url:          'data.php?job=get_round_flightstatus&roundId=' + roundId,
+      //Oldway: url:          'data.php?job=get_round_flightstatus&roundId=' + roundId,
+      url:          'api/1/rounds/' + roundId + '/flightstatus',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -909,7 +917,7 @@ $(document).ready(function() {
             var blFlightHasUnfinishedSheets = false;
             var thisButtonId = $(this).attr("id");
 
-            console.log("Checking if next flight button " + this.id + " has some or all data.");
+            console.log("Checking the status for next flight button " + this.id + ".");
 
             roundFlightData.forEach(function (flightSheetStatus) {
                 if (flightSheetStatus.buttonID === thisButtonId) {
@@ -926,6 +934,8 @@ $(document).ready(function() {
             } else if (blFlightHasFinishedSheets === true) {
                 console.log("   All sheets done!  Removing button.");
                 $('#' + thisButtonId).addClass("disabled_button");
+            } else {
+                console.log("   No score data found.");
             }
 
         });

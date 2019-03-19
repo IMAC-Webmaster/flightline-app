@@ -43,6 +43,13 @@ if (dbConnect($dbfile) === false) {
  **************/
 
 
+Flight::route ("POST /rounds", function() {
+    global $resultObj;
+    addRound($resultObj);
+});
+
+Flight::route ("GET /rounds", function() { global $resultObj; getRounds($resultObj); });
+
 
 Flight::route ("/rounds/@id:[0-9]+", function($id) {
     global $resultObj;
@@ -72,6 +79,21 @@ Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
         "imacType" => "Freestyle",
         "roundNum" => $roundNum
     ));
+});
+
+Flight::route ("/rounds/@roundId:[0-9]+/nextflight", function($roundId) {
+    global $resultObj;
+    getNextFlight($resultObj, $roundId);
+});
+
+Flight::route ("/rounds/@roundId:[0-9]+/flightstatus", function($roundId) {
+    global $resultObj;
+    getRoundFlightStatus($resultObj, $roundId);
+});
+
+Flight::route ("/rounds/nextids", function() {
+    global $resultObj;
+    getNextRoundIds($resultObj);
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/pilotflights", function($roundId) {
@@ -109,7 +131,12 @@ Flight::route ("/pilots/@pilotId:[0-9]*", function($pilotId) {
     getPilot($resultObj, $pilotId);
 });
 
-Flight::route ("/rounds/", function() { global $resultObj; getRounds($resultObj); });
+Flight::route ("/schedules", function() {
+    global $resultObj;
+    getSchedList($resultObj);
+});
+
+
 Flight::start();
 
 dbDisconnect();
