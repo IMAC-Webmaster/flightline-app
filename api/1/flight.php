@@ -5,6 +5,19 @@ include_once '../../include/functions.php';
 include_once 'api_functions.php';
 ini_set("display_errors", 0);
 
+$secretfile = 'secret.php';
+
+// Include the secret file, or create it if it does not exist...
+if (!file_exists($secretfile)) {
+    $fh = fopen($secretfile, 'w');
+    $secret = random_str(32);
+    fwrite($fh, "<?php\n\$jwtkey = '$secret';\n");
+    fclose($fh);
+}
+include_once $secretfile;
+error_log("K: $jwtkey");
+
+
 // Config
 $dbfile = '../../db/flightline.db';
 $apiurl = "/api/1";
@@ -42,6 +55,24 @@ if (dbConnect($dbfile) === false) {
  *
  **************/
 
+
+Flight::route ("DELETE /auth", function() {
+    global $resultObj;
+    authLogoff($resultObj);
+});
+
+Flight::route ("GET /auth/@role", function($role) {
+    global $resultObj;
+    authHasRole($resultObj, $role);
+});
+
+Flight::route ("POST /auth", function() {
+    global $resultObj;
+    $authData = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
+    // authData should be an array with keys username and password...
+
+    authLogon($resultObj, $authData);
+});
 
 Flight::route ("POST /rounds", function() {
     global $resultObj;

@@ -335,7 +335,7 @@ $(document).ready(function() {
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      // Oldwar: url:          'data.php?job=get_nextrnd_ids',
+      // Oldway: url:          'data.php?job=get_nextrnd_ids',
       url:          '/api/1/rounds/nextids',
       cache:        false,
       dataType:     'json',
@@ -469,7 +469,8 @@ $(document).ready(function() {
     
     // First, get the next round numbers.
     var next_round_request = $.ajax({
-      url:          'data.php?job=get_nextrnd_ids',
+      // Oldway: url:          'data.php?job=get_nextrnd_ids',
+      url:          '/api/1/rounds/nextids',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -498,7 +499,8 @@ $(document).ready(function() {
 
     // Now get the schedules.
     var sched_request = $.ajax({
-      url:          'data.php?job=get_schedlist',
+      //Oldway: url:          'data.php?job=get_schedlist',
+      url:          'api/1/schedules',
       cache:        false,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
@@ -526,9 +528,9 @@ $(document).ready(function() {
     });
     
     var round_request = $.ajax({
-      url:          'data.php?job=get_round',
+      //Oldway: url:          'data.php?job=get_round',
+      url:          'api/1/rounds/' + round_class + '/' + round_type + '/' + round_num,
       cache:        false,
-      data:         'imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
       dataType:     'json',
       contentType:  'application/json; charset=utf-8',
       type:         'get'
@@ -567,7 +569,7 @@ $(document).ready(function() {
     e.preventDefault();
 
     if (validateForm()){
-      // Send rounbd information to database
+      // Send round information to database
       hide_ipad_keyboard();
       hide_lightbox();
       show_loading_message();
@@ -959,4 +961,13 @@ $(document).ready(function() {
     }
   }
 
+  function listCookies() {
+    var theCookies = document.cookie.split(';');
+    var aString = '';
+    for (var i = 1 ; i <= theCookies.length; i++) {
+      aString += i + ' ' + theCookies[i-1] + "\n";
+    }
+    console.log("Cookies: " + aString);
+  }
+  listCookies();
 });

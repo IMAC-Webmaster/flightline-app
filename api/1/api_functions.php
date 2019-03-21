@@ -788,6 +788,139 @@ function getPilots(&$resultObj) {
 
 /**
  * @param $resultObj
+ * @param $creds
+ *
+ * Using JWT.   Checks supplied credentials against known users and then returns a token (or reason for unauth).
+ *
+ */
+function authLogon(&$resultObj, $credentials) {
+
+    global $jwtkey;
+    if (!isset($credentials["username"]))
+        $credentials["username"] = "";
+    if (!isset($credentials["password"]))
+        $credentials["password"] = "";
+
+
+    $usersResultObj = createEmptyResultObject();
+    $users = getUsers($usersResultObj);
+    mergeResultMessages($resultObj, $usersResultObj);
+
+
+    $resultObj["result"]  = 'failed';
+    $resultObj["message"] = 'auth failure';
+    $token = null;
+
+    foreach ($users as $user) {
+        if ( ($user["userId"] === $credentials["username"]) && ($user["password"] === $credentials["password"])) {
+            // Create the token!
+            require_once('jwt.php');
+
+            /**
+             * Uncomment the following line and add an appropriate date to enable the
+             * "not before" feature.
+             */
+            // $nbf = strtotime('2021-01-01 00:00:01');
+
+            /**
+             * Uncomment the following line and add an appropriate date and time to enable the
+             * "expire" feature.
+             */
+            //$exp = strtotime('2021-05-05 00:00:01');
+            $exp = time()+60*60*24*30;
+
+            // create a token
+            $payloadArray = array();
+            $payloadArray['userId'] = $user['userId'];
+            $payloadArray['name'] = $user['fullName'];
+            if (isset($nbf)) {$payloadArray['nbf'] = $nbf;}
+            if (isset($exp)) {$payloadArray['exp'] = $exp;}
+            $payloadArray['roles'] = explode(",", $user['roles']);
+            $token = JWT::encode($payloadArray, $jwtkey);
+            $resultObj["result"]  = 'success';
+            $resultObj["message"] = 'auth success';
+        }
+    }
+    // Now, set the cookie!   A failed login will log out anyone already logged in!
+    setCookie("FlightlineAuthToken", $token, 0, "/", "", false, true);
+
+    $resultObj["data"] = $token;
+}
+
+/**
+ * @param $resultObj
+ *
+ * Using JWT.   Logs the user off and destroys the token.
+ *
+ */
+function authLogoff(&$resultObj) {
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'auth success';
+    $resultObj["data"] = "Ok";
+    setCookie("FlightlineAuthToken", null, 0, "/", "", false, true);
+}
+
+/**
+ * @param $resultObj
+ *
+ * Using JWT.   Checks the token is OK and has not been modified.   Makes sure the principal has access to the requested role.
+ *
+ */
+function authHasRole(&$resultObj, $role) {
+
+    global $jwtkey;
+    $blClearCookie = true;
+    $blAuthorised = false;
+    $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
+    $resultObj["result"]  = 'failure';
+    $resultObj["message"] = 'auth failure';
+
+    if (!is_null($token)) {
+
+        require_once('jwt.php');
+        try {
+            $payload = JWT::decode($token, $jwtkey, array('HS256'));
+            $resultObj['data']['userId'] = $payload->userId;
+            if (isset($payload->exp)) {
+                $resultObj['data']['exp'] = $payload->exp;
+                $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
+            }
+            if (isset($payload->name)) {
+                $resultObj['data']['name'] = $payload->name;
+            }
+            if (isset($payload->roles)) {
+                $resultObj['data']['roles'] = $payload->roles;
+                foreach ($payload->roles as $tokenRole) {
+                    if ($role === $tokenRole) {
+                        $blAuthorised = true;
+                    }
+                }
+            }
+            if (isset($payload->exp) && time() <= $payload->exp) {
+                $blClearCookie = false;
+            }
+
+        }
+        catch(Exception $e) {
+            $resultObj["verboseMsgs"][] = 'There was an error decoding the token: ' . $e->getMessage();
+        }
+    } else {
+        $resultObj["verboseMsgs"][] = 'Invalid token: ' . $token;
+    }
+
+    // return to caller
+    if ($blClearCookie)
+        setCookie("FlightlineAuthToken", "", 0, "/", "", false, true);
+
+    if ($blAuthorised) {
+        $resultObj["result"] = "success";
+        $resultObj["message"] = "user is authorised for role " . $role;
+    }
+}
+
+
+/**
+ * @param $resultObj
  * @return array
  */
 function getUsers(&$resultObj) {
@@ -804,7 +937,8 @@ function getUsers(&$resultObj) {
             "userId"          => $user["userId"],
             "fullName"        => $user["fullName"],
             "password"        => $user["password"],
-            "address"         => $user["address"]
+            "address"         => $user["address"],
+            "roles"           => $user["roles"]
         );
         array_push($resultObj["data"], $thisUser);
     }
