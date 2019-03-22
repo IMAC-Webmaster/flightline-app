@@ -66,6 +66,12 @@ Flight::route ("GET /auth/@role", function($role) {
     authHasRole($resultObj, $role);
 });
 
+Flight::route ("GET /auth", function() {
+    global $resultObj;
+    // Just get the current auth object (JS does not have access to the cookies).
+    authGetPayload($resultObj);
+});
+
 Flight::route ("POST /auth", function() {
     global $resultObj;
     $authData = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
@@ -76,7 +82,11 @@ Flight::route ("POST /auth", function() {
 
 Flight::route ("POST /rounds", function() {
     global $resultObj;
-    addRound($resultObj);
+    if (authHasRole($resultObj, "ADMIN,JUDGE")) {
+        addRound($resultObj);
+    } else {
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
 });
 
 Flight::route ("GET /rounds", function() { global $resultObj; getRounds($resultObj); });

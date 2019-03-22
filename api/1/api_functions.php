@@ -807,7 +807,7 @@ function authLogon(&$resultObj, $credentials) {
     mergeResultMessages($resultObj, $usersResultObj);
 
 
-    $resultObj["result"]  = 'failed';
+    $resultObj["result"]  = 'unauthorised';
     $resultObj["message"] = 'auth failure';
     $token = null;
 
@@ -855,8 +855,8 @@ function authLogon(&$resultObj, $credentials) {
  */
 function authLogoff(&$resultObj) {
     $resultObj["result"]  = 'success';
-    $resultObj["message"] = 'auth success';
-    $resultObj["data"] = "Ok";
+    $resultObj["message"] = 'de-auth success';
+    $resultObj["data"] = null;
     setCookie("FlightlineAuthToken", null, 0, "/", "", false, true);
 }
 
@@ -866,17 +866,27 @@ function authLogoff(&$resultObj) {
  * Using JWT.   Checks the token is OK and has not been modified.   Makes sure the principal has access to the requested role.
  *
  */
-function authHasRole(&$resultObj, $role) {
+function authHasRole(&$resultObj, $roles) {
 
     global $jwtkey;
     $blClearCookie = true;
     $blAuthorised = false;
     $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
-    $resultObj["result"]  = 'failure';
+    $resultObj["result"]  = 'unauthorised';
     $resultObj["message"] = 'auth failure';
 
-    if (!is_null($token)) {
+    switch (getType($roles)) {
+        case "string":
+            $rolesArray = explode(',', $roles);
+            break;
+        case "array":
+            $rolesArray = $roles;
+            break;
+        default:
+            $rolesArray = array();
+    }
 
+    if (!is_null($token)) {
         require_once('jwt.php');
         try {
             $payload = JWT::decode($token, $jwtkey, array('HS256'));
@@ -891,8 +901,10 @@ function authHasRole(&$resultObj, $role) {
             if (isset($payload->roles)) {
                 $resultObj['data']['roles'] = $payload->roles;
                 foreach ($payload->roles as $tokenRole) {
-                    if ($role === $tokenRole) {
-                        $blAuthorised = true;
+                    foreach ($rolesArray as $role) {
+                        if ($role === $tokenRole) {
+                            $blAuthorised = true;
+                        }
                     }
                 }
             }
@@ -916,6 +928,58 @@ function authHasRole(&$resultObj, $role) {
         $resultObj["result"] = "success";
         $resultObj["message"] = "user is authorised for role " . $role;
     }
+    return $blAuthorised;
+}
+
+/**
+ * @param $resultObj
+ *
+ * Using JWT.   Just return the payload.  Not the whole .
+ *
+ */
+function authGetPayload(&$resultObj) {
+
+    global $jwtkey;
+    $blClearCookie = true;
+    $blAuthorised = false;
+    $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
+    $resultObj["result"]  = 'unauthorised';
+    $resultObj["message"] = 'auth failure';
+
+    if (!is_null($token)) {
+        require_once('jwt.php');
+        try {
+            $payload = JWT::decode($token, $jwtkey, array('HS256'));
+            $resultObj['data']['userId'] = $payload->userId;
+            if (isset($payload->exp)) {
+                $resultObj['data']['exp'] = $payload->exp;
+                $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
+            }
+            if (isset($payload->name)) {
+                $resultObj['data']['name'] = $payload->name;
+            }
+            if (isset($payload->roles)) {
+                $resultObj['data']['roles'] = $payload->roles;
+            }
+            if (isset($payload->exp) && time() <= $payload->exp) {
+                $blClearCookie = false;
+            }
+            $resultObj["result"] = "success";
+            $resultObj["message"] = "User has a valid token.";
+
+        }
+        catch(Exception $e) {
+            $resultObj["message"] = 'There was an error decoding the token: ' . $e->getMessage();
+        }
+    } else {
+        $resultObj["message"] = 'Not logged in.';
+    }
+
+    // return to caller
+    if ($blClearCookie)
+        setCookie("FlightlineAuthToken", "", 0, "/", "", false, true);
+
+    return $resultObj["data"];
 }
 
 

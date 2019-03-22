@@ -25,13 +25,12 @@
   <body>
 
     <div id="page_container">
-
-      <h1>Score! Flightline controller</h1>
-
-      <button type="button" class="button" id="add_round">Add round</button>
-      <table class="datatable clickable" id="table_roundlist">
+        <h1>Score! Flightline controller</h1>
+        <button type="button" class="button" id="do_auth">Login</button>
+        <button type="button" class="button" id="add_round">Add round</button>
+        <table class="datatable clickable" id="table_roundlist">
         <thead>
-          <tr>
+        <tr>
             <th>RoundNum</th>
             <th>Class</th>
             <th>Round Type</th>
@@ -42,19 +41,17 @@
             <th>Phase</th>
             <th>Status</th>
             <th>Functions</th>
-          </tr>
+        </tr>
         </thead>
         <tbody>
         </tbody>
-      </table>
-
+        </table>
     </div>
 
     <div class="lightbox_bg"></div>
-
     <div class="lightbox_container">
         <div class="lightbox_close"></div>
-      <div class="lightbox_content">
+      <div class="lightbox_content" id="addround">
         <h2>Add Round</h2>
         <form class="form add" id="form_round" data-id="" novalidate>
           <div class="input_container">
@@ -114,12 +111,36 @@
             <button type="submit">Add Round</button>
           </div>
         </form>
-        
       </div>
+
+
+        <div class="lightbox_content" id="login">
+            <h2>Login</h2>
+            <form class="form login" id="form_login" data-id="" novalidate>
+                <div class="input_container">
+                    <label for="username">Username: </label>
+                    <div class="field_container">
+                        <label class='error' id="username-error"></label>
+                        <input type="text" class="text" name="username" id="username" placeholder="Username" value="" required>
+                    </div>
+                </div>
+                <div class="input_container">
+                    <label for="password">Password: </label>
+                    <div class="field_container">
+                        <label class='error' id="password-error"></label>
+                        <input type="password" class="text" name="password" id="password" value="" required>
+                    </div>
+                </div>
+
+                <div class="button_container">
+                    <button type="submit">Log In</button>
+                </div>
+            </form>
+        </div>
+
     </div>
 
     <div class="roundbox_bg"></div>
-
     <div class="roundbox_container">
       <div class="roundbox_close"></div>
       <div class="roundbox_content">
