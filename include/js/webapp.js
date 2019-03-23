@@ -1,5 +1,4 @@
 $(document).ready(function() {
-    var classlist;
     var schedulelist;
     var nextroundNums;
     var rounddata;
@@ -30,6 +29,9 @@ $(document).ready(function() {
             { targets: [-1], "orderable": false }
         ],
         "lengthMenu": [[100, -1], [100, "All"]],
+        "initComplete": function(settings, json) {
+            fetchLoginStatus();
+        },
         "oLanguage": {
             "oPaginate": {
                 "sFirst":       "<",
@@ -44,6 +46,20 @@ $(document).ready(function() {
             "sInfoFiltered":  "(filtered from _MAX_ total records)"
         }
     });
+
+
+    (function($) {
+        $.fn.invisible = function() {
+            return this.each(function() {
+                $(this).css("visibility", "hidden");
+            });
+        };
+        $.fn.visible = function() {
+            return this.each(function() {
+                $(this).css("visibility", "visible");
+            });
+        };
+    }(jQuery));
 
     // On page load: form validation
     jQuery.validator.setDefaults({
@@ -344,55 +360,129 @@ $(document).ready(function() {
         $('input').blur();
     }
 
-    function updateLoginStatus() {
+    function authIsAllowed(user, task) {
+        // Checking auth here is only so we can decide to show buttons or not.
+        // The server actually enforces the roles.
+        switch (task) {
+            case "startstopround":
+                if ( (user.roles.indexOf("JUDGE") >= 0) || (user.roles.indexOf("ADMIN") >= 0) )
+                    return true;
+                break;
+            case "editround":
+                if ( (user.roles.indexOf("ADMIN") >= 0) )
+                    return true;
+                break;
+            case "deleteround":
+                if ( (user.roles.indexOf("ADMIN") >= 0) )
+                    return true;
+                break;
+            case "closeround":
+                if ( (user.roles.indexOf("JUDGE") >= 0) && (user.roles.indexOf("ADMIN") >= 0) )
+                    return true;
+                break;
+            case "addround":
+                if ( (user.roles.indexOf("ADMIN") >= 0) )
+                    return true;
+                break;
+        }
+        return false;
+    }
 
-        if (typeof(Storage) !== "undefined" && false) {  //disable for testing.
-            //currentUser = JSON.parse(sessionStorage.getItem('tokenPayload'));
+    function updateLoginStatus(user = null) {
+        if (user === null) {
+            $('#page_container  h1').text('Score! Flightline controller - Guest');
+            $('#do_auth').text('Login');
+            $('.lightbox_content h2').text('Login');
+            $('#form_login button').text('Login');
+            $("div.lightbox_content#login .input_container").show();
+
+            // Turn off some functions for guests...
+            $('div.function_buttons li.function_start').invisible();
+            $('div.function_buttons li.function_pause').invisible();
+            $('div.function_buttons li.function_edit').invisible();
+            $('div.function_buttons li.function_delete').invisible();
+            $('div.function_buttons li.function_finish').invisible();
+            $('#add_round.button').invisible();
         } else {
+            $('#page_container  h1').text('Score! Flightline controller - Logged in as ' + user['name']);
+            $('#do_auth').text('Logout');
+            $('.lightbox_content h2').text('Logged in as ' + user['name']);
+            $('#form_login button').text('Logout');
+            $("div.lightbox_content#login .input_container").hide();
+
+            // Now turn on and off some buttons depending on our access.
+            if (authIsAllowed(user, "startstopround")) {
+                $('div.function_buttons li.function_start').visible();
+                $('div.function_buttons li.function_pause').visible();
+            } else {
+                $('div.function_buttons li.function_start').invisible();
+                $('div.function_buttons li.function_pause').invisible();
+            }
+
+            if (authIsAllowed(user, "editround")) {
+                $('div.function_buttons li.function_edit').visible();
+            } else {
+                $('div.function_buttons li.function_edit').invisible();
+            }
+
+            if (authIsAllowed(user, "deleteround")) {
+                $('div.function_buttons li.function_delete').visible();
+            } else {
+                $('div.function_buttons li.function_delete').invisible();
+            }
+
+            if (authIsAllowed(user, "closeround")) {
+                $('div.function_buttons li.function_finish').visible();
+            } else {
+                $('div.function_buttons li.function_finish').invisible();
+            }
+
+            if (authIsAllowed(user, "addround")) {
+                $('#add_round.button').visible();
+            } else {
+                $('#add_round.button').invisible();
+            }
+        }
+    }
+    function fetchLoginStatus() {
+
+        if (typeof(Storage) !== "undefined") {  //disable for testing.
+            currentUser = JSON.parse(sessionStorage.getItem('FlightlineTokenPayload'));
+        }
+
+        if (typeof(currentUser) === 'undefined' || currentUser === null) {
             // No Web Storage support..
             // Get the user via ajax request...
-            var authGetPayload = $.ajax({
+            authGetPayload = $.ajax({
                 url:          '/api/1/auth',
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
                 type:         'get'
             });
-        }
 
-        authGetPayload.done(function(output){
-            var alertMessage;
-            if (typeof output['data'] !== 'undefined' && output['data'] !== null) {
-                alertMessage = 'You have a valid token! Here is your user Id: ' + output['data']['userId'];
-
-                if (typeof output['data']['exp'] !== 'undefined') {
-                    alertMessage = alertMessage + ' and your token expires: ' + output['data']['expires'];
+            authGetPayload.done(function(output){
+                if (typeof output['data'] !== 'undefined' && output['data'] !== null) {
+                    sessionStorage.setItem('FlightlineTokenPayload', JSON.stringify(output['data']));
+                    updateLoginStatus(output['data']);
+                } else if (output['data'] === null) {
+                    sessionStorage.removeItem('FlightlineTokenPayload');
+                    updateLoginStatus(null);
+                } else {
+                    hide_loading_message();
+                    show_message('Your request has failed.', 'error');
                 }
-                $('#page_container  h1').text('Score! Flightline controller - Logged in as ' + output['data']['name']);
-                $('#do_auth').text('Logout');
-                $('.lightbox_content h2').text('Logged in as ' + output['data']['name']);
-                $('#form_login button').text('Logout');
-                $("div.lightbox_content#login .input_container").hide();
-                //show_message(alertMessage, 'success');
 
-            } else if (output['data'] === null) {
-                $('#page_container  h1').text('Score! Flightline controller - Guest');
-                $('#do_auth').text('Login');
-                $('.lightbox_content h2').text('Login');
-                $('#form_login button').text('Login');
-                $("div.lightbox_content#login .input_container").show();
-                //show_message(output['message'], 'success');
-            } else {
+            });
+
+            authGetPayload.fail(function(jqXHR, textStatus){
                 hide_loading_message();
                 show_message('Your request has failed.', 'error');
-            }
+            });
 
-        });
-
-        authGetPayload.fail(function(jqXHR, textStatus){
-            hide_loading_message();
-            show_message('Your request has failed.', 'error');
-        });
+        } else {
+            updateLoginStatus(currentUser);
+        }
     }
 
     // Login button
@@ -412,8 +502,7 @@ $(document).ready(function() {
         $('#form_login button').text('Login');
         $("div.lightbox_content#login .input_container").show();
 
-        updateLoginStatus();
-
+        fetchLoginStatus();
 
         hide_loading_message();
         show_lightbox();
@@ -455,7 +544,8 @@ $(document).ready(function() {
             hide_loading_message();
             if (output.result === 'success') {
                 show_message(action + " succeeded: " + output.message, 'success');
-                updateLoginStatus();
+                sessionStorage.removeItem('FlightlineTokenPayload');
+                fetchLoginStatus();
             } else {
                 show_message(action + " failed: " + output.message, 'error');
             }
