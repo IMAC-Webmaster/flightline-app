@@ -55,7 +55,7 @@ insert into round (imacClass, imacType, roundNum, schedId, sequences, phase) val
 drop table user;
 CREATE TABLE user
 (
-   userId         varchar not null primary key,
+   username         varchar not null primary key,
    fullName       varchar not null,
    password       varchar not null,
    address        varchar not null

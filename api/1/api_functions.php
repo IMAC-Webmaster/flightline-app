@@ -101,6 +101,7 @@ function getRounds(&$resultObj) {
     if ($res === false)
         goto db_rollback;
 
+    $resultObj["data"] = array();
     while ($round = $res->fetchArray()) {
         $functions  = '<div class="function_buttons"><ul>';
         switch($round["phase"]) {
@@ -812,7 +813,7 @@ function authLogon(&$resultObj, $credentials) {
     $token = null;
 
     foreach ($users as $user) {
-        if ( ($user["userId"] === $credentials["username"]) && ($user["password"] === $credentials["password"])) {
+        if ( ($user["username"] === $credentials["username"]) && ($user["password"] === $credentials["password"])) {
             // Create the token!
             require_once('jwt.php');
 
@@ -831,7 +832,7 @@ function authLogon(&$resultObj, $credentials) {
 
             // create a token
             $payloadArray = array();
-            $payloadArray['userId'] = $user['userId'];
+            $payloadArray['username'] = $user['username'];
             $payloadArray['name'] = $user['fullName'];
             if (isset($nbf)) {$payloadArray['nbf'] = $nbf;}
             if (isset($exp)) {$payloadArray['exp'] = $exp;}
@@ -890,7 +891,7 @@ function authHasRole(&$resultObj, $roles) {
         require_once('jwt.php');
         try {
             $payload = JWT::decode($token, $jwtkey, array('HS256'));
-            $resultObj['data']['userId'] = $payload->userId;
+            $resultObj['data']['username'] = $payload->username;
             if (isset($payload->exp)) {
                 $resultObj['data']['exp'] = $payload->exp;
                 $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
@@ -950,7 +951,7 @@ function authGetPayload(&$resultObj) {
         require_once('jwt.php');
         try {
             $payload = JWT::decode($token, $jwtkey, array('HS256'));
-            $resultObj['data']['userId'] = $payload->userId;
+            $resultObj['data']['username'] = $payload->username;
             if (isset($payload->exp)) {
                 $resultObj['data']['exp'] = $payload->exp;
                 $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
@@ -998,7 +999,7 @@ function getUsers(&$resultObj) {
 
     while ($user = $res->fetchArray()){
         $thisUser = array(
-            "userId"          => $user["userId"],
+            "username"          => $user["username"],
             "fullName"        => $user["fullName"],
             "password"        => $user["password"],
             "address"         => $user["address"],
@@ -1245,6 +1246,7 @@ function getFlightLineData(&$resultObj) {
         "flightLineAPIVersion" => getFlightLineAPIVersion(),
         "flightLineName" => getStateValue($tmpResultObj,"flightLineName"),
         "flightLineUrl" => getStateValue($tmpResultObj,"flightLineUrl"),
+        "flightLineAvailableAPIs" => getFlightLineAPIsAvailable(),
         "users" => array(),
         "pilots" => array(),
         "rounds" => array()
@@ -1253,6 +1255,10 @@ function getFlightLineData(&$resultObj) {
 
     $userResultObj = createEmptyResultObject();
     $resultObj["data"]["users"] = getUsers($userResultObj);
+    // Remove the passwords...
+    foreach ($resultObj["data"]["users"] as &$user) {
+        unset ($user["password"]);
+    }
     mergeResultMessages($resultObj, $userResultObj);
 
     $pilotResultObj = createEmptyResultObject();
@@ -1741,7 +1747,37 @@ function getStateValue(&$resultObj, $key) {
 }
 
 function getFlightLineAPIVersion() {
-    return "1.00";
+    return "1";
+}
+
+function getFlightLineAPIsAvailable() {
+    $directory = dirname(__DIR__, 1);
+    $scanned_directory = array_diff(scandir($directory), array('..', '.'));
+    $retval = array();
+    foreach ($scanned_directory as $item) {
+        if (is_dir($directory . DIRECTORY_SEPARATOR . $item) && file_exists($directory . DIRECTORY_SEPARATOR . $item . DIRECTORY_SEPARATOR . "api_functions.php"))
+            array_push($retval, $item);
+    }
+    return $retval;
+}
+
+function getFlightLineDetails(&$resultObj) {
+    $detailsResultObj = createEmptyResultObject();
+    $resultObj["data"] = array();
+
+    $resultObj["data"]['flightLineId'] = getStateValue($detailsResultObj, "flightLineId");
+    $resultObj["data"]['flightLineName'] = getStateValue($detailsResultObj, "flightLineName");
+    $resultObj["data"]['flightLineUrl'] = getStateValue($detailsResultObj, "flightLineUrl");
+    $resultObj["data"]['flightLineAPIVersion'] = getFlightLineAPIVersion();
+    $resultObj["data"]['flightLineAvailableAPIs'] = getFlightLineAPIsAvailable();
+    if ($resultObj["data"]['flightLineUrl'] === null) {
+        unset ($resultObj["data"]['flightLineUrl']);
+    }
+    //$resultObj["data"]['users'] = null;
+    //$resultObj["data"]['pilots'] = null;
+    //$resultObj["data"]['rounds'] = null;
+    mergeResultMessages($resultObj, $detailsResultObj);
+    return $resultObj["data"];
 }
 
 function addRound(&$resultObj, $newRound = null) {
@@ -1754,9 +1790,6 @@ function addRound(&$resultObj, $newRound = null) {
     // First, lets get a the flight ID...
     //
     if (is_null($newRound)) {
-        //$stream = fopen('php://input', 'r');
-        //$theData = stream_get_contents($stream);
-        //$newRound = @json_decode($theData);
         $newRound = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
     }
 

@@ -15,8 +15,6 @@ if (!file_exists($secretfile)) {
     fclose($fh);
 }
 include_once $secretfile;
-error_log("K: $jwtkey");
-
 
 // Config
 $dbfile = '../../db/flightline.db';
@@ -56,6 +54,11 @@ if (dbConnect($dbfile) === false) {
  **************/
 
 
+Flight::route ("GET /info", function() {
+    global $resultObj;
+    getFlightLineDetails($resultObj);
+});
+
 Flight::route ("DELETE /auth", function() {
     global $resultObj;
     authLogoff($resultObj);
@@ -89,7 +92,10 @@ Flight::route ("POST /rounds", function() {
     }
 });
 
-Flight::route ("GET /rounds", function() { global $resultObj; getRounds($resultObj); });
+Flight::route ("GET /rounds", function() {
+    global $resultObj;
+    getRounds($resultObj);
+});
 
 
 Flight::route ("/rounds/@id:[0-9]+", function($id) {

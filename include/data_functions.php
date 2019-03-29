@@ -824,7 +824,7 @@ function getUsers() {
     
     while ($user = $res->fetchArray()){
         $thisUser = array(
-            "userId"          => $user["userId"],
+            "username"          => $user["username"],
             "fullName"        => $user["fullName"],
             "password"        => $user["password"],
             "address"         => $user["address"]
