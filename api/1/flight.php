@@ -193,6 +193,18 @@ Flight::route ("DELETE /pilots", function() {
     }
 });
 
+Flight::route ("DELETE /results", function() {
+    global $resultObj;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        clearResults($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to delete the results.";
+    }
+});
+
 Flight::route ("POST /pilots", function() {
     global $resultObj;
     $authResultObj = createEmptyResultObject();

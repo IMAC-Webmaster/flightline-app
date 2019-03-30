@@ -2230,7 +2230,7 @@ function clearResults() {
         goto db_rollback;
     }
 
-    $query = "delete from sheet;";
+    $query = "delete from sheet; delete from sqlite_sequence where name = 'sheet';";
     if ($statement = $db->prepare($query)) {
         try {
             $res = $statement->execute();
@@ -2245,7 +2245,7 @@ function clearResults() {
         goto db_rollback;
     }
 
-    $query = "delete from flight;";
+    $query = "delete from flight; delete from sqlite_sequence where name = 'flight';";
     if ($statement = $db->prepare($query)) {
         try {
             $res = $statement->execute();

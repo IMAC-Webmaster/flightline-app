@@ -2319,103 +2319,105 @@ function deleteRound() {
     }
 }
 
-function clearResults() {
-    global $db;
-    global $result;
-    global $message;
+function clearResults(&$resultObj) {
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = null;
+    $resultObj["verboseMsgs"] = array();
+
     $transResult = createEmptyResultObject();
-
-    $message = null;
-
     if (!beginTrans($transResult))
         goto db_rollback;
-    
+
+    mergeResultMessages($resultObj, $transResult);
+
+    $delScoreResultObj = createEmptyResultObject();
     $query = "delete from score;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
+    $res = doSQL($delScoreResultObj, $query);
+    mergeResultMessages($resultObj, $delScoreResultObj);
 
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted scores.";
+
+
+    $delSheetResultObj = createEmptyResultObject();
     $query = "delete from sheet;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
+    $res = doSQL($delSheetResultObj, $query);
+    mergeResultMessages($resultObj, $delSheetResultObj);
 
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted judge sheets.";
+
+
+    $delSheetResultObj = createEmptyResultObject();
+    $query = "delete from sqlite_sequence where name = 'sheet'";
+    $res = doSQL($delSheetResultObj, $query);
+    mergeResultMessages($resultObj, $delSheetResultObj);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Reset sheet index.";
+
+
+    $delFlightResultObj = createEmptyResultObject();
     $query = "delete from flight;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
+    $res = doSQL($delFlightResultObj, $query);
+    mergeResultMessages($resultObj, $delFlightResultObj);
 
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted flight records.";
+
+    $delFlightResultObj = createEmptyResultObject();
+    $query = "delete from sqlite_sequence where name = 'flight'";
+    $res = doSQL($delFlightResultObj, $query);
+    mergeResultMessages($resultObj, $delFlightResultObj);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Reset flight index.";
+
+
+    $delNextFlightResultObj = createEmptyResultObject();
     $query = "delete from nextFlight;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
+    $res = doSQL($delNextFlightResultObj, $query);
+    mergeResultMessages($resultObj, $delNextFlightResultObj);
 
-    $query = "update round set phase = 'U';";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    if ($res === false)
         goto db_rollback;
-    }
-    
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Nextflight reset.";
+
+
+    $resetRoundResultObj = createEmptyResultObject();
+    $query = "update round set phase = 'U';";
+    $res = doSQL($resetRoundResultObj, $query);
+    mergeResultMessages($resultObj, $resetRoundResultObj);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Rounds reset to phase unflown.";
+
     if (commitTrans($transResult,"Could not clear result data. ") ) {
-        $result  = 'success';
-        $message = 'The result data has been cleared.';
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'The result data has been cleared.';
     }
 
     db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
-    }       
-    return true;
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
+
 }
 
 function clearPilots(&$resultObj) {
