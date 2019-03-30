@@ -85,9 +85,12 @@ Flight::route ("POST /auth", function() {
 
 Flight::route ("POST /rounds", function() {
     global $resultObj;
-    if (authHasRole($resultObj, "ADMIN,JUDGE")) {
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
         addRound($resultObj);
     } else {
+        mergeResultMessages($resultObj, $authResultObj);
         $resultObj['message'] = "Not authorised to add a round.";
     }
 });
@@ -176,6 +179,30 @@ Flight::route ("/flights/@flightId:[0-9]+", function($flightId) {
 Flight::route ("/pilots/@pilotId:[0-9]*", function($pilotId) {
     global $resultObj;
     getPilot($resultObj, $pilotId);
+});
+
+Flight::route ("DELETE /pilots", function() {
+    global $resultObj;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        clearPilots($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to delete pilots.";
+    }
+});
+
+Flight::route ("POST /pilots", function() {
+    global $resultObj;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        postPilots($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add pilots.";
+    }
 });
 
 Flight::route ("/schedules", function() {

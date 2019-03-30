@@ -56,6 +56,17 @@ function commitTrans(&$resultObj, $failureMsg = "") {
     }
 }
 
+function rollbackTrans(&$resultObj, $failureMsg = "") {
+    global $db;
+    if (!$db->exec("ROLLBACK;")) {
+        $resultObj["result"] = 'error';
+        $resultObj["message"] = $failureMsg . "Error was: " . $db->lastErrorMsg();
+        return false;
+    } else {
+        return true;
+    }
+}
+
 function doSQL (&$resultObj, $query, $paramArr = null) {
     global $db;
 
@@ -2407,84 +2418,64 @@ function clearResults() {
     return true;
 }
 
-function clearPilots() {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-    $transResult = createEmptyResultObject();
+function clearPilots(&$resultObj) {
 
-    $message = null;
-    $sqlite_data = null;
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = null;
+
+    $transResult = createEmptyResultObject();
 
     if (!beginTrans($transResult))
         goto db_rollback;
-    
-    $query = "delete from nextFlight;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        goto db_rollback;
-    }
 
-    $query = "select count(*) as sheetCount from sheet;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    mergeResultMessages($resultObj, $transResult);
+
+    $delNFResult = createEmptyResultObject();
+
+    $query = "delete from nextFlight;";
+    $res = doSQL($delNFResult, $query);
+    mergeResultMessages($resultObj, $delNFResult);
+    if ($res === false)
         goto db_rollback;
-    }
+    $res->finalize();
+
+    $sheetResult = createEmptyResultObject();
+    $query = "select count(*) as sheetCount from sheet;";
+    $res = doSQL($sheetResult, $query);
+    mergeResultMessages($resultObj, $sheetResult);
+    if ($res === false)
+        goto db_rollback;
 
     if ($sheet = $res->fetchArray()) {
         if ($sheet["sheetCount"] > 0) {
-            $result  = 'error';
-            $message = 'Cannot clear pilots while scores have been entered.'; 
+            $resultObj["result"]  = 'error';
+            $resultObj["message"] = 'Cannot clear pilots while scores have been entered.';
             goto db_rollback;
         }
     }
-    error_log("Checking for sheets." . $sheet["sheetCount"]);
+    $res->finalize();
 
+    $delPilotResult = createEmptyResultObject();
     $query = "delete from pilot ;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    $res = doSQL($delPilotResult, $query);
+    mergeResultMessages($resultObj, $delPilotResult);
+    if ($res === false)
         goto db_rollback;
-    }
 
     if (commitTrans($transResult,"Could not clear pilots. ") ) {
-        $result  = 'success';
-        $message = 'The pilots have been cleared.';
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'The pilots have been cleared.';
     }
-    
+
+    $res->finalize();
+
     db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
     }       
-    return $sqlite_data;
+    return null;
 }
 
 function clearSchedules() {
@@ -2571,81 +2562,72 @@ function clearSchedules() {
     return $sqlite_data;
 }
 
-function postPilots($pilotsArray = null) {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-    global $verboseMsgs;
+function postPilots(&$resultObj, $pilotsArray = null) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = null;
+
     $transResult = createEmptyResultObject();
 
-    $message = null;
-    $sqlite_data = null;
     if (is_null($pilotsArray))
         $pilotsArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
 
     if (!beginTrans($transResult))
         goto db_rollback;
 
-    $result = "success";
-    $verboseMsgs = array();
+    mergeResultMessages($resultObj, $transResult);
+
+    $resultObj["result"] = "success";
+    $resultObj["verboseMsgs"] = array();
 
 
     if (is_null($pilotsArray)) {
         error_log("Could not decode JSON: " . json_last_error_msg());
-        $result  = 'error';
-        $message = "Could not decode JSON: " . json_last_error_msg();
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Could not decode JSON: " . json_last_error_msg();
         goto db_rollback;
     }
 
     error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
     foreach($pilotsArray as $pilotId => $pilot) {
         error_log("Inserting Pilot:$pilotId " . print_r($pilot, true));
+
         $query = "INSERT into pilot (pilotId, primaryId, secondaryId, fullName, airplane, freestyle, imacClass, in_customclass1, in_customclass2, active) "
                 ."VALUES(:pilotId, :primaryId, :secondaryId, :fullName, :airplane, :freestyle, :imacClass, :in_customclass1, :in_customclass2, :active)";
-        if ($statement = $db->prepare($query)) {
-            try {
-                $statement->bindValue(':pilotId', $pilot->pilotId);
-                $statement->bindValue(':primaryId', $pilot->primaryId);
-                $statement->bindValue(':secondaryId', $pilot->secondaryId);
-                $statement->bindValue(':fullName', $pilot->fullName);
-                $statement->bindValue(':airplane', $pilot->airplane);
-                $statement->bindValue(':freestyle', $pilot->freestyle);
-                $statement->bindValue(':imacClass', $pilot->imacClass);
-                $statement->bindValue(':in_customclass1', $pilot->in_customclass1);
-                $statement->bindValue(':in_customclass2', $pilot->in_customclass2);
-                $statement->bindValue(':active', $pilot->active);
-                if (!$res = $statement->execute()) {            
-                    $result  = 'error';
-                    $message = "Could not insert Pilot: " . $pilot->fullName . " Err: " . $db->lastErrorMsg();
-                    error_log($message);
-                    goto db_rollback;
-                } else {
-                    $verboseMsgs[] = "Inserted Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName;
-                    error_log("Inserted Pilot: " . $pilot->fullName);
-                }
-            } catch (Exception $e) {
-                $result  = 'error';
-                $message = 'query error: ' . $e->getMessage(); 
-                goto db_rollback;
-            }
-        } else {
-            $result  = 'error';
-            $message = $db->lastErrorMsg();
+
+        $res = doSQL($resultObj, $query, array(
+            "pilotId"           => $pilot->pilotId,
+            "primaryId"         => $pilot->primaryId,
+            "secondaryId"       => $pilot->secondaryId,
+            "fullName"          => $pilot->fullName,
+            "airplane"          => $pilot->airplane,
+            "freestyle"         => $pilot->freestyle,
+            "imacClass"         => $pilot->imacClass,
+            "in_customclass1"   => $pilot->in_customclass1,
+            "in_customclass2"   => $pilot->in_customclass2,
+            "active"            => $pilot->active
+        ));
+        if ($res === false) {
+            $resultObj["verboseMsgs"][] = "Could not insert Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName;
             goto db_rollback;
+        } else {
+            $resultObj["verboseMsgs"][] = "Pilot: " . $pilot->pilotId . " Name: " . $pilot->fullName;
+            error_log("Inserted Pilot: " . $pilot->fullName);
         }
+
     }
     if (commitTrans($transResult, "Could not add the pilots. ") ) {
-        $result  = 'success';
-        $message = 'Pilots have been added.';
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'Pilots have been added.';
     }
     
     db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj);
+        if ( $resultObj["message"] == null) {  $resultObj["message"] = 'query error'; }
     }       
-    return $sqlite_data;
+    return null;
 }
 
 function getFlightScores(&$resultObj, $flightId, $pilotId) {
