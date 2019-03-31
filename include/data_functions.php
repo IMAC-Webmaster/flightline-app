@@ -2832,7 +2832,7 @@ function postSheets($sheetJSON = null) {
         $sheetArray = @json_decode($sheetJSON);
     }
         
-    //error_log("postSheets -> " . print_r($sheetArray, true));
+    error_log("postSheets -> " . print_r($sheetArray, true));
     /***********/
     if (!beginTrans())
         goto db_rollback;
@@ -2947,9 +2947,9 @@ function postSheets($sheetJSON = null) {
         foreach($sheet->scores as $score) {
 
             // Ok,..   Got an existing sheet...   If everything is the same except for the timestamp, then leave it!
-            if (
-                $oldsheet["sheetId"]
-            )
+            //if (
+            //    $oldsheet["sheetId"]
+            //)
 
 
             $query =    "replace into score (sheetId, figureNum, scoreTime, breakFlag, score, comment) "
