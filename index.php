@@ -11,26 +11,26 @@
     <link rel="stylesheet" type="text/css" href="include/DataTables/dataTables.css"/>
     <script type="text/javascript" src="include/DataTables/datatables.js"></script>
     -->
-    <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
-    <link rel="stylesheet" href="/include/css/layout.css">
-    <link rel="stylesheet" href="include/fa/css/all.min.css">
+      <link rel="stylesheet" type="text/css" href="/libs/datatables.net-bs4/css/dataTables.bootstrap4.css"/>
+      <link rel="stylesheet" href="/include/css/layout.css"/>
+      <link rel="stylesheet" href="/libs/fontawesome/css/all.min.css"/>
 
-    <script type="text/javascript" src="/include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
-    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
-    <script type="text/javascript" src="/include/jquery-validation-1.17.0/jquery.validate.js"></script>
-    <script type="text/javascript" src="/include/js/webapp.js"></script>
+      <script type="text/javascript" src="/libs/jquery/dist/jquery.min.js"></script>
+      <script type="text/javascript" src="/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+      <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+      <script type="text/javascript" src="/libs/jquery-validation/dist/jquery.validate.min.js"></script>
+      <script type="text/javascript" src="/include/js/webapp.js"></script>
+      <script type="text/javascript" src="/include/js/helpers.js"></script>
   </head>
   <body>
 
     <div id="page_container">
-
-      <h1>Score! Flightline controller</h1>
-
-      <button type="button" class="button" id="add_round">Add round</button>
-      <table class="datatable clickable" id="table_roundlist">
+        <h1>Score! Flightline controller</h1>
+        <button type="button" class="button" id="do_auth">Login</button>
+        <button type="button" class="button" id="add_round">Add round</button>
+        <table class="datatable clickable" id="table_roundlist">
         <thead>
-          <tr>
+        <tr>
             <th>RoundNum</th>
             <th>Class</th>
             <th>Round Type</th>
@@ -41,19 +41,17 @@
             <th>Phase</th>
             <th>Status</th>
             <th>Functions</th>
-          </tr>
+        </tr>
         </thead>
         <tbody>
         </tbody>
-      </table>
-
+        </table>
     </div>
 
     <div class="lightbox_bg"></div>
-
     <div class="lightbox_container">
         <div class="lightbox_close"></div>
-      <div class="lightbox_content">
+      <div class="lightbox_content" id="addround">
         <h2>Add Round</h2>
         <form class="form add" id="form_round" data-id="" novalidate>
           <div class="input_container">
@@ -113,12 +111,36 @@
             <button type="submit">Add Round</button>
           </div>
         </form>
-        
       </div>
+
+
+        <div class="lightbox_content" id="login">
+            <h2>Login</h2>
+            <form class="form login" id="form_login" data-id="" novalidate>
+                <div class="input_container">
+                    <label for="username">Username: </label>
+                    <div class="field_container">
+                        <label class='error' id="username-error"></label>
+                        <input type="text" class="text" name="username" id="username" placeholder="Username" value="" required>
+                    </div>
+                </div>
+                <div class="input_container">
+                    <label for="password">Password: </label>
+                    <div class="field_container">
+                        <label class='error' id="password-error"></label>
+                        <input type="password" class="text" name="password" id="password" value="" required>
+                    </div>
+                </div>
+
+                <div class="button_container">
+                    <button type="submit">Log In</button>
+                </div>
+            </form>
+        </div>
+
     </div>
 
     <div class="roundbox_bg"></div>
-
     <div class="roundbox_container">
       <div class="roundbox_close"></div>
       <div class="roundbox_content">

@@ -708,6 +708,7 @@ table.datatable tbody td.functions .function_buttons span {
 .lightbox_content {
   width: 642px;
   padding: 0 50px 0 50px;
+  display: none;
 }
 .lightbox_content h2 {
   font-weight: 700;

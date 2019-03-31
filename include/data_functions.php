@@ -59,7 +59,7 @@ function getRounds() {
         }
     } else {
         $result  = 'error';
-        $message = 'query error: ' . $e->getMessage();
+        $message = 'query error: ' . $db->lastErrorMsg();
         goto db_rollback;
     }
 
@@ -236,9 +236,9 @@ function getPilotsForRound($roundId = null, $pilotId = null, $blIsFreestyleRound
         while ($row = $res->fetchArray()) {
             $sqlite_data[] = array(
                 "pilotId"           => $row['pilotId'],
-                "pilotPrimaryId"    => $row['pilotPrimaryId'],
+                "primaryId"         => $row['primaryId'],
                 "fullName"          => $row['fullName'],
-                "airPlane"          => $row['airPlane'],
+                "airplane"          => $row['airplane'],
                 "freestyle"         => $row['freestyle'],
                 "imacClass"         => $row['imacClass'],
                 "active"            => $row['active'],
@@ -592,7 +592,8 @@ function getFlightsForRound($roundId) {
     }
 
     $flightArray = array();
-    
+
+
     while ($flight = $res->fetchArray()){
         $thisFlight = array(
             "flightId"     => $flight["flightId"],
@@ -653,6 +654,16 @@ function getSheetsForFlight($flightId) {
             "phase"        => $sheet["phase"],
             "scores"       => $sanitisedScoreArray
         );
+
+        // If pilot ID is null then what todo?   In a better API we'll pass a resultsObject here so we can add error messages.
+        // For now, lets put the wrong pilotId into the comments section.
+        if ($thisSheet["pilot"] == null) {
+            if ($thisSheet["comment"] == "" || $thisSheet["comment"] == null) {
+                $thisSheet["comment"] = "ERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+            } else {
+                $thisSheet["comment"] = $thisSheet["comment"] . "\nERROR: Pilot " . $sheet["pilotId"] . " does not exist.";
+            }
+        }
         array_push($sheetArray, $thisSheet);
     }
     return $sheetArray;
@@ -813,7 +824,7 @@ function getUsers() {
     
     while ($user = $res->fetchArray()){
         $thisUser = array(
-            "userId"          => $user["userId"],
+            "username"          => $user["username"],
             "fullName"        => $user["fullName"],
             "password"        => $user["password"],
             "address"         => $user["address"]
@@ -2219,7 +2230,7 @@ function clearResults() {
         goto db_rollback;
     }
 
-    $query = "delete from sheet;";
+    $query = "delete from sheet; delete from sqlite_sequence where name = 'sheet';";
     if ($statement = $db->prepare($query)) {
         try {
             $res = $statement->execute();
@@ -2234,7 +2245,7 @@ function clearResults() {
         goto db_rollback;
     }
 
-    $query = "delete from flight;";
+    $query = "delete from flight; delete from sqlite_sequence where name = 'flight';";
     if ($statement = $db->prepare($query)) {
         try {
             $res = $statement->execute();
@@ -2289,7 +2300,6 @@ function clearResults() {
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
     }       
-    return $sqlite_data;
 }
 
 function clearPilots() {
@@ -2822,7 +2832,7 @@ function postSheets($sheetJSON = null) {
         $sheetArray = @json_decode($sheetJSON);
     }
         
-    //error_log("postSheets -> " . print_r($sheetArray, true));
+    error_log("postSheets -> " . print_r($sheetArray, true));
     /***********/
     if (!beginTrans())
         goto db_rollback;
@@ -2859,7 +2869,8 @@ function postSheets($sheetJSON = null) {
             }
         }
 
-        $query = "select sheetId from sheet where roundId = :roundId and flightId = :flightId and pilotId = :pilotId and judgeNum = :judgeNum";
+
+        $query = "select * from sheet where roundId = :roundId and flightId = :flightId and pilotId = :pilotId and judgeNum = :judgeNum";
         //error_log ($query . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
         if ($statement = $db->prepare($query)) {
             try {
@@ -2884,7 +2895,6 @@ function postSheets($sheetJSON = null) {
             goto db_rollback;
         } else {
             $oldsheet = $res->fetchArray();
-            
             if (isset($oldsheet["sheetId"])) {
                 $sheetId = $oldsheet["sheetId"];
                 $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum, phase = :phase "
@@ -2935,6 +2945,13 @@ function postSheets($sheetJSON = null) {
         
         // Now insert the scores!
         foreach($sheet->scores as $score) {
+
+            // Ok,..   Got an existing sheet...   If everything is the same except for the timestamp, then leave it!
+            //if (
+            //    $oldsheet["sheetId"]
+            //)
+
+
             $query =    "replace into score (sheetId, figureNum, scoreTime, breakFlag, score, comment) "
                         . "values (:sheetId, :figureNum, :scoreTime, :breakFlag, :score, :comment);";
 

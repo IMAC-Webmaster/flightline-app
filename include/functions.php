@@ -1,5 +1,32 @@
 <?php
 
+/**
+ * Generate a random string, using a cryptographically secure
+ * pseudorandom number generator (random_int)
+ *
+ * For PHP 7, random_int is a PHP core function
+ * For PHP 5.x, depends on https://github.com/paragonie/random_compat
+ *
+ * @param int $length      How many characters do we want?
+ * @param string $keyspace A string of all possible characters
+ *                         to select from
+ * @return string
+ */
+function random_str(
+    $length,
+    $keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+) {
+    $str = '';
+    $max = mb_strlen($keyspace, '8bit') - 1;
+    if ($max < 1) {
+        throw new Exception('$keyspace must be at least two characters long');
+    }
+    for ($i = 0; $i < $length; ++$i) {
+        $str .= $keyspace[random_int(0, $max)];
+    }
+    return $str;
+}
+
 function convertClassToCompID($imacClass) {
 
     switch (strtolower($imacClass)) {
@@ -86,4 +113,23 @@ function array_strip(&$arr) {
     for ($i = 0; $i < (sizeof($arr, 0)); $i++) {
         unset ($arr[$i]);
     }
+}
+
+function dbConnect($dbfile) {
+    global $db;
+    try {
+        $db = new SQLite3($dbfile);
+        $db->busyTimeout(5000);
+        // WAL mode has better control over concurrency.
+        // Source: https://www.sqlite.org/wal.html
+        $db->exec('PRAGMA journal_mode = wal;');
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+function dbDisconnect() {
+    global $db;
+    $db->close();
 }

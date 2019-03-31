@@ -7,4 +7,22 @@
 *.sqlite-wal
 *.log
 *.sqbpro
-/datatables-dynamic-columns/
+
+#IntelliJ
+*.iml
+.idea/
+
+# Leave composer out for now.
+composer.json
+composer.lock
+/vendor
+
+# Leave bower specific files out.
+bower.json
+.bower.json
+.bowerrc
+Gruntfile.js
+package.json
+/libs/*/src/
+/libs/*/build/
+secret.php

@@ -7,12 +7,14 @@
 
     <link rel="stylesheet" href="/include/css/layout.css">
     <link rel="stylesheet" href="/include/css/scores.css">
-    <link rel="stylesheet" href="/include/fa/css/all.min.css">
+    <link rel="stylesheet" href="/libs/fontawesome/css/all.min.css"/>
     <link rel="stylesheet" href="/include/css/slider.css">
-    <link rel="stylesheet" type="text/css" href="/include/DataTables/DataTables-1.10.18/css/dataTables.bootstrap4.css"/>
-    <script type="text/javascript" src="/include/DataTables/jQuery-3.3.1/jquery-3.3.1.js"></script>
-    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="/include/DataTables/DataTables-1.10.18/js/dataTables.bootstrap4.js"></script>
+    <link rel="stylesheet" type="text/css" href="/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css"/>
+
+
+    <script type="text/javascript" src="/libs/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
     <script type="text/javascript" src="/include/js/scores.js"></script>
     <script type="text/javascript" src="/include/js/helpers.js"></script>
     <?php 
