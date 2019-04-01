@@ -27,6 +27,7 @@
     <div id="page_container">
         <h1>Score! Flightline controller</h1>
         <button type="button" class="button" id="do_auth">Login</button>
+        <button type="button" class="button" id="livescores">Live Scores</button>
         <button type="button" class="button" id="add_round">Add round</button>
         <table class="datatable clickable" id="table_roundlist">
         <thead>

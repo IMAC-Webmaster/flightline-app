@@ -34,6 +34,7 @@
                 currentSequence = null;
                 loadRoundData(currentRound, currentPilot, currentSequence);
             });
+
             $('#roundSel').change(function() {
                 if ($(this).val() === '') {
                     currentRound = null;
@@ -63,6 +64,15 @@
                     setTimeout(ajaxCall, 5000);
                 }
             }
+
+            function initialLoad() {
+                if (initialRoundLoadDone) {
+                    loadRoundData(currentRound, currentPilot, currentSequence);
+                } else {
+                    loadInterval = setTimeout(initialLoad, 100);
+                }
+            }
+
             $('#reload').click( function () {
                 if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
                     table.ajax.reload();
@@ -70,6 +80,7 @@
                     loadRoundData(currentRound, currentPilot, currentSequence);
                 }
             });
+
             $('#testCheck').click( function () { 
                 if ($(this).is(':checked')) {
                     reloadInterval = setTimeout(ajaxCall, 5000);
@@ -80,6 +91,8 @@
                 }
             } );
 
+            initialLoad();
+
         });
     </script>
 
@@ -88,9 +101,9 @@
     <body>
         <section class="slider-checkbox">
           <input type="checkbox" id="testCheck" />
-          <label class="label" for="testCheck">Refresh (5 secs)</label>
+          <label class="label" for="testCheck">Auto Refresh (5 secs)</label>
         </section>
-        <button id="reload" class='scoreboard'>Force Reload</button>
+        <button id="reload" class='scoreboard'>Reload</button>
         <div id="page_container">
             <h1>Round Scores</h1>
             <h2>Class: <div class="rounddetails" id="roundClass"></div></h2>

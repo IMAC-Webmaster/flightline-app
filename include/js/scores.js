@@ -336,6 +336,7 @@ function populateRoundSelect(selectedRound) {
         {
             result = JSON.parse(xhr.responseText);
             helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', selectedRound);
+            initialRoundLoadDone = true;
         })
         .fail();
     
@@ -358,3 +359,4 @@ function populatePilotSelect(roundId, selectedPilot) {
 var data = {data: [], columns: [], pilot:[], round:[]};
 var lastColumnCount = 0;
 var jqxhr, table, latestFlightInfo, destroyTable = true;
+var initialRoundLoadDone = false;
