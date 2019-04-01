@@ -9,8 +9,16 @@ function parseRoundData(round) {
     var roundInfo = gatherInfo(round);
     roundInfo['sequenceCount'] = round.sequences;
     roundInfo['sheetCount'] = round.sequences * roundInfo['judgeCount'];
+    let thisColumnCount = (roundInfo['sheetCount'] + 2 );
     console.log("Got the info from the round data.  We need:");
-    console.log("  " + (roundInfo['sheetCount'] + 2 ) + " colums for " + round.sequences  + " sheets per judge from " + roundInfo['judgeCount'] + " judges.");
+    console.log("  " + thisColumnCount + " columns for " + round.sequences  + " sheets per judge from " + roundInfo['judgeCount'] + " judges.");
+    if (thisColumnCount != lastColumnCount) {
+        console.log("  The table must be redrawn.");
+        lastColumnCount = thisColumnCount;
+        destroyTable = true;
+    } else {
+        destroyTable = false;
+    }
     console.log("Building datatable data.");
     var dataTable = {columns:[ {title: "Num.", data:"num"}, {title: "Figure",  data:"fig"}], data:[]};
     // Lets do this for each pilot in the data!
@@ -74,24 +82,42 @@ function gatherInfo(item) {
     return (roundInfo);
 }
 
-function handleAjaxResponse() {
+function handleAjaxResponse(roundId, pilotId) {
     var str;
-   
-    if ( $.fn.DataTable.isDataTable( '#demotable' ) ) {
-        table.clear();
-        table.destroy();
-        $("#demotable thead tr").empty();
+
+    if (destroyTable === false){
+        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+            console.log("Not destroying table...");
+            return;
+        }
+        console.log("Creating Datatable...");
+    } else {
+        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+            table.clear();
+            table.destroy();
+            $("#scores thead tr").empty();
+        }
     }
 
     // Iterate each column and print table headers for Datatables
     $.each(data.columns, function (k, colObj) {
         //str = '<th>' + colObj.name + '</th>';
         str = '<th></th>';
-        $(str).appendTo('#demotable>thead>tr');
+        $(str).appendTo('#scores>thead>tr');
     });
 
-    table = $('#demotable').DataTable({
-        "data": data.data,
+    $.fn.dataTable.ext.errMode = 'none';
+    table = $('#scores')
+        .on( 'error.dt', function ( e, settings, techNote, message ) {
+            console.log( 'An error has been reported by DataTables: ', message );
+        } )
+        .DataTable({
+        "ajax": {
+            "url": "/data.php?job=get_scores_for_round&roundId=" + roundId + "&pilot=" + pilotId,
+            "dataSrc": function ( json ) {
+                return processAJAXResposeForDT(json);
+            }
+        },
         "dom": "t",
         "columns": data.columns,
         "lengthChange": false,
@@ -123,7 +149,7 @@ function handleAjaxResponse() {
 }
 
 function renderScoreContainer (td, cellData, rowData, row, col) {
-    if (typeof cellData === "object") {
+    if ((typeof cellData === "object") && (cellData !== null)) {
         if (cellData.breakFlag === 1) {
             $(td).addClass("break");
         }
@@ -172,84 +198,111 @@ function getMostRecentPilotAndFlight() {
         .fail();
 }
 
+function padRoundData(resultdata, tabledata, pilotId) {
+
+    var p = getPilotIndexFromId(pilotId, resultdata.pilots);
+    if (p === null) {
+        console.log("Could not find any pilot data in this round...");
+        return;
+    }
+
+    // Fill empty pilot sheets here (based on whats in resultdata.datable_columns)
+    for (var dti in resultdata.pilots[p].datatable) {
+        for (var col in resultdata.datatable_columns) {
+            if (typeof resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] === "undefined") {
+                // We need to add it.  (A blank one)
+                resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] = {figureNum: null, scoreTime: null, breakFlag: null, score: 'No Score', comment: null};
+            }
+        }
+    }
+
+    tabledata.data = resultdata.pilots[p].datatable;
+    tabledata.sheets = resultdata.pilots[p].sheets;
+    tabledata.columns = resultdata.datatable_columns;
+    for (col in tabledata.columns) {
+        // Iterate over the columns and add the sheet data.
+        if (tabledata.columns[col].data === "num" || tabledata.columns[col].data === "fig") {
+            ;
+        } else {
+            for (var sheet in tabledata.sheets) {
+                if (tabledata.sheets[sheet].sequenceNum === tabledata.columns[col].seqnum && tabledata.sheets[sheet].judgeNum === tabledata.columns[col].judgenum) {
+                    // This is the sheet!   Delete the scores to save some memory...
+                    delete tabledata.sheets[sheet].scores;
+                    tabledata.columns[col]["sheet"] = tabledata.sheets[sheet];
+                    if (tabledata.sheets[sheet].mppFlag === 1) {
+                        tabledata.columns[col]["className"] = "score mpp";
+                    }
+                }
+            }
+        }
+    }
+    tabledata.pilot = {
+        active: resultdata.pilots[p].active,
+        fullName: resultdata.pilots[p].fullName,
+        airplane: resultdata.pilots[p].airplane,
+        freestyle: resultdata.pilots[p].freestyle,
+        imacClass: resultdata.pilots[p].imacClass,
+        in_customclass1: resultdata.pilots[p].in_customclass1,
+        in_customclass2: resultdata.pilots[p].in_customclass2,
+        pilotId: resultdata.pilots[p].pilotId,
+        pilotPrimaryId: resultdata.pilots[p].pilotPrimaryId
+    };
+    tabledata.round = {
+        description: resultdata.description,
+        imacClass: resultdata.imacClass,
+        imacType: resultdata.imacType,
+        phase: resultdata.phase,
+        roundId: resultdata.roundId,
+        roundNum: resultdata.roundNum,
+        schedId: resultdata.schedId,
+        sequences: resultdata.sequences,
+        status: resultdata.status
+    };
+}
+
+function processAJAXResposeForDT(result) {
+
+    let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+    getMostRecentPilotAndFlight();
+    if ( (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId)) {
+        destroyTable = false;
+    } else {
+        destroyTable = true;
+    }
+
+    parseRoundData(result.data);
+    padRoundData(result.data, data, latestFlightInfo.pilotId);
+    handleAjaxResponse(latestFlightInfo.roundId, latestFlightInfo.pilotId);
+    return data.data;
+}
+
 function loadRoundData(roundId, pilotId, sequenceNum) {
     // If they selected nothing, then just clear table, and clear selects...
     if (roundId === null || roundId === '') {
-        if ( $.fn.DataTable.isDataTable( '#demotable' ) ) {
-            table.clear();
-            table.destroy();
-            $("#demotable thead tr").empty();
-        }
+        let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
         $('#pilotSel').hide();
         getMostRecentPilotAndFlight();
+        if ( (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
+            destroyTable = false;
+        } else {
+            destroyTable = true;
+        }
         loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
         return;
     }
-    
+
+    //Before creating the table, we need to get the data once so we can check out the columns.
+    //This means a second ajax call the first time we load the page...  :-(
+
     var url = '/data.php?job=get_scores_for_round&roundId=' + roundId;
 
     jqxhr = $.ajax(url)
         .done(function(){ 
             result = JSON.parse(jqxhr.responseText);
             parseRoundData(result.data);
-            var p = getPilotIndexFromId(pilotId, result.data.pilots);
-            if (p === null) {
-                console.log("Could not find any pilot data in this round...");
-                return;
-            }
-            // Fill empty pilot sheets here (based on whats in result.data.datable_columns)
-            for (var dti in result.data.pilots[p].datatable) {
-                for (var col in result.data.datatable_columns) {
-                if (typeof result.data.pilots[p].datatable[dti][result.data.datatable_columns[col].data] === "undefined") {
-                        // We need to add it.  (A blank one)
-                        result.data.pilots[p].datatable[dti][result.data.datatable_columns[col].data] = {figureNum: null, scoreTime: null, breakFlag: null, score: 'No Score', comment: null};
-                    }
-                }
-            }
-            
-            data.data = result.data.pilots[p].datatable;
-            data.sheets = result.data.pilots[p].sheets;
-            data.columns = result.data.datatable_columns;
-            for (col in data.columns) {
-                // Iterate over the columns and add the sheet data.
-                if (data.columns[col].data === "num" || data.columns[col].data === "fig") {
-                    ;
-                } else {
-                    for (var sheet in data.sheets) {
-                        if (data.sheets[sheet].sequenceNum === data.columns[col].seqnum && data.sheets[sheet].judgeNum === data.columns[col].judgenum) {
-                            // This is the sheet!   Delete the scores to save some memory...
-                            delete data.sheets[sheet].scores;
-                            data.columns[col]["sheet"] = data.sheets[sheet];
-                            if (data.sheets[sheet].mppFlag === 1) {
-                                data.columns[col]["className"] = "score mpp";
-                            }
-                        }
-                    }
-                }
-            }
-            data.pilot = {
-                active: result.data.pilots[p].active,
-                fullName: result.data.pilots[p].fullName,
-                airplane: result.data.pilots[p].airplane,
-                freestyle: result.data.pilots[p].freestyle,
-                imacClass: result.data.pilots[p].imacClass,
-                in_customclass1: result.data.pilots[p].in_customclass1,
-                in_customclass2: result.data.pilots[p].in_customclass2,
-                pilotId: result.data.pilots[p].pilotId,
-                pilotPrimaryId: result.data.pilots[p].pilotPrimaryId
-            };
-            data.round = {
-                description: result.data.description,
-                imacClass: result.data.imacClass,
-                imacType: result.data.imacType,
-                phase: result.data.phase,
-                roundId: result.data.roundId,
-                roundNum: result.data.roundNum,
-                schedId: result.data.schedId,
-                sequences: result.data.sequences,
-                status: result.data.status               
-            };
-            handleAjaxResponse();
+            padRoundData(result.data, data, pilotId);
+            handleAjaxResponse(roundId, pilotId);
+
         })
         .fail(function (jqXHR, exception) {
             var msg = '';
@@ -303,4 +356,5 @@ function populatePilotSelect(roundId, selectedPilot) {
 }
 
 var data = {data: [], columns: [], pilot:[], round:[]};
-var jqxhr, table, latestFlightInfo;
+var lastColumnCount = 0;
+var jqxhr, table, latestFlightInfo, destroyTable = true;

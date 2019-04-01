@@ -53,11 +53,26 @@
                 }
             }
 
-            function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
-            $('#reload').click( function () { loadRoundData(currentRound, currentPilot, currentSequence); } );
+            function ajaxCall() {
+                if ($('#testCheck').is(':checked')) {
+                    if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+                        table.ajax.reload();
+                    } else {
+                        loadRoundData(currentRound, currentPilot, currentSequence);
+                    }
+                    setTimeout(ajaxCall, 5000);
+                }
+            }
+            $('#reload').click( function () {
+                if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+                    table.ajax.reload();
+                } else {
+                    loadRoundData(currentRound, currentPilot, currentSequence);
+                }
+            });
             $('#testCheck').click( function () { 
                 if ($(this).is(':checked')) {
-                    reloadInterval = setInterval(ajaxCall, 5000);
+                    reloadInterval = setTimeout(ajaxCall, 5000);
                     console.log("Enabled Autorefresh...");
                 } else {
                     clearInterval(reloadInterval); 
@@ -85,7 +100,7 @@
             <select id="roundSel"><option value=""></select>
             <select id="pilotSel"><option value=""></select>
             <h1 class='pilotName'>Pilot: <div class="rounddetails" id="pilotName"></div></h1>
-            <table id="demotable" class="datatable" width="80%">
+            <table id="scores" class="datatable" width="80%">
                 <thead><tr></tr></thead>
             </table>
         </div>
