@@ -34,6 +34,7 @@
                 currentSequence = null;
                 loadRoundData(currentRound, currentPilot, currentSequence);
             });
+
             $('#roundSel').change(function() {
                 if ($(this).val() === '') {
                     currentRound = null;
@@ -53,17 +54,44 @@
                 }
             }
 
-            function ajaxCall() { loadRoundData(currentRound, currentPilot, currentSequence); }
-            $('#reload').click( function () { loadRoundData(currentRound, currentPilot, currentSequence); } );
+            function ajaxCall() {
+                if ($('#testCheck').is(':checked')) {
+                    if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+                        table.ajax.reload();
+                    } else {
+                        loadRoundData(currentRound, currentPilot, currentSequence);
+                    }
+                    setTimeout(ajaxCall, 5000);
+                }
+            }
+
+            function initialLoad() {
+                if (initialRoundLoadDone) {
+                    loadRoundData(currentRound, currentPilot, currentSequence);
+                } else {
+                    loadInterval = setTimeout(initialLoad, 100);
+                }
+            }
+
+            $('#reload').click( function () {
+                if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+                    table.ajax.reload();
+                } else {
+                    loadRoundData(currentRound, currentPilot, currentSequence);
+                }
+            });
+
             $('#testCheck').click( function () { 
                 if ($(this).is(':checked')) {
-                    reloadInterval = setInterval(ajaxCall, 5000);
+                    reloadInterval = setTimeout(ajaxCall, 5000);
                     console.log("Enabled Autorefresh...");
                 } else {
                     clearInterval(reloadInterval); 
                     console.log("Disabled Autorefresh...");
                 }
             } );
+
+            initialLoad();
 
         });
     </script>
@@ -73,9 +101,9 @@
     <body>
         <section class="slider-checkbox">
           <input type="checkbox" id="testCheck" />
-          <label class="label" for="testCheck">Refresh (5 secs)</label>
+          <label class="label" for="testCheck">Auto Refresh (5 secs)</label>
         </section>
-        <button id="reload" class='scoreboard'>Force Reload</button>
+        <button id="reload" class='scoreboard'>Reload</button>
         <div id="page_container">
             <h1>Round Scores</h1>
             <h2>Class: <div class="rounddetails" id="roundClass"></div></h2>
@@ -85,7 +113,7 @@
             <select id="roundSel"><option value=""></select>
             <select id="pilotSel"><option value=""></select>
             <h1 class='pilotName'>Pilot: <div class="rounddetails" id="pilotName"></div></h1>
-            <table id="demotable" class="datatable" width="80%">
+            <table id="scores" class="datatable" width="80%">
                 <thead><tr></tr></thead>
             </table>
         </div>

@@ -508,6 +508,11 @@ $(document).ready(function() {
         show_lightbox();
     });
 
+    // Livescores button
+    $(document).on('click', '#livescores', function(e) {
+        location.assign("/scores");
+    });
+
     // Login submit form
     $(document).on('submit', '#form_login.login', function(e) {
         e.preventDefault();

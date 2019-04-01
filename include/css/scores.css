@@ -38,10 +38,10 @@ td.score {
     padding: 0 0 50px 0;
 }
 
-.new {
+td.new div{
     animation: flyin 1.5s ease forwards;
     opacity: 0.5;
-    transform: scale(10);
+    transform: scale(2);
     color: red;
 
     /* SEE NOTE IN JAVASCRIPT */
