@@ -82,21 +82,35 @@ function gatherInfo(item) {
     return (roundInfo);
 }
 
+function drawTableInfo() {
+    // Draw the pilot details.
+    $("#pilotName").html(data.pilot.fullName);
+    $("#roundNum").html(data.round.roundNum);
+    if (data.round.sequences === 1) {
+        $("#roundType").html(data.round.imacType + " Single");
+    } else if (data.round.sequences === 2) {
+        $("#roundType").html(data.round.imacType + " Double");
+    }
+    $("#roundClass").html(data.round.imacClass);
+    $("#roundSchedule").html(data.round.description);
+}
+
 function handleAjaxResponse(roundId, pilotId) {
     var str;
 
-    if (destroyTable === false){
-        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
-            console.log("Not destroying table...");
-            return;
-        }
-        console.log("Creating Datatable...");
-    } else {
+    if (destroyTable === true || latestFlightInfo.roundId != roundId || latestFlightInfo.pilotId != pilotId ) {
         if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
             table.clear();
             table.destroy();
             $("#scores thead tr").empty();
         }
+    } else {
+        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+            console.log("Not destroying table...");
+            drawTableInfo();
+            return;
+        }
+        console.log("Creating Datatable...");
     }
 
     // Iterate each column and print table headers for Datatables
@@ -134,18 +148,7 @@ function handleAjaxResponse(roundId, pilotId) {
             console.log('Datatable rendering complete');
         }
     });
-    
-    // Draw the pilot details.
-    $("#pilotName").html(data.pilot.fullName);
-    $("#roundNum").html(data.round.roundNum);
-    if (data.round.sequences === 1) {
-        $("#roundType").html(data.round.imacType + " Single");
-    } else if (data.round.sequences === 2) {
-        $("#roundType").html(data.round.imacType + " Double");
-    }
-    $("#roundClass").html(data.round.imacClass);
-    $("#roundSchedule").html(data.round.description);
-    
+    drawTableInfo();
 }
 
 function renderScoreContainer (td, cellData, rowData, row, col) {
@@ -262,17 +265,28 @@ function padRoundData(resultdata, tabledata, pilotId) {
 
 function processAJAXResposeForDT(result) {
 
-    let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
-    getMostRecentPilotAndFlight();
-    if ( (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId)) {
-        destroyTable = false;
-    } else {
-        destroyTable = true;
+    // Number 1...   Are we looking at live data?
+    // If so, get the round details from the latest flight array.
+
+    let roundId = $('#roundSel option:selected').val();
+    let pilotId = $('#pilotSel option:selected').val();
+    let seqNum = null;  // Not supported yet.
+
+    if ( (roundId === null || roundId === '') || (pilotId === null || pilotId === '')) {
+        let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+        getMostRecentPilotAndFlight();
+        if ((latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId)) {
+            destroyTable = false;
+        } else {
+            destroyTable = true;
+        }
+        roundId = latestFlightInfo.roundId;
+        pilotId = latestFlightInfo.pilotId;
     }
 
     parseRoundData(result.data);
-    padRoundData(result.data, data, latestFlightInfo.pilotId);
-    handleAjaxResponse(latestFlightInfo.roundId, latestFlightInfo.pilotId);
+    padRoundData(result.data, data, pilotId);
+    handleAjaxResponse(roundId, pilotId);
     return data.data;
 }
 
@@ -353,7 +367,6 @@ function populatePilotSelect(roundId, selectedPilot) {
             helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
         })
         .fail();
-    
 }
 
 var data = {data: [], columns: [], pilot:[], round:[]};
