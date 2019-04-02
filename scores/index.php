@@ -40,9 +40,12 @@
                     currentRound = null;
                     currentPilot = null;
                     currentSequence = null;
+                    populatePilotSelect($(this).val(), null);
+                    $('#pilotSel').hide();
                     loadRoundData(currentRound, currentPilot, currentSequence);
+                } else {
+                    populatePilotSelect($(this).val(), null);
                 }
-                populatePilotSelect($(this).val(), null);
             });
 
             var reloadInterval = null;
