@@ -35,13 +35,14 @@ var helpers =
         }
         return newData;
     },
+
     buildDropdown: function(result, dropdown, emptyMessage, selectedId)
     {
         dropdown.html('');
         if (emptyMessage !== null) {
             dropdown.append('<option value="">' + emptyMessage + '</option>');
         }
-        if(typeof result !== 'undefined' && result !== '')
+        if(typeof result !== 'undefined' && result !== '' && result !== null)
         {
             $.each(result, function(k, v) {
                 if (v.id == selectedId) {
@@ -52,6 +53,15 @@ var helpers =
             });
         }
     },
+
+    emptyDropdown: function(dropdown, emptyMessage)
+    {
+        dropdown.html('');
+        if (emptyMessage !== null) {
+            dropdown.append('<option value="">' + emptyMessage + '</option>');
+        }
+    },
+
     getFormData: function (form){
         var unindexed_array = form.serializeArray();
         var indexed_array = {};

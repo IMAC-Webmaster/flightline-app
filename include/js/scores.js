@@ -16,6 +16,7 @@ function parseRoundData(round) {
         console.log("  The table must be redrawn.");
         lastColumnCount = thisColumnCount;
         destroyTable = true;
+        lastFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""}
     } else {
         destroyTable = false;
     }
@@ -93,12 +94,16 @@ function drawTableInfo() {
     }
     $("#roundClass").html(data.round.imacClass);
     $("#roundSchedule").html(data.round.description);
+
+    lastFlightInfo.pilotId = data.pilot.pilotId;
+    lastFlightInfo.roundId = data.round.roundId;
 }
 
-function handleAjaxResponse(roundId, pilotId) {
+function handleAjaxResponse(roundId, pilotId, liveResults) {
     var str;
 
-    if (destroyTable === true || latestFlightInfo.roundId != roundId || latestFlightInfo.pilotId != pilotId ) {
+    console.log("Doing pilot: " + data.pilot.fullName + " T: " + pilotId+ " L: " + lastFlightInfo.pilotId );
+    if (liveResults === true && (lastFlightInfo.roundId != roundId || lastFlightInfo.pilotId != pilotId) ) {
         if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
             table.clear();
             table.destroy();
@@ -190,15 +195,28 @@ function getPilotIndexFromId(id, data) {
 
 function getMostRecentPilotAndFlight() {
     var xhr;
-    var url = '/data.php?job=get_latest_round_and_pilot';
-    result = null;
-    xhr = $.ajax(url)
+    var result = null;
+    loadingRecentFlightInfo = true;
+    console.log("Getting the most recent flight data.")
+    xhr = $.ajax(
+        {
+            url: '/data.php?job=get_latest_round_and_pilot',
+            type: 'GET',
+            cache: false,
+            timeout: 15000,
+            async: true
+        })
         .done(function()
         {
+            loadingRecentFlightInfo = 'DONE';
             result = JSON.parse(xhr.responseText);
             latestFlightInfo = result.data;
         })
-        .fail();
+        .fail(function()
+        {
+            loadingRecentFlightInfo = 'FAILED';
+            latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""};
+        });
 }
 
 function padRoundData(resultdata, tabledata, pilotId) {
@@ -270,39 +288,88 @@ function processAJAXResposeForDT(result) {
 
     let roundId = $('#roundSel option:selected').val();
     let pilotId = $('#pilotSel option:selected').val();
-    let seqNum = null;  // Not supported yet.
+    let seqNum = null;       // Not supported yet.
+    let liveResults = false;  // Are we operating from liveData or did the user select something.
 
     if ( (roundId === null || roundId === '') || (pilotId === null || pilotId === '')) {
-        let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
-        getMostRecentPilotAndFlight();
-        if ((latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId)) {
-            destroyTable = false;
-        } else {
-            destroyTable = true;
+
+        switch(loadingRecentFlightInfo) {
+            // ToDo: Change if block for switch...
         }
-        roundId = latestFlightInfo.roundId;
-        pilotId = latestFlightInfo.pilotId;
+        if (loadingRecentFlightInfo === true) {
+            // We're not done...
+            setTimeout(function()  { return processAJAXResposeForDT(result); }, 30);
+
+        } else if (loadingRecentFlightInfo === false) {
+            // We're not loading, but we need it...
+            lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+            liveResults = true;
+
+            $('#pilotSel').hide();
+            getMostRecentPilotAndFlight();
+            return processAJAXResposeForDT(result);
+        } else if (loadingRecentFlightInfo === 'DONE') {
+            // We got the data!
+            loadingRecentFlightInfo = false;
+            if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
+                destroyTable = false;
+            } else {
+                destroyTable = true;
+            }
+            roundId = latestFlightInfo.roundId;
+            pilotId = latestFlightInfo.pilotId;
+        } else if (loadingRecentFlightInfo === 'FAILED') {
+            console.log("ERROR: Could not get flight info.")
+            return null;
+        }
+
     }
 
     parseRoundData(result.data);
     padRoundData(result.data, data, pilotId);
-    handleAjaxResponse(roundId, pilotId);
+    handleAjaxResponse(roundId, pilotId, liveResults);
     return data.data;
 }
 
 function loadRoundData(roundId, pilotId, sequenceNum) {
     // If they selected nothing, then just clear table, and clear selects...
-    if (roundId === null || roundId === '') {
-        let lastFlightInfo = latestFlightInfo;  // Should be set from last time...
-        $('#pilotSel').hide();
-        getMostRecentPilotAndFlight();
-        if ( (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
-            destroyTable = false;
-        } else {
-            destroyTable = true;
+    if (roundId === null || roundId === '' || pilotId === null || pilotId === '') {
+        switch(loadingRecentFlightInfo) {
+            // ToDo: Change if block for switch...
         }
-        loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
-        return;
+        if (loadingRecentFlightInfo === true) {
+            // We're not done...
+            console.log ("Recursion at: " + recursionCounter++);
+            setTimeout(function()  { loadRoundData(roundId, pilotId, sequenceNum); }, 30);
+            return;
+        } else if (loadingRecentFlightInfo === false) {
+            // We're not loading, but we need it...
+            //lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+            recursionCounter = 1;
+            //show_message("Geting the latest flight info.", "success");
+            show_loading_message();
+            $('#pilotSel').hide();
+            getMostRecentPilotAndFlight();
+            loadRoundData(roundId, pilotId, sequenceNum);
+            return;
+        } else if (loadingRecentFlightInfo === 'DONE') {
+            // We got the data!
+            loadingRecentFlightInfo = false;
+            if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
+                destroyTable = false;
+            } else {
+                destroyTable = true;
+            }
+            //hide_message();
+            hide_loading_message();
+            loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
+            return;
+        } else if (loadingRecentFlightInfo === 'FAILED') {
+            console.log("ERROR: Could not get flight info.")
+            hide_loading_message();
+            show_message("Could not get latest flight info.", "error");
+            return;
+        }
     }
 
     //Before creating the table, we need to get the data once so we can check out the columns.
@@ -315,7 +382,7 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             result = JSON.parse(jqxhr.responseText);
             parseRoundData(result.data);
             padRoundData(result.data, data, pilotId);
-            handleAjaxResponse(roundId, pilotId);
+            handleAjaxResponse(roundId, pilotId, true);
 
         })
         .fail(function (jqXHR, exception) {
@@ -356,6 +423,33 @@ function populateRoundSelect(selectedRound) {
     
 }
 
+// Show message
+function show_message(message_text, message_type){
+    $('#message').html('<p>' + message_text + '</p>').attr('class', message_type);
+    $('#message_container').show();
+    if (typeof timeout_message !== 'undefined'){
+        window.clearTimeout(timeout_message);
+    }
+    timeout_message = setTimeout(function(){
+        hide_message();
+    }, 10000);
+}
+// Hide message
+function hide_message(){
+    $('#message').html('').attr('class', '');
+    $('#message_container').hide();
+}
+
+// Show loading message
+function show_loading_message(){
+    $('#loading_container').show();
+}
+// Hide loading message
+function hide_loading_message(){
+    $('#loading_container').hide();
+}
+
+
 function populatePilotSelect(roundId, selectedPilot) {
     var xhr;
     var url = '/data.php?job=get_round_pilots&roundId=' + roundId;
@@ -371,5 +465,8 @@ function populatePilotSelect(roundId, selectedPilot) {
 
 var data = {data: [], columns: [], pilot:[], round:[]};
 var lastColumnCount = 0;
-var jqxhr, table, latestFlightInfo, destroyTable = true;
+var jqxhr, table, latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""}, lastFlightInfo, destroyTable = true;
 var initialRoundLoadDone = false;
+var loadingRecentFlightInfo = false;
+var recursionCounter;
+var timeout_message;

@@ -2,8 +2,10 @@
 <html lang="en" dir="ltr">
   <head>
     <title>Score! Flightline Controller</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=1000, initial-scale=1">
+      <meta charset="UTF-8">
+      <meta name="google" content="notranslate">
+      <meta http-equiv="Content-Language" content="en">
+      <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 
     <!--
