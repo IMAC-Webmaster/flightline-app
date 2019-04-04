@@ -111,6 +111,26 @@ Flight::route ("/rounds/@id:[0-9]+", function($id) {
     ));
 });
 
+Flight::route ("/rounds/@id:[0-9]+/sheets", function($id) {
+    global $resultObj;
+    getRoundSheets($resultObj, $id);
+});
+
+Flight::route ("/flights/@id:[0-9]+/sheets", function($id) {
+    global $resultObj;
+    getFlightSheets($resultObj, $id);
+});
+
+Flight::route ("/sheets/@id:[0-9]+", function($id) {
+    global $resultObj;
+    getSheet($resultObj, $id);
+});
+
+Flight::route ("/sheets", function() {
+    global $resultObj;
+    getSheets($resultObj);
+});
+
 Flight::route ("/rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
     global $resultObj;
     getRound($resultObj, array(

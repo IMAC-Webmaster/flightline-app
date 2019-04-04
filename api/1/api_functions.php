@@ -374,7 +374,7 @@ function getScoresForRound(&$resultObj, $paramArray = null) {
 
     $round_data = $roundResultObj["data"];
     $schedResultObj = createEmptyResultObject();
-    $round_data['schedule'] = getScheduleWithFigures($schedResultObj, $round_data['schedId']);
+    $round_data['schedule'] = getSchedule($schedResultObj, $round_data['schedId'], true);
     mergeResultMessages($resultObj, $schedResultObj);
 
     $pArr = array(
@@ -627,7 +627,8 @@ function getSheetsForFlight(&$resultObj, $flightId) {
         foreach ($scoreResultObj["data"] as $score) {
             if (isset($score["mppFlag"])) {
                 $sheet["mppFlag"] = $score["mppFlag"];
-                // ToDo: Danger Will Robinson...   We really should persist this back to the DB.   It should be fixed below in getScoresForSheet.
+                // ToDo: Danger Will Robinson...   We really should persist this back to the DB.
+                // It should be checked and set in postSheets!
                 // When we see an MPP score there we should save it to the mppFlag and remove the figure....
             } else {
                 array_push($sanitisedScoreArray, $score);
@@ -684,14 +685,11 @@ function getSheetsForFlight(&$resultObj, $flightId) {
  * @param $sheetId
  * @return int|string
  */
+
 function getMppFigNumForSheet(&$resultObj, $sheetId) {
 
-    // Ok, now we need to know what the sequence looks like.
-    // If a figure is numbered 1 more than what the sequence has defined, or
-    // if the figure short description in the schedule is 'MPP' then this
-    // is the slot for MPP and we do NOT want to record it in the JSON array.
-    // Rather, we set the MPP flag if it is true...   getMppFigNumForSheet()
-    // will get the figure number for us...
+    // This should not be needed anymore.   The data should already be right..
+
         
     $query  = "select figureNum, shortDesc from figure where schedId = "
             . "( select schedId from round where roundId = "
@@ -726,7 +724,49 @@ function getMppFigNumForSheet(&$resultObj, $sheetId) {
     return $mppFigNum;
 }
 
-function getScoresForSheet(&$resultObj, $sheetId) {
+function getMppFigNumForNotaumaticFlight(&$resultObj, $noteFlightId) {
+
+    // Ok, now we need to know what the sequence looks like.
+    // If a figure is numbered 1 more than what the sequence has defined, or
+    // if the figure short description in the schedule is 'MPP' then this
+    // is the slot for MPP and we do NOT want to record it in the JSON array.
+    // Rather, we set the MPP flag if it is true...   This function
+    // will get the figure number for us based on the notaumatic flight id.
+
+    $query  = "select figureNum, shortDesc from figure where schedId = "
+        . "( select schedId from round where roundId = "
+        . "( select roundId from flight where noteFlightId = :noteFlightId ) );";
+
+    $mppFigNum = "";
+    $res = doSQL($resultObj, $query, array("noteFlightId" => $noteFlightId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+
+    $maxFigNum = 0;
+
+    while ($figure = $res->fetchArray()){
+        if ($maxFigNum < $figure["figureNum"] ) {
+            $maxFigNum = $figure["figureNum"];
+        }
+        if ( ($figure["shortDesc"] == "MPP Penalty") || ($figure["shortDesc"] == "Pilot & Panel?")) {
+            $mppFigNum = $figure["shortDesc"];
+        }
+    }
+
+    if ($mppFigNum === "")  // Definitely count it if it's called MPP.
+        $mppFigNum = ( $maxFigNum + 1 ); // Only count it if it's 1 more than what we have defined in score.
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $mppFigNum;
+}
+
+
+function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false) {
 
     $mppResultObj = createEmptyResultObject();
     $mppFigureNum = getMppFigNumForSheet($mppResultObj, $sheetId);
@@ -739,6 +779,7 @@ function getScoresForSheet(&$resultObj, $sheetId) {
         goto db_rollback;
 
     $resultObj["data"] = array();
+
     while ($score = $res->fetchArray()){
         if ($score["figureNum"] == $mppFigureNum) {
             // Process this as an MPP.
@@ -747,6 +788,8 @@ function getScoresForSheet(&$resultObj, $sheetId) {
                 "mppFlag"      => $score["score"]
             );
             array_push($resultObj["data"], $thisScore);
+            error_log("Manually fixing mpp score.   This should no longer be necessary!");
+            // Todo: Get rid of this eventually...
         } else {
             // Process this score as a normal sequence figure.
             $thisScore = array(
@@ -1088,33 +1131,29 @@ function getMostRecentPilotAndRound(&$resultObj) {
     return $resultObj["data"];
 }
 
-function getScheduleWithFigures(&$resultObj, $schedId) {
-
-    $tmpResultObj = createEmptyResultObject();
-    $sequence_data = getSchedule($tmpResultObj, $schedId);
-    if (isset($sequence_data)) {
-        $sequence_data['figures'] = getFiguresForSchedule($tmpResultObj, $schedId);
-    }
-    mergeResultMessages($resultObj, $tmpResultObj);
-    return $sequence_data;
-}
-
-function getSchedule(&$resultObj, $schedId) {
+function getSchedule(&$resultObj, $schedId, $includeFigures = false) {
 
     $query = "select * from schedule where schedId = :schedId;";
     $res = doSQL($resultObj, $query, array("schedId" => $schedId));
     if ($res === false)
         goto db_rollback;
 
-    $resultObj["data"] = array();
+    if ($includeFigures) {
+        $tmpResultObj = createEmptyResultObject();
+        $figures = getFiguresForSchedule($tmpResultObj, $schedId);
+        mergeResultMessages($resultObj, $tmpResultObj);
+    }
 
+    $resultObj["data"] = array();
     if ($row = $res->fetchArray()){
         $resultObj["data"] = array(
-            "schedId"         => $row["schedId"],
-            "imacClass"       => $row["imacClass"],
-            "imacType"        => $row["imacType"],
-            "description"     => $row["description"]
+            "schedId"       => $row["schedId"],
+            "imacClass"     => $row["imacClass"],
+            "imacType"      => $row["imacType"],
+            "description"   => $row["description"]
         );
+        if ($includeFigures)
+            $resultObj["data"]["figures"] = $figures;
     } else {
         $resultObj["data"] = null;
     }
@@ -1755,6 +1794,72 @@ function getStateValue(&$resultObj, $key) {
         $resultObj["data"][$key] = $state["value"];
         return $state["value"];
     }
+}
+
+function getFlightSheets(&$resultObj, $flightId) {
+    return getSheets($resultObj, null, $flightId);
+}
+
+function getRoundSheets(&$resultObj, $roundId) {
+    return getSheets($resultObj, $roundId, null);
+}
+
+function getSheets(&$resultObj, $roundId = null, $flightId = null) {
+
+    if (isset($_GET['scores'])) { $getScores = true; }  else $getScores = false;
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    // Get schedules
+    if ($flightId !== null && $flightId !== '') {
+        $query = "select * from sheet where flightId = :flightId;";
+        $res = doSQL($resultObj, $query, array(
+            "flightId" => $flightId
+        ));
+    } else if ($roundId !== null && $roundId !== '') {
+        $query = "select * from sheet where roundId = :roundId;";
+        $res = doSQL($resultObj, $query, array(
+            "roundId" => $roundId
+        ));
+    } else {
+        $query = "select * from sheet order by sheetId;";
+        $res = doSQL($resultObj, $query);
+    }
+
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+
+    while ($sheet = $res->fetchArray()) {
+        if ($getScores) {
+            $scoresResultObj = createEmptyResultObject();
+            $scores = getScoresForSheet($scoresResultObj, $sheet['sheetId']);
+            mergeResultMessages($resultObj, $scoresResultObj);
+        } else {
+            $scores = null;
+        }
+        $resultObj["data"][] = array(
+            "sheetId"       => $sheet['sheetId'],
+            "roundId"       => $sheet['roundId'],
+            "flightId"      => $sheet['flightId'],
+            "pilotId"       => $sheet['pilotId'],
+            "judgeNum"      => $sheet['judgeNum'],
+            "judgeName"     => $sheet['judgeName']  ,
+            "scribeName"    => $sheet['scribeName'],
+            "comment"       => $sheet['comment'],
+            "mppFlag"       => $sheet['mppFlag'],
+            "flightZeroed"  => $sheet['flightZeroed'],
+            "zeroReason"    => $sheet['zeroReason'],
+            "phase"         => $sheet['phase'],
+            "scores"        => $scores
+        );
+    }
+
+    $resultObj["result"] = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
 }
 
 function getFlightLineAPIVersion() {
@@ -2934,6 +3039,19 @@ function postSheets($sheetJSON = null) {
     $verboseMsgs = array();
     foreach($sheetArray as $sheet) {
         //error_log("Processing sheet: " . print_r($sheet, true));
+        // First Off, check the phase.   If it is 'D' for done, then adjust MPP...
+        if ($sheet->phase == 'D') {
+            $figNumResult = createEmptyResultObject();
+            $mppFigNum = getMPPFignumForNotaumaticFlight($figNumResult, $sheet->noteFlightId);
+
+            foreach ($sheet->scores as $idx => $score) {
+                if ($score->figureNum == $mppFigNum) {
+                    //error_log("Idx: " . $idx . " is mpp val: " . $score->score);
+                    $sheet->mppFlag = $score->score;
+                    unset($sheet->scores[$idx]);
+                }
+            }
+        }
 
         $query = "select r.roundId, f.flightId from round r inner join flight f on r.roundId = f.roundId and r.imacClass = :imacClass and f.noteFlightId = :noteFlightId";
         if ($statement = $db->prepare($query)) {
@@ -2991,12 +3109,12 @@ function postSheets($sheetJSON = null) {
             
             if (isset($oldsheet["sheetId"])) {
                 $sheetId = $oldsheet["sheetId"];
-                $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum, phase = :phase "
+                $query =    "update sheet set roundId = :roundId, flightId = :flightId, pilotId = :pilotId, judgeNum = :judgeNum, phase = :phase, mppFlag = :mppFlag "
                             . "where sheetId = :sheetId;";
             } else {
                 $sheetId = null;
-                $query =    "insert into sheet (roundId, flightId, pilotId, judgeNum, phase) "
-                            . "values (:roundId, :flightId, :pilotId, :judgeNum, :phase);";
+                $query =    "insert into sheet (roundId, flightId, pilotId, judgeNum, phase, mppFlag) "
+                            . "values (:roundId, :flightId, :pilotId, :judgeNum, :phase, :mppFlag);";
             }
             //error_log ($query . " " . $round["roundId"] . " " . $round["flightId"] . " " . $sheet->pilotId . " ". $sheet->judgeNum);
         }
@@ -3010,6 +3128,7 @@ function postSheets($sheetJSON = null) {
                 $statement->bindValue(':flightId', $round["flightId"]);
                 $statement->bindValue(':judgeNum', $sheet->judgeNum);
                 $statement->bindValue(':phase',    $sheet->phase);
+                $statement->bindValue(':mppFlag',  $sheet->mppFlag);
                 if (!is_null($sheetId)) {
                     $statement->bindValue(':sheetId', $sheetId);                
                 }

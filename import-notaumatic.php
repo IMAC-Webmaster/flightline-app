@@ -10,12 +10,10 @@
 // 
 
 include_once ("include/functions.php");
-include_once ("include/data_functions.php");
+include_once ("api/1/api_functions.php");
 // URL
 //server/import-notaumatic.php?OPT=U&F=1&J=8&D=58&N1=0&N2=0&N3=0&N4=0&N5=0&N6=0&N7=0&N8=0&N9=0&N10=0&N11=0
-
 //http://192.168.100.200/import-notaumatic.php/?OPT=U&F=1&J=8&D=58&N1=1&N2=1&N3=1&N4=1&N5=0&N6=0&N7=0&N8=0&N9=0&N10=0&N11=1&N12=1&N13=1&N14=1&N15=1&N16=1&N17=1&N18=1
-
 //http://192.168.1.220/import-notaumatic.php?OPT=U&F=1&J=2&D=1&N1=1&N2=2&N3=3&N4=4&N5=5&N6=6&N7=7&N8=8&N9=9&N10=10&N11=11
 //http://localhost/html/import-notaumatic.php?OPT=P&C=1&F=1
 
@@ -152,6 +150,7 @@ switch ($nautoption) {
             "compId"        => $nautocompid,
             "noteFlightId"  => $nautoflightid,
             "phase"         => "S",   // Started...
+            "mppFlag"       => "0",
             "scores"        => array()
         );
         foreach ($nautScores as $score) {

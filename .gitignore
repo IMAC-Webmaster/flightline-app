@@ -25,4 +25,13 @@ Gruntfile.js
 package.json
 /libs/*/src/
 /libs/*/build/
+
+
+# Various files that should be ignored...
+# This one holds our API secret...
+
 secret.php
+
+# Anything in local should be ignored.   They are dynamic files...
+/local/
+

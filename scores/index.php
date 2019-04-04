@@ -25,76 +25,89 @@
     ?>
     <script>
         $(document).ready( function () {
-            var currentRound = <?php echo $roundId ?>, currentPilot = <?php echo $pilotId ?>, currentSequence = null;
-            var d = getMostRecentPilotAndFlight();
-            $("#pilotSel").hide();
-            populateRoundSelect(currentRound);
-
-            $('#pilotSel').change(function() {
-                currentRound = $('#roundSel option:selected').val();
-                currentPilot = $(this).val();
-                currentSequence = null;
-                loadRoundData(currentRound, currentPilot, currentSequence);
-            });
+            var reloadInterval = null;
 
             $('#roundSel').change(function() {
                 if ($(this).val() === '') {
-                    currentRound = null;
-                    currentPilot = null;
-                    currentSequence = null;
-                    populatePilotSelect($(this).val(), null);
+                    helpers.emptyDropdown($('#pilotSel'), 'Choose Pilot');
+
                     $('#pilotSel').hide();
-                    loadRoundData(currentRound, currentPilot, currentSequence);
+                    loadTable();
                 } else {
+                    if ($('#autoRefresh').is(':checked')) {
+                        $('#autoRefresh').click();
+                    }
                     populatePilotSelect($(this).val(), null);
                 }
             });
 
-            var reloadInterval = null;
-
-            if (currentRound !== null) {
-                populatePilotSelect(currentRound, currentPilot);
-                if (currentPilot !== null) {
-                    loadRoundData(currentRound, currentPilot, null);
+            $('#pilotSel').change(function() {
+                if ( ($(this).val() !== '') && ($('#autoRefresh').is(':checked'))) {
+                    $('#autoRefresh').click();
                 }
-            }
-
-            function ajaxCall() {
-                if ($('#testCheck').is(':checked')) {
-                    if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
-                        table.ajax.reload();
-                    } else {
-                        loadRoundData(currentRound, currentPilot, currentSequence);
-                    }
-                    setTimeout(ajaxCall, 5000);
-                }
-            }
-
-            function initialLoad() {
-                if (initialRoundLoadDone) {
-                    loadRoundData(currentRound, currentPilot, currentSequence);
-                } else {
-                    loadInterval = setTimeout(initialLoad, 100);
-                }
-            }
+                loadTable();
+            });
 
             $('#reload').click( function () {
                 if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
                     table.ajax.reload();
                 } else {
-                    loadRoundData(currentRound, currentPilot, currentSequence);
+                    loadTable();
                 }
             });
 
-            $('#testCheck').click( function () { 
-                if ($(this).is(':checked')) {
+            $('#autoRefresh').click( function () {
+
+                if ($('#autoRefresh').is(':checked')) {
+                    if ($('#roundSel option:selected').val() !== '' ||  $('#pilotSel option:selected').val() !== '') {
+                        show_message("Auto refresh is for live scores only", "error");
+                        return false;
+                    }
                     reloadInterval = setTimeout(ajaxCall, 5000);
-                    console.log("Enabled Autorefresh...");
+                    console.log("Enabled Auto refresh...");
                 } else {
                     clearInterval(reloadInterval); 
-                    console.log("Disabled Autorefresh...");
+                    console.log("Disabled Auto refresh...");
                 }
             } );
+
+            function ajaxCall() {
+                if ($('#autoRefresh').is(':checked')) {
+                    if ($('#roundSel option:selected').val() === '' &&  $('#pilotSel option:selected').val() === '') {
+                        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+                            table.ajax.reload();
+                        } else {
+                            loadTable();
+                        }
+                        setTimeout(ajaxCall, 5000);
+                    } else {
+                        $('#autoRefresh').click();
+                    }
+                }
+            }
+
+            function initialLoad() {
+                if (initialRoundLoadDone) {
+                    loadTable();
+                } else {
+                    reloadInterval = setTimeout(initialLoad, 100);
+                }
+            }
+
+            function loadTable() {
+                loadRoundData($('#roundSel option:selected').val(), $('#pilotSel option:selected').val(), null);
+            }
+
+            // Stuff to do initially...
+
+            if (<?php echo $roundId ?> === null) {
+                populateRoundSelect(<?php echo $roundId ?>);
+            } else {
+                populatePilotSelect(<?php echo $roundId ?>, <?php echo $pilotId ?>);
+                if (<?php echo $pilotId ?> !== null) {
+                    loadRoundData(<?php echo $roundId ?>, <?php echo $pilotId ?>, null);
+                }
+            }
 
             initialLoad();
 
@@ -105,8 +118,8 @@
 <body>
     <body>
         <section class="slider-checkbox">
-          <input type="checkbox" id="testCheck" />
-          <label class="label" for="testCheck">Auto Refresh (5 secs)</label>
+          <input type="checkbox" id="autoRefresh" />
+          <label class="label" for="autoRefresh">Auto Refresh (5 secs)</label>
         </section>
         <button id="reload" class='scoreboard'>Reload</button>
         <div id="page_container">
@@ -121,6 +134,27 @@
             <table id="scores" class="datatable" width="80%">
                 <thead><tr></tr></thead>
             </table>
+        </div>
+        <noscript id="noscript_container">
+            <div id="noscript" class="error">
+                <p>JavaScript support is needed to use this page.</p>
+            </div>
+        </noscript>
+
+        <div id="message_container">
+            <div id="message" class="success">
+                <p>This is a success message.</p>
+            </div>
+        </div>
+
+        <div id="loading_container">
+            <div id="loading_container2">
+                <div id="loading_container3">
+                    <div id="loading_container4">
+                        Loading, please wait...
+                    </div>
+                </div>
+            </div>
         </div>
     </body>
     
