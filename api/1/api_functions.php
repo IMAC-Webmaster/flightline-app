@@ -227,6 +227,12 @@ function getRound(&$resultObj, $paramArray = null) {
 function getPilotsForRound(&$resultObj, $paramArr) {
     //$roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
 
+    $resultObj["data"] = array();
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["verboseMsgs"] = array();
+
+
     if (isset($paramArr) && is_array($paramArr)) {
         $roundId = isset($paramArr["roundId"]) ? $paramArr["roundId"] : null;
         $pilotId = isset($paramArr["pilotId"]) ? $paramArr["pilotId"] : null;
@@ -266,7 +272,9 @@ function getPilotsForRound(&$resultObj, $paramArr) {
     if ($res === false)
         goto db_rollback;
 
+    $pilotCount = 0;
     while ($row = $res->fetchArray()) {
+        $pilotCount++;
         $resultObj["data"][] = array(
             "pilotId"           => $row['pilotId'],
             "primaryId"         => $row['primaryId'],
@@ -279,6 +287,9 @@ function getPilotsForRound(&$resultObj, $paramArr) {
             "in_customclass2"   => $row['in_customclass2']
         );
     }
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $resultObj["verboseMsgs"][] = "There are " . $pilotCount . " pilots for this round.";
     $res->finalize();
     db_rollback:
 }
@@ -394,6 +405,7 @@ function getScoresForRound(&$resultObj, $paramArray = null) {
     mergeResultMessages($resultObj, $pilotsResultObj);
 
     $pilot_data = $pilotsResultObj["data"];
+
 
     foreach ($pilot_data as &$pilot) {
         // Now, we depending on our parameters, we might only want one pilot's data...
@@ -766,11 +778,19 @@ function getMppFigNumForNotaumaticFlight(&$resultObj, $noteFlightId) {
 }
 
 
-function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false) {
+function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false)
+{
 
     $mppResultObj = createEmptyResultObject();
     $mppFigureNum = getMppFigNumForSheet($mppResultObj, $sheetId);
     mergeResultMessages($resultObj, $mppResultObj);
+
+    if ($includeFigureDescription) {
+        $schedResultObj = createEmptyResultObject();
+        $schedule = getScheduleForSheet($schedResultObj, $sheetId, true);
+        $figures = $schedule["figures"];
+        mergeResultMessages($resultObj, $schedResultObj);
+    }
 
     $query = "select * from score where sheetId = :sheetId;";
 
@@ -785,11 +805,12 @@ function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = fa
             // Process this as an MPP.
             $thisScore = array(
                 "figureNum"    => $score["figureNum"],
+                "figureDesc"   => "Missing Pilot Penalty",
                 "mppFlag"      => $score["score"]
             );
             array_push($resultObj["data"], $thisScore);
             error_log("Manually fixing mpp score.   This should no longer be necessary!");
-            // Todo: Get rid of this eventually...
+            // Todo: This should not be needed anymore.    Only for databases with old data.   Remove it..
         } else {
             // Process this score as a normal sequence figure.
             $thisScore = array(
@@ -799,6 +820,14 @@ function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = fa
                 "score"        => $score["score"],
                 "comment"      => $score["comment"]
             );
+            if ($includeFigureDescription) {
+                $thisScore["longDesc"] = "No description";
+                foreach ($figures as $figure) {
+                    if ( $figure["figureNum"] == $score["figureNum"] ) {
+                        $thisScore["longDesc"] = $figure["longDesc"];
+                    }
+                }
+            }
             array_push($resultObj["data"], $thisScore);
         }
     }
@@ -1131,6 +1160,38 @@ function getMostRecentPilotAndRound(&$resultObj) {
     return $resultObj["data"];
 }
 
+function getScheduleForSheet(&$resultObj, $sheetId, $includeFigures = false) {
+
+    $query = "select * from schedule where schedId = (select schedId from round where roundId = ( select roundId from sheet where sheetId = :sheetId));";
+    $res = doSQL($resultObj, $query, array("sheetId" => $sheetId));
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+    if ($row = $res->fetchArray()){
+        $resultObj["data"] = array(
+            "schedId"       => $row["schedId"],
+            "imacClass"     => $row["imacClass"],
+            "imacType"      => $row["imacType"],
+            "description"   => $row["description"]
+        );
+        if ($includeFigures) {
+            $tmpResultObj = createEmptyResultObject();
+            $figures = getFiguresForSchedule($tmpResultObj, $row["schedId"]);
+            mergeResultMessages($resultObj, $tmpResultObj);
+            $resultObj["data"]["figures"] = $figures;
+        }
+    } else {
+        $resultObj["data"] = null;
+    }
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+    return $resultObj["data"];
+}
+
 function getSchedule(&$resultObj, $schedId, $includeFigures = false) {
 
     $query = "select * from schedule where schedId = :schedId;";
@@ -1177,7 +1238,7 @@ function getFiguresForSchedule(&$resultObj, $schedId) {
         $fig_data = array(
             "figureNum"       => $row["figureNum"],
             "schedId"         => $row["schedId"],
-            "shortDesc"       => $row["longDesc"],
+            "longDesc"        => $row["longDesc"],
             "spokenText"      => $row["spokenText"],
             "rule"            => $row["rule"],
             "k"               => $row["k"]
@@ -1810,7 +1871,7 @@ function getSheets(&$resultObj, $roundId = null, $flightId = null) {
 
     $resultObj["result"] = 'error';
     $resultObj["message"] = 'query error';
-    // Get schedules
+
     if ($flightId !== null && $flightId !== '') {
         $query = "select * from sheet where flightId = :flightId;";
         $res = doSQL($resultObj, $query, array(
@@ -1834,12 +1895,69 @@ function getSheets(&$resultObj, $roundId = null, $flightId = null) {
     while ($sheet = $res->fetchArray()) {
         if ($getScores) {
             $scoresResultObj = createEmptyResultObject();
-            $scores = getScoresForSheet($scoresResultObj, $sheet['sheetId']);
+            $scores = getScoresForSheet($scoresResultObj, $sheet['sheetId'], true);
             mergeResultMessages($resultObj, $scoresResultObj);
         } else {
             $scores = null;
         }
-        $resultObj["data"][] = array(
+
+        $sheetArr = array(
+            "sheetId"       => $sheet['sheetId'],
+            "roundId"       => $sheet['roundId'],
+            "flightId"      => $sheet['flightId'],
+            "pilotId"       => $sheet['pilotId'],
+            "judgeNum"      => $sheet['judgeNum'],
+            "judgeName"     => $sheet['judgeName']  ,
+            "scribeName"    => $sheet['scribeName'],
+            "comment"       => $sheet['comment'],
+            "mppFlag"       => $sheet['mppFlag'],
+            "flightZeroed"  => $sheet['flightZeroed'],
+            "zeroReason"    => $sheet['zeroReason'],
+            "phase"         => $sheet['phase'],
+            "scores"        => $scores
+        );
+
+
+        if (!$getScores) {
+            unset ($sheetArr["scores"]);
+        }
+
+        $resultObj["data"][] = $sheetArr;
+    }
+
+    $resultObj["result"] = 'success';
+    $resultObj["message"] = 'query success';
+    $res->finalize();
+    db_rollback:
+}
+
+function getSheet(&$resultObj, $sheetId) {
+
+    if (isset($_GET['scores'])) { $getScores = true; }  else $getScores = false;
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+
+    $query = "select * from sheet where sheetId = :sheetId;";
+    $res = doSQL($resultObj, $query, array(
+        "sheetId" => $sheetId
+    ));
+
+
+    if ($res === false)
+        goto db_rollback;
+
+    $resultObj["data"] = array();
+
+    while ($sheet = $res->fetchArray()) {
+        if ($getScores) {
+            $scoresResultObj = createEmptyResultObject();
+            $scores = getScoresForSheet($scoresResultObj, $sheet['sheetId'], true);
+            mergeResultMessages($resultObj, $scoresResultObj);
+        } else {
+            $scores = null;
+        }
+        $resultObj["data"] = array(
             "sheetId"       => $sheet['sheetId'],
             "roundId"       => $sheet['roundId'],
             "flightId"      => $sheet['flightId'],
@@ -1856,11 +1974,16 @@ function getSheets(&$resultObj, $roundId = null, $flightId = null) {
         );
     }
 
+    if (!$getScores) {
+        unset ($resultObj["data"]["scores"]);
+    }
+
     $resultObj["result"] = 'success';
     $resultObj["message"] = 'query success';
     $res->finalize();
     db_rollback:
 }
+
 
 function getFlightLineAPIVersion() {
     return "1";

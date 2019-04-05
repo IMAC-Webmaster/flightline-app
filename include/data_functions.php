@@ -997,7 +997,7 @@ function getFiguresForSchedule($schedId) {
         $fig_data = array(
             "figureNum"       => $row["figureNum"],
             "schedId"         => $row["schedId"],
-            "shortDesc"       => $row["longDesc"],
+            "longDesc"        => $row["longDesc"],
             "spokenText"      => $row["spokenText"],
             "rule"            => $row["rule"],
             "k"               => $row["k"]
