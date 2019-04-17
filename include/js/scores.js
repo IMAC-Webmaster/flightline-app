@@ -29,7 +29,7 @@ function parseRoundData(round) {
         for (var fIdx in round.schedule.figures) {
             var myDataRow = {
                 num: round.schedule.figures[fIdx].figureNum, 
-                fig: round.schedule.figures[fIdx].shortDesc
+                fig: round.schedule.figures[fIdx].longDesc
             };
             for (var sIdx in round.pilots[pIdx].sheets) {
                 var colSeqNum = round.pilots[pIdx].sheets[sIdx].sequenceNum;
@@ -132,7 +132,8 @@ function handleAjaxResponse(roundId, pilotId, liveResults) {
         } )
         .DataTable({
         "ajax": {
-            "url": "/data.php?job=get_scores_for_round&roundId=" + roundId + "&pilot=" + pilotId,
+            //"url": "/api/1/rounds/" + roundId + "/pilots/" + pilotId + "/   // Not sure which is a better API pattern
+            "url": "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
             "dataSrc": function ( json ) {
                 return processAJAXResposeForDT(json);
             }
@@ -375,7 +376,7 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
     //Before creating the table, we need to get the data once so we can check out the columns.
     //This means a second ajax call the first time we load the page...  :-(
 
-    var url = '/data.php?job=get_scores_for_round&roundId=' + roundId;
+    var url = '/api/1/rounds/' + roundId + '/scores';
 
     jqxhr = $.ajax(url)
         .done(function(){ 

@@ -191,6 +191,31 @@ Flight::route ("/rounds/@roundId:[0-9]+/results", function($roundId) {
     getFlownRound($resultObj, $roundId);
 });
 
+Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
+    global $resultObj;
+    if (isset($_REQUEST['pilot']))  { $pilotId = $_REQUEST['pilot']; } else { $pilotId = null; }
+
+    if ($pilotId && is_numeric($pilotId)) {
+        getScoresForRound($resultObj, array(
+            "roundId" => $roundId,
+            "pilotId" => $pilotId
+        ));
+    } else {
+        getScoresForRound($resultObj, array(
+            "roundId" => $roundId
+        ));
+    }
+});
+
+// Not sure if this is a better API.
+//Flight::route ("/rounds/@roundId:[0-9]+/pilots/@pilotId:[0-9]+/scores", function($roundId, $pilotId) {
+//    global $resultObj;
+//    getScoresForRound($resultObj, array(
+//        "roundId" => $roundId,
+//        "pilotId" => $pilotId
+//    ));
+//});
+
 Flight::route ("/flights/@flightId:[0-9]+", function($flightId) {
     global $resultObj;
     getSheetsForFlight($resultObj, $flightId);

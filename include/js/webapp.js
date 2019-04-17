@@ -389,7 +389,7 @@ $(document).ready(function() {
     }
 
     function updateLoginStatus(user = null) {
-        if (user === null) {
+        if (user === null || typeof(user.roles) == 'undefined' || user.length == 0) {
             $('#page_container  h1').text('Score! Flightline controller - Guest');
             $('#do_auth').text('Login');
             $('.lightbox_content h2').text('Login');
