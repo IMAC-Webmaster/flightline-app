@@ -105,6 +105,11 @@ function doSQL (&$resultObj, $query, $paramArr = null) {
 
 function getRounds(&$resultObj) {
     // Get rounds
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status "
            . "from round r left join schedule s on s.schedId = r.schedId order by r.imacClass, r.imacType, r.roundNum;";
 
@@ -147,8 +152,6 @@ function getRounds(&$resultObj) {
         }
         $functions .= '</ul></div>';
 
-        $resultObj["result"]  = 'success';
-        $resultObj["message"]  = 'query success';
         $resultObj["data"][] = array(
             "roundId"       => $round['roundId'],
             "imacClass"     => $round['imacClass'],
@@ -162,12 +165,19 @@ function getRounds(&$resultObj) {
             "functions"     => $functions
         );
     }
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"]  = 'query success';
     $res->finalize();
     db_rollback:
 }
 
 function getRound(&$resultObj, $paramArray = null) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
     if ($paramArray === null) {
         // Go old school...   With the query string...
         if (isset($_GET['imacClass'])) { $imacClass = $_GET['imacClass'];}  else $imacClass = null;
@@ -227,9 +237,9 @@ function getRound(&$resultObj, $paramArray = null) {
 function getPilotsForRound(&$resultObj, $paramArr) {
     //$roundId = null, $pilotId = null, $blIsFreestyleRound = false) {
 
-    $resultObj["data"] = array();
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
     $resultObj["verboseMsgs"] = array();
 
 
@@ -308,7 +318,12 @@ function getPilotSheetsForRound(&$resultObj, $roundId, $pilotId, $flightId = nul
     // We can then optionally have:
     //    flightId - if we only want one flight data.
     //    sequenceNum - Again, only sequence X from the round.
-  
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     if ($flightId !== null) {
         $query = " select s.*, f.noteFlightId, f.sequenceNum from sheet s inner join flight f on s.flightId = f.flightId "
                . " where s.pilotId = :pilotId and s.roundId = :roundId and s.flightId = :flightId;";
@@ -365,6 +380,11 @@ function getScoresForRound(&$resultObj, $paramArray = null) {
     // We can then optionally have:
     //    flightId - if we only want one flight data.
     //    pilotId - if we only want one pilots data.
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
     $imacType = isset($paramArray["imacType"]) ? $paramArray["imacType"] : null;
@@ -449,6 +469,11 @@ function getFlightOrderForRound(&$resultObj, $roundId) {
     // If we don't have a pilot ID, just choose the one with the most recent data entered...
     // This is a todo...
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query  = "select distinct f.flightId, f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId "
             . "    inner join pilot p on sh.pilotId = p.pilotId "
             . "    inner join flight f on sh.flightId = f.flightId "
@@ -488,6 +513,11 @@ function getSheetIdsForRound(&$resultObj, $roundId) {
 
     // If we don't have a pilot ID, just choose the one with the most recent data entered...
     // This is a todo...
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query  = "select distinct f.sequenceNum, sh.pilotId, p.fullName from score sc inner join sheet sh on sh.sheetId = sc.sheetId "
             . "    inner join pilot p on sh.pilotId = p.pilotId "
@@ -589,6 +619,11 @@ function getFlightStatus($noteFlightId, $compId, $scheduleId, $pilotId) {
 
 function getFlightsForRound(&$resultObj, $roundId) {
     // Get all of the flights associated with this round.   Including the sheets.
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     error_log("Getting flights for round " . $roundId);
     $query = "select * from flight where roundId = :roundId;";
 
@@ -623,6 +658,11 @@ function getFlightsForRound(&$resultObj, $roundId) {
  * @return array
  */
 function getSheetsForFlight(&$resultObj, $flightId) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from sheet where flightId = :flightId;";
     $res = doSQL($resultObj, $query, array("flightId" => $flightId));
@@ -702,7 +742,11 @@ function getMppFigNumForSheet(&$resultObj, $sheetId) {
 
     // This should not be needed anymore.   The data should already be right..
 
-        
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query  = "select figureNum, shortDesc from figure where schedId = "
             . "( select schedId from round where roundId = "
             . "( select roundId from flight where flightId = "
@@ -745,6 +789,11 @@ function getMppFigNumForNotaumaticFlight(&$resultObj, $noteFlightId) {
     // Rather, we set the MPP flag if it is true...   This function
     // will get the figure number for us based on the notaumatic flight id.
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query  = "select figureNum, shortDesc from figure where schedId = "
         . "( select schedId from round where roundId = "
         . "( select roundId from flight where noteFlightId = :noteFlightId ) );";
@@ -778,8 +827,12 @@ function getMppFigNumForNotaumaticFlight(&$resultObj, $noteFlightId) {
 }
 
 
-function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false)
-{
+function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $mppResultObj = createEmptyResultObject();
     $mppFigureNum = getMppFigNumForSheet($mppResultObj, $sheetId);
@@ -840,6 +893,11 @@ function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = fa
 
 function getPilots(&$resultObj) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from pilot;";
     $res = doSQL($resultObj, $query);
     if ($res === false)
@@ -880,6 +938,12 @@ function getPilots(&$resultObj) {
 function authLogon(&$resultObj, $credentials) {
 
     global $jwtkey;
+
+    $resultObj["result"]  = 'unauthorised';
+    $resultObj["message"] = 'auth failure';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     if (!isset($credentials["username"]))
         $credentials["username"] = "";
     if (!isset($credentials["password"]))
@@ -890,9 +954,6 @@ function authLogon(&$resultObj, $credentials) {
     $users = getUsers($usersResultObj);
     mergeResultMessages($resultObj, $usersResultObj);
 
-
-    $resultObj["result"]  = 'unauthorised';
-    $resultObj["message"] = 'auth failure';
     $token = null;
 
     foreach ($users as $user) {
@@ -958,6 +1019,8 @@ function authHasRole(&$resultObj, $roles) {
     $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
     $resultObj["result"]  = 'unauthorised';
     $resultObj["message"] = 'auth failure';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     switch (getType($roles)) {
         case "string":
@@ -1029,6 +1092,9 @@ function authGetPayload(&$resultObj) {
     $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
     $resultObj["result"]  = 'unauthorised';
     $resultObj["message"] = 'auth failure';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
 
     if (!is_null($token)) {
         require_once('jwt.php');
@@ -1073,6 +1139,11 @@ function authGetPayload(&$resultObj) {
  */
 function getUsers(&$resultObj) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from user;";
     $res = doSQL($resultObj, $query);
     if ($res === false)
@@ -1099,6 +1170,11 @@ function getUsers(&$resultObj) {
 }
 
 function getPilot(&$resultObj, $pilotId) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from pilot where pilotId = :pilotId;";
     $res = doSQL($resultObj, $query, array("pilotId" => $pilotId));
@@ -1136,6 +1212,11 @@ function getPilot(&$resultObj, $pilotId) {
 
 function getMostRecentPilotAndRound(&$resultObj) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query  = "select max(sc.scoreTime) as latestScoreTime, sh.roundId, sh.pilotId "
             . "from score sc inner join sheet sh on sh.sheetId = sc.sheetId";
 
@@ -1161,6 +1242,11 @@ function getMostRecentPilotAndRound(&$resultObj) {
 }
 
 function getScheduleForSheet(&$resultObj, $sheetId, $includeFigures = false) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from schedule where schedId = (select schedId from round where roundId = ( select roundId from sheet where sheetId = :sheetId));";
     $res = doSQL($resultObj, $query, array("sheetId" => $sheetId));
@@ -1193,6 +1279,11 @@ function getScheduleForSheet(&$resultObj, $sheetId, $includeFigures = false) {
 }
 
 function getSchedule(&$resultObj, $schedId, $includeFigures = false) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from schedule where schedId = :schedId;";
     $res = doSQL($resultObj, $query, array("schedId" => $schedId));
@@ -1228,6 +1319,11 @@ function getSchedule(&$resultObj, $schedId, $includeFigures = false) {
 
 function getFiguresForSchedule(&$resultObj, $schedId) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from figure where schedId = :schedId;";
     $res = doSQL($resultObj, $query, array("schedId" => $schedId));
     if ($res === false)
@@ -1260,6 +1356,11 @@ function getFiguresForSchedule(&$resultObj, $schedId) {
 function getFlownRounds(&$resultObj) {
     // Get the flown rounds as one big JSON object.
     // Keep as much of the non Score! like data out of it....
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from round where phase = 'D';";
 
@@ -1306,6 +1407,11 @@ function getFlownRound(&$resultObj, $roundId) {
     // Get the flown rounds as one big JSON object.
     // Keep as much of the non Score! like data out of it....
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from round where phase = 'D' and roundId = :roundId;";
 
     $res = doSQL($resultObj, $query, array("roundId" => $roundId));
@@ -1351,6 +1457,11 @@ function getFlightLineData(&$resultObj) {
     // Get everything we have.    Send it back to the requestor as JSON.
     // Keep as much of the non Score! like data out of it....
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $tmpResultObj = createEmptyResultObject();
     $resultObj["data"] = array(
         "flightLineId" => getStateValue($tmpResultObj,"flightLineId"),
@@ -1393,6 +1504,11 @@ function getFlightLineData(&$resultObj) {
 function getRoundResults(&$resultObj, $roundId) {
     global $db;
     // Get the full data for a round.
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from round where roundId = :roundId;";
 
     $res = doSQL($resultObj, $query, array("roundId" => $roundId));
@@ -1467,6 +1583,11 @@ function getRoundPilotFlights(&$resultObj, $roundId = null, $imacType = null) {
     // It's messy but efficient to do it this way.
     // ToDo: Look at a better way.
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     if ($imacType === null) {
         // No idea what the round type is, grab it and see..
         $roundResultObj = createEmptyResultObject();
@@ -1528,6 +1649,11 @@ function getRoundPilotFlights(&$resultObj, $roundId = null, $imacType = null) {
 function getRoundFlightStatus(&$resultObj, $roundId) {
 
     // Check out what flights we have for this round...   And their 'phase'.
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select r.imacClass, s.roundId, s.pilotId, f.noteFlightId, s.judgeNum, s.phase "
             ."from round r inner join sheet s on r.roundId = s.roundId "
             ."left join flight f on s.flightId = f.flightId where r.roundId = :roundId;";
@@ -1570,13 +1696,16 @@ function getRoundFlightStatus(&$resultObj, $roundId) {
 function getNextRoundIds(&$resultObj) {
 
     // Get rounds
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select imacClass, imacType, (max(roundNum) + 1) as nextroundNum from round group by imacClass, imacType;";
 
     $res = doSQL($resultObj, $query);
     if ($res === false)
         goto db_rollback;
-
-    $resultObj["data"] = array();
 
     while ($row = $res->fetchArray()){
         $resultObj["data"][] = array(
@@ -1739,7 +1868,12 @@ function getNextFlight(&$resultObj, $roundId) {
 
     // Get the next flight data (seq, pilotname etc)
     // Note: each round has 1 flight per sequence.
-    
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $imacClass = null;
     $compId = null;
 
@@ -1753,8 +1887,6 @@ function getNextFlight(&$resultObj, $roundId) {
     $res = doSQL($resultObj, $query, array("roundId" => $roundId));
     if ($res === false)
         goto db_rollback;
-
-    $resultObj["data"] = array();
 
     $pilot = $res->fetchArray();
     if (!$pilot) {
@@ -1815,13 +1947,16 @@ function getNextFlight(&$resultObj, $roundId) {
 function getSchedlist(&$resultObj) {
 
     // Get schedules
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select * from schedule order by imacClass;";
 
     $res = doSQL($resultObj, $query);
     if ($res === false)
         goto db_rollback;
-
-    $resultObj["data"] = array();
 
     while ($round = $res->fetchArray()) {
         $resultObj["data"][] = array(
@@ -1840,18 +1975,23 @@ function getSchedlist(&$resultObj) {
 
 function getStateValue(&$resultObj, $key) {
 
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     $query = "select value from state where key = :key;";
     $res = doSQL($resultObj, $query, array("key" => $key));
     if ($res === false)
         return null;
-
-    $resultObj["data"] = array();
 
     $state = $res->fetchArray();
     if (!$state) {
         // Null.   
         return null;
     } else {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'query success';
         $resultObj["data"][$key] = $state["value"];
         return $state["value"];
     }
@@ -1869,8 +2009,10 @@ function getSheets(&$resultObj, $roundId = null, $flightId = null) {
 
     if (isset($_GET['scores'])) { $getScores = true; }  else $getScores = false;
 
-    $resultObj["result"] = 'error';
+    $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     if ($flightId !== null && $flightId !== '') {
         $query = "select * from sheet where flightId = :flightId;";
@@ -1935,8 +2077,10 @@ function getSheet(&$resultObj, $sheetId) {
 
     if (isset($_GET['scores'])) { $getScores = true; }  else $getScores = false;
 
-    $resultObj["result"] = 'error';
+    $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $query = "select * from sheet where sheetId = :sheetId;";
     $res = doSQL($resultObj, $query, array(
@@ -2002,7 +2146,11 @@ function getFlightLineAPIsAvailable() {
 
 function getFlightLineDetails(&$resultObj) {
     $detailsResultObj = createEmptyResultObject();
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
     $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
 
     $resultObj["data"]['flightLineId'] = getStateValue($detailsResultObj, "flightLineId");
     $resultObj["data"]['flightLineName'] = getStateValue($detailsResultObj, "flightLineName");
@@ -2012,9 +2160,6 @@ function getFlightLineDetails(&$resultObj) {
     if ($resultObj["data"]['flightLineUrl'] === null) {
         unset ($resultObj["data"]['flightLineUrl']);
     }
-    //$resultObj["data"]['users'] = null;
-    //$resultObj["data"]['pilots'] = null;
-    //$resultObj["data"]['rounds'] = null;
     mergeResultMessages($resultObj, $detailsResultObj);
     return $resultObj["data"];
 }
@@ -2028,6 +2173,11 @@ function addRound(&$resultObj, $newRound = null) {
     // 
     // First, lets get a the flight ID...
     //
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
     if (is_null($newRound)) {
         $newRound = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
     }
@@ -2548,6 +2698,7 @@ function deleteRound() {
 }
 
 function clearResults(&$resultObj) {
+
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
     $resultObj["data"] = null;
@@ -2652,7 +2803,8 @@ function clearPilots(&$resultObj) {
 
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
-    $resultObj["data"] = null;
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $transResult = createEmptyResultObject();
 
@@ -2796,7 +2948,8 @@ function postPilots(&$resultObj, $pilotsArray = null) {
 
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
-    $resultObj["data"] = null;
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
     $transResult = createEmptyResultObject();
 
