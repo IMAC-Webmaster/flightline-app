@@ -264,9 +264,26 @@ Flight::route ("POST /pilots", function() {
 
 Flight::route ("/schedules", function() {
     global $resultObj;
+    error_log("WARN: /schedules is depricated.   Use /sequences instead.");
     getSchedList($resultObj);
 });
 
+Flight::route ("GET /sequences", function() {
+    global $resultObj;
+    getSchedList($resultObj);
+});
+
+Flight::route ("POST /sequences", function() {
+    global $resultObj;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        postSequences($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add schedules.";
+    }
+});
 
 Flight::start();
 

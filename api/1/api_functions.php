@@ -2860,34 +2860,30 @@ function clearPilots(&$resultObj) {
     return null;
 }
 
-function clearSchedules() {
-    global $db;
-    global $result;
-    global $message;
-    $transResult = createEmptyResultObject();
+function clearSchedules(&$resultObj) {
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
 
-    $message = null;
-    $sqlite_data = null;
+    $transResult = createEmptyResultObject();
 
     if (!beginTrans($transResult))
         goto db_rollback;
     if (isset($_GET['scheduleType'])){ $schedType = $_GET['scheduleType'];} else $schedType = null;
 
+    $delSchedResult = createEmptyResultObject();
     $query = "select schedId from schedule where imacType = :schedType;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':schedType', $schedType);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    $res = doSQL($delSchedResult, $query, array(
+        "schedType"           => $schedType
+    ));
+    mergeResultMessages($resultObj, $delSchedResult);
+
+    if ($res === false) {
+        $resultObj["verboseMsgs"][] = "Could not get details for " . $schedType . " schedules.";
         goto db_rollback;
     }
+
     
     while ($sched = $res->fetchArray()) {
         /*****
@@ -2898,50 +2894,43 @@ function clearSchedules() {
          *  Unflown rounds can have there schedules deleted...   We just need to update the status to reflect
          *  this and disallow the opening of such a round...
          */
+        $delSchedResult = createEmptyResultObject();
         $query = "delete from figure where schedId = :schedId;";
-        if ($statement = $db->prepare($query)) {
-            try {
-                $statement->bindValue(':schedId', $sched["schedId"]);
-                $res = $statement->execute();
-            } catch (Exception $e) {
-                $result  = 'error';
-                $message = 'query error: ' . $e->getMessage(); 
-                goto db_rollback;
-            }
-        } else {
-            $result  = 'error';
-            $message = $db->lastErrorMsg();
+        $res = doSQL($delSchedResult, $query, array(
+            "schedId"           => $sched["schedId"]
+        ));
+        mergeResultMessages($resultObj, $delSchedResult);
+
+        if ($res === false) {
+            $resultObj["verboseMsgs"][] = "Could not clear figures for schedule: " . $sched["schedId"];
             goto db_rollback;
         }
+
     }
 
+    $delSchedResult = createEmptyResultObject();
     $query = "delete from schedule where schedId = :schedId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':schedId', $sched["schedId"]);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    $res = doSQL($delSchedResult, $query, array(
+        "schedId"           => $sched["schedId"]
+    ));
+    mergeResultMessages($resultObj, $delSchedResult);
+
+    if ($res === false) {
+        $resultObj["verboseMsgs"][] = "Could not clear schedule: " . $sched["schedId"];
         goto db_rollback;
     }
 
     if (commitTrans($transResult,"Could not clear schedule data. ") ) {
-        $result  = 'success';
-        $message = 'Schedules have been cleared.';
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'Schedules have been cleared.';
     }
     
     db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj, "Could not clear schedule data. ");
+        if ($resultObj["result"] == null) { $resultObj["message"] = 'query error'; }
     }       
-    return $sqlite_data;
+    return $resultObj["data"];
 }
 
 function postPilots(&$resultObj, $pilotsArray = null) {
@@ -2976,10 +2965,12 @@ function postPilots(&$resultObj, $pilotsArray = null) {
     foreach($pilotsArray as $pilotId => $pilot) {
         error_log("Inserting Pilot:$pilotId " . print_r($pilot, true));
 
+        $insPilotResult = createEmptyResultObject();
+
         $query = "INSERT into pilot (pilotId, primaryId, secondaryId, fullName, airplane, freestyle, imacClass, in_customclass1, in_customclass2, active) "
                 ."VALUES(:pilotId, :primaryId, :secondaryId, :fullName, :airplane, :freestyle, :imacClass, :in_customclass1, :in_customclass2, :active)";
 
-        $res = doSQL($resultObj, $query, array(
+        $res = doSQL($insPilotResult, $query, array(
             "pilotId"           => $pilot->pilotId,
             "primaryId"         => $pilot->primaryId,
             "secondaryId"       => $pilot->secondaryId,
@@ -2991,11 +2982,12 @@ function postPilots(&$resultObj, $pilotsArray = null) {
             "in_customclass2"   => $pilot->in_customclass2,
             "active"            => $pilot->active
         ));
+        mergeResultMessages($resultObj, $insPilotResult);
         if ($res === false) {
             $resultObj["verboseMsgs"][] = "Could not insert Pilot Id: " . $pilot->pilotId . " Name: " . $pilot->fullName;
             goto db_rollback;
         } else {
-            $resultObj["verboseMsgs"][] = "Pilot: " . $pilot->pilotId . " Name: " . $pilot->fullName;
+            $resultObj["verboseMsgs"][] = "Uploaded Pilot: " . $pilot->pilotId . " Name: " . $pilot->fullName;
             error_log("Inserted Pilot: " . $pilot->fullName);
         }
 
@@ -3011,6 +3003,146 @@ function postPilots(&$resultObj, $pilotsArray = null) {
         if ( $resultObj["message"] == null) {  $resultObj["message"] = 'query error'; }
     }       
     return null;
+}
+
+
+function postSequences(&$resultObj, $sequenceArray = null) {
+
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    $transResult = createEmptyResultObject();
+
+    $message = null;
+    $sqlite_data = null;
+    if (is_null($sequenceArray)) {
+        $sequenceArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    }
+
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    $resultObj["result"] = "success";
+    $resultObj["verboseMsgs"] = array();
+
+    if (is_null($sequenceArray)) {
+        error_log("Could not decode JSON: " . json_last_error_msg());
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Could not decode JSON: " . json_last_error_msg();
+        goto db_rollback;
+    }
+
+    error_log("Ready to upload sequences...");
+
+    //error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
+    foreach($sequenceArray as $sequence) {
+
+        // If there are rounds defined using this sequence, we must abort the delete, but can still replace later,...
+
+        $query = "SELECT count(*) as roundcount FROM round where schedId = :schedId";
+        $countRoundsResult = createEmptyResultObject();
+        $res = doSQL($countRoundsResult, $query, array(
+            "schedId"           => $sequence->schedId
+        ));
+        mergeResultMessages($resultObj, $countRoundsResult);
+        if ($res === false || (!$round = $res->fetchArray())) {
+            $resultObj["verboseMsgs"][] = "Could not get round count for sequence: " . $sequence->schedId;
+            goto db_rollback;
+        } else {
+            $resultObj["verboseMsgs"][] = "Sequence: " . $sequence->schedId . " has " . $round["roundcount"] . " rounds defined.";
+            if ($round["roundcount"] == 0) {
+
+                error_log("Deleting sequence: " . $sequence->schedId);
+
+                $query = "DELETE FROM figure WHERE schedId = :schedId; ";
+                $deleteSeqResult = createEmptyResultObject();
+                $res = doSQL($deleteSeqResult, $query, array(
+                    "schedId"           => $sequence->schedId
+                ));
+                mergeResultMessages($resultObj, $deleteSeqResult);
+
+                if ($res === false) {
+                    $resultObj["verboseMsgs"][] = "Could not delete figures for sequence: " . $sequence->schedId;
+                    goto db_rollback;
+                }
+
+                $query = "DELETE FROM schedule WHERE schedId = :schedId; ";
+                $deleteFigResult = createEmptyResultObject();
+                $res = doSQL($deleteFigResult, $query, array(
+                    "schedId"           => $sequence->schedId
+                ));
+                mergeResultMessages($resultObj, $deleteFigResult);
+
+                if ($res === false) {
+                    $resultObj["verboseMsgs"][] = "Could not delete sequence: " . $sequence->schedId;
+                    goto db_rollback;
+                }
+
+            } else {
+                // The round is there, abort the delete.
+                error_log("Skipping delete because a round exists for sequence: " . $sequence->schedId);
+            }
+        }
+
+        error_log("Inserting/Updating Sequence: " . $sequence->schedId);
+        $query = "INSERT or REPLACE into schedule (schedId, imacClass, imacType, description) "
+            ."VALUES(:schedId, :imacClass, :imacType, :description)";
+
+        $insSeqResult = createEmptyResultObject();
+        $res = doSQL($insSeqResult, $query, array(
+            "schedId"           => $sequence->schedId,
+            "imacClass"         => $sequence->imacClass,
+            "imacType"          => $sequence->imacType,
+            "description"       => $sequence->description
+        ));
+        mergeResultMessages($resultObj, $insSeqResult);
+
+        if ($res === false) {
+            $resultObj["verboseMsgs"][] = "Could not insert sequence: " . $sequence->schedId;
+            goto db_rollback;
+        } else {
+            $resultObj["verboseMsgs"][] = "Uploaded sequence: " . $sequence->schedId;
+            error_log("Inserted Sequence: " . $sequence->schedId);
+        }
+
+        foreach($sequence->figures as $figure) {
+            $query = "INSERT or REPLACE into figure (figureNum, schedId, shortDesc, longDesc, spokenText, rule, k) "
+                ."VALUES(:figureNum, :schedId, :shortDesc, :longDesc, :spokenText, :rule, :k)";
+
+            $insFigsResult = createEmptyResultObject();
+            $res = doSQL($insFigsResult, $query, array(
+                "figureNum"     => $figure->figureNum,
+                "schedId"       => $sequence->schedId,
+                "shortDesc"     => $figure->shortDesc,
+                "longDesc"      => $figure->longDesc,
+                "spokenText"    => $figure->spokenText,
+                "rule"          => $figure->rule,
+                "k"             => $figure->k
+            ));
+            mergeResultMessages($resultObj, $insFigsResult);
+
+            if ($res === false) {
+                $resultObj["verboseMsgs"][] = "Could not insert figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId;
+                goto db_rollback;
+            } else {
+                error_log("Inserted figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId);
+            }
+        }
+
+    }
+    if (commitTrans($transResult, "Could not add the sequences.") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'Sequences have been added.';
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return $sqlite_data;
 }
 
 function getFlightScores(&$resultObj, $flightId, $pilotId) {
@@ -3112,185 +3244,10 @@ function getFlightScores(&$resultObj, $flightId, $pilotId) {
     }
 }
 
-function postSequences($sequenceArray = null) {
-    global $db;
-    global $result;
-    global $message;
-    global $sqlite_data;
-    global $verboseMsgs;
-    $transResult = createEmptyResultObject();
-
-    $message = null;
-    $sqlite_data = null;
-    if (is_null($sequenceArray)) {
-        $sequenceArray = @json_decode(($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
-    }
-
-    if (!beginTrans($transResult))
-        goto db_rollback;
-
-    $result = "success";
-    $verboseMsgs = array();
-
-    if (is_null($sequenceArray)) {
-        error_log("Could not decode JSON: " . json_last_error_msg());
-        $result  = 'error';
-        $message = "Could not decode JSON: " . json_last_error_msg();
-        goto db_rollback;
-    }
-
-    error_log("Ready to upload sequences...");
-    
-    //error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
-    foreach($sequenceArray as $sequence) {
-
-
-        // If there are rounds defined using this sequence, we must abort the delete, but can still replace later,...
-
-        $query = "SELECT count(*) as roundcount FROM round where schedId = :schedId";
-        if ($statement = $db->prepare($query)) {
-            try {
-                $statement->bindValue(':schedId', $sequence->schedId);
-                $res = $statement->execute();
-            } catch (Exception $e) {
-                $result  = 'error';
-                $message = 'query error: ' . $e->getMessage(); 
-                goto db_rollback;
-            }
-        } else {
-            $message = $db->lastErrorMsg();
-            goto db_rollback;
-        }
-
-        if ($res === FALSE) {
-            $result  = 'error';
-            if ($message == null) { $message = 'query error'; }
-            goto db_rollback;
-        } else {
-            if (!$round = $res->fetchArray()) {
-                $result  = 'error';
-                $message = 'could not count the rounds!';
-                goto db_rollback;
-
-                error_log("Deleting sequence: " . $sequence->schedId);
-
-                $query = "DELETE FROM figure WHERE schedId = schedId; ";
-                if ($statement = $db->prepare($query)) {
-                    try {
-                        $statement->bindValue(':schedId', $sequence->schedId);
-                        $res = $statement->execute();
-                    } catch (Exception $e) {
-                        $result  = 'error';
-                        $message = 'query error: ' . $e->getMessage(); 
-                        goto db_rollback;
-                    }
-                } else {
-                    $result  = 'error';
-                    $message = $db->lastErrorMsg();
-                    goto db_rollback;
-                }
-
-                $query = "DELETE FROM schedule WHERE schedId = schedId; ";
-                if ($statement = $db->prepare($query)) {
-                    try {
-                        $statement->bindValue(':schedId', $sequence->schedId);
-                        $res = $statement->execute();
-                    } catch (Exception $e) {
-                        $result  = 'error';
-                        $message = 'query error: ' . $e->getMessage(); 
-                        goto db_rollback;
-                    }
-                } else {
-                    $result  = 'error';
-                    $message = $db->lastErrorMsg();
-                    goto db_rollback;
-                }
-            } else {
-                // The round is there, abort the delete.
-                error_log("Skipping delete because a round exists for sequence: " . $sequence->schedId);
-            }
-        }
-        
-        error_log("Inserting/Updating Sequence: " . $sequence->schedId);
-        $query = "INSERT or REPLACE into schedule (schedId, imacClass, imacType, description) "
-                ."VALUES(:schedId, :imacClass, :imacType, :description)";
-        if ($statement = $db->prepare($query)) {
-            try {
-                $statement->bindValue(':schedId', $sequence->schedId);
-                $statement->bindValue(':imacClass', $sequence->imacClass);
-                $statement->bindValue(':imacType', $sequence->imacType);
-                $statement->bindValue(':description', $sequence->description);
-
-                if (!$res = $statement->execute()) {            
-                    $result  = 'error';
-                    $message = "Could not insert Sequence: " . $sequence->schedId . " Err: " . $db->lastErrorMsg();
-                    error_log($message);
-                    goto db_rollback;
-                } else {
-                    $verboseMsgs[] = "Inserted Sequence: " . $sequence->schedId;
-                    error_log("Inserted Sequence: " . $sequence->schedId);
-                }
-            } catch (Exception $e) {
-                $result  = 'error';
-                $message = 'query error: ' . $e->getMessage(); 
-                goto db_rollback;
-            }
-        } else {
-            $result  = 'error';
-            $message = $db->lastErrorMsg();
-            goto db_rollback;
-        }
-        
-        foreach($sequence->figures as $figure) {
-            error_log("Inserting/Updating figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId);
-            $query = "INSERT or REPLACE into figure (figureNum, schedId, shortDesc, longDesc, spokenText, rule, k) "
-                    ."VALUES(:figureNum, :schedId, :shortDesc, :longDesc, :spokenText, :rule, :k)";
-            if ($statement = $db->prepare($query)) {
-                try {
-                    $statement->bindValue(':figureNum', $figure->figureNum);
-                    $statement->bindValue(':schedId', $sequence->schedId);
-                    $statement->bindValue(':shortDesc', $figure->shortDesc);
-                    $statement->bindValue(':longDesc', $figure->longDesc);
-                    $statement->bindValue(':spokenText', $figure->spokenText);
-                    $statement->bindValue(':rule', $figure->rule);
-                    $statement->bindValue(':k', $figure->k);
-
-                    if (!$res = $statement->execute()) {            
-                        $result  = 'error';
-                        $message = "Could not insert figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId . " Err: " . $db->lastErrorMsg();
-                        error_log($message);
-                        goto db_rollback;
-                    } else {
-                        $verboseMsgs[] = "Inserted figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId;
-                        error_log("Inserted figure: " . $figure->figureNum . " for sequence: " . $sequence->schedId);
-                    }
-                } catch (Exception $e) {
-                    $result  = 'error';
-                    $message = 'query error: ' . $e->getMessage(); 
-                    goto db_rollback;
-                }
-            } else {
-                $result  = 'error';
-                $message = $db->lastErrorMsg();
-                goto db_rollback;
-            }
-        }
-
-    }
-    if (commitTrans($transResult, "Could not add the sequences. ") ) {
-        $result  = 'success';
-        $message = 'Sequences have been added.';
-    }
-    
-    db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
-    }       
-    return $sqlite_data;
-}
-
 function postSheets($sheetJSON = null) {
+
+    // This function only used in import-notaumatic...
+
     global $db;
     global $result;
     global $message;
