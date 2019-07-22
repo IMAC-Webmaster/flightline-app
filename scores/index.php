@@ -44,31 +44,35 @@
     if (isset($_GET['pilotId'])) { $pilotId = $_GET['pilotId'];}  else $pilotId = "null";
     ?>
     <script>
+
         $(document).ready( function () {
+            // Initial load is broken..
+            // On page load we need to:
+            //   1. Populate the round dropdown.
+            //   2. If live data is selected, then grab the latest round/pilot info and load the table.
+            //   3. If we have selected a round then make sure the pilot dropdown is populated.
+            //   4. If a pilot is chosen, then load the table.
+            //   5. Handle refresh/autorefresh.
             var reloadInterval = null;
 
             $('#roundSel').change(function() {
-                if ($(this).val() === '') {
-                    helpers.emptyDropdown($('#pilotSel'), 'Choose Pilot');
-
-                    $('#pilotSel').hide();
-                    loadTable();
-                } else {
-                    if ($('#autoRefresh').is(':checked')) {
-                        $('#autoRefresh').click();
-                    }
-                    populatePilotSelect($(this).val(), null);
-                }
+                //if ( ($(this).val() !== '') && ($('#autoRefresh').is(':checked'))) {
+                //    $('#autoRefresh').click();
+                //}
+                getSelection();
+                processRoundSelect($(this).val());
             });
 
             $('#pilotSel').change(function() {
-                if ( ($(this).val() !== '') && ($('#autoRefresh').is(':checked'))) {
-                    $('#autoRefresh').click();
-                }
-                loadTable();
+                //if ( ($(this).val() !== '') && ($('#autoRefresh').is(':checked'))) {
+                //    $('#autoRefresh').click();
+                //}
+                getSelection();
+                processPilotSelect($(this).val());
             });
 
             $('#reload').click( function () {
+                getSelection();
                 if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
                     table.ajax.reload();
                 } else {
@@ -77,11 +81,14 @@
             });
 
             $('#autoRefresh').click( function () {
+                getSelection();
+                if (selectionData.autoRefresh) {
+                    if (selectionData.roundId !== 'Live' ||  selectionData.pilotId !== '') {
+                        // Why does this need to be true?   It doesn't...
+                        //show_message("Auto refresh is for live scores only...", "error");
+                        //return false;
+                        show_message("Auto refresh is for live scores only, but we're testing it out for all...", "error");
 
-                if ($('#autoRefresh').is(':checked')) {
-                    if ($('#roundSel option:selected').val() !== '' ||  $('#pilotSel option:selected').val() !== '') {
-                        show_message("Auto refresh is for live scores only", "error");
-                        return false;
                     }
                     reloadInterval = setTimeout(ajaxCall, 5000);
                     console.log("Enabled Auto refresh...");
@@ -91,9 +98,26 @@
                 }
             } );
 
+            function processPilotSelect(pilotVal) {
+                if (pilotVal) {
+                    loadTable();
+                }
+            }
+            function processRoundSelect(roundVal) {
+                if (roundVal === 'Live' ) {
+                    helpers.emptyDropdown($('#pilotSel'), 'Choose Pilot');
+                    $('#pilotSel').hide();
+                    getMostRecentPilotAndFlight(true)
+                } else {
+                    populatePilotSelect(roundVal, null);
+                }
+            }
+
             function ajaxCall() {
-                if ($('#autoRefresh').is(':checked')) {
-                    if ($('#roundSel option:selected').val() === '' &&  $('#pilotSel option:selected').val() === '') {
+                getSelection();
+                if (selectionData.autoRefresh) {
+                    //if ($('#roundSel option:selected').val() === '' &&  $('#pilotSel option:selected').val() === '') {
+                    if ( (selectionData.roundId === 'Live') || (typeof selectionData.roundId == 'number' && selectionData.pilotId) ) {
                         if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
                             table.ajax.reload();
                         } else {
@@ -106,31 +130,22 @@
                 }
             }
 
-            function initialLoad() {
-                if (initialRoundLoadDone) {
-                    loadTable();
-                } else {
-                    reloadInterval = setTimeout(initialLoad, 100);
-                }
-            }
 
             function loadTable() {
-                loadRoundData($('#roundSel option:selected').val(), $('#pilotSel option:selected').val(), null);
+                getSelection();
+                loadScoreData(selectionData.roundId, selectionData.pilotId);
             }
 
             // Stuff to do initially...
 
-            if (<?php echo $roundId ?> === null) {
-                populateRoundSelect(<?php echo $roundId ?>);
-            } else {
+            populateRoundSelect(<?php echo $roundId ?>);
+            if (<?php echo $roundId ?> !== null) {
                 populatePilotSelect(<?php echo $roundId ?>, <?php echo $pilotId ?>);
                 if (<?php echo $pilotId ?> !== null) {
-                    loadRoundData(<?php echo $roundId ?>, <?php echo $pilotId ?>, null);
+                    // Why load if we have both?   What about live scores?
+                    loadScoreData(<?php echo $roundId ?>, <?php echo $pilotId ?>);
                 }
             }
-
-            initialLoad();
-
         });
     </script>
 
@@ -148,10 +163,11 @@
             <h2>Round Type: <div class="rounddetails" id="roundType"></div></h2>
             <h2>Round Number: <div class="rounddetails" id="roundNum"></div></h2>
             <h2>Schedule: <div class="rounddetails" id="roundSchedule"></div></h2>
-            <select id="roundSel"><option value=""></select>
-            <select id="pilotSel"><option value=""></select>
-            <h1 class='pilotName'>Pilot: <div class="rounddetails" id="pilotName"></div></h1>
-            <table id="scores" class="datatable" width="80%">
+            <select id="roundSel" style="display: none;"><option value=""></select>
+            <select id="pilotSel" style="display: none;"><option value=""></select>
+            <h1 class='noData' id='noDataHeader'><div id='noData'>There is no data available yet.</div></h1>
+            <h1 class='pilotName' id='pilotNameHeader'>Pilot: <div class="rounddetails" id="pilotName"></div></h1>
+            <table id="scores" class="datatable">
                 <thead><tr></tr></thead>
             </table>
         </div>

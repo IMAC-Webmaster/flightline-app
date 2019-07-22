@@ -139,7 +139,6 @@ function handleAjaxResponse(roundId, pilotId, liveResults) {
 
     // Iterate each column and print table headers for Datatables
     $.each(data.columns, function (k, colObj) {
-        //str = '<th>' + colObj.name + '</th>';
         str = '<th></th>';
         $(str).appendTo('#scores>thead>tr');
     });
@@ -213,7 +212,7 @@ function getPilotIndexFromId(id, data) {
     return idx;
 }
 
-function getMostRecentPilotAndFlight() {
+function getMostRecentPilotAndFlight(loadScores = false) {
     var xhr;
     var result = null;
     loadingRecentFlightInfo = true;
@@ -231,6 +230,11 @@ function getMostRecentPilotAndFlight() {
             loadingRecentFlightInfo = 'DONE';
             result = JSON.parse(xhr.responseText);
             latestFlightInfo = result.data;
+            console.log("DEBUG: Most recent round: " + result.data.roundId);
+            console.log("DEBUG: Most recent pilot: " + result.data.pilotId);
+            if (loadScores) {
+                loadScoreData(result.data.roundId, result.data.pilotId);
+            }
         })
         .fail(function()
         {
@@ -308,10 +312,9 @@ function processAJAXResposeForDT(result) {
 
     let roundId = $('#roundSel option:selected').val();
     let pilotId = $('#pilotSel option:selected').val();
-    let seqNum = null;       // Not supported yet.
     let liveResults = false;  // Are we operating from liveData or did the user select something.
 
-    if ( (roundId === null || roundId === '') || (pilotId === null || pilotId === '')) {
+    if ( (!roundId || roundId === 'Live') || (pilotId === null || pilotId === '')) {
 
         switch(loadingRecentFlightInfo) {
             // ToDo: Change if block for switch...
@@ -351,44 +354,99 @@ function processAJAXResposeForDT(result) {
     return data.data;
 }
 
-function loadRoundData(roundId, pilotId, sequenceNum) {
-    // If they selected nothing, then just clear table, and clear selects...
-    if (roundId === null || roundId === '' || pilotId === null || pilotId === '') {
-        switch(loadingRecentFlightInfo) {
-            // ToDo: Change if block for switch...
-        }
-        if (loadingRecentFlightInfo === true) {
-            // We're not done...
-            console.log ("Recursion at: " + recursionCounter++);
-            setTimeout(function()  { loadRoundData(roundId, pilotId, sequenceNum); }, 30);
-            return;
-        } else if (loadingRecentFlightInfo === false) {
-            // We're not loading, but we need it...
-            //lastFlightInfo = latestFlightInfo;  // Should be set from last time...
-            recursionCounter = 1;
-            //show_message("Geting the latest flight info.", "success");
-            show_loading_message();
-            $('#pilotSel').hide();
-            getMostRecentPilotAndFlight();
-            loadRoundData(roundId, pilotId, sequenceNum);
-            return;
-        } else if (loadingRecentFlightInfo === 'DONE') {
-            // We got the data!
-            loadingRecentFlightInfo = false;
-            if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
-                destroyTable = false;
+function loadScoreData(roundId, pilotId) {
+    // sequenceNumber is optional...    The others are not.
+    if (!roundId && !pilotId) {
+        return;
+    }
+
+    if (roundId === 'Live') {
+        // In this case we don't know what round to get the data for.   So first we mist ask.
+        getMostRecentPilotAndFlight(true);
+        return;
+    }
+
+    //Before creating the table, we need to get the data once so we can check out the columns.
+    //This means a second ajax call the first time we load the page...  :-(
+
+    var url = '/api/1/rounds/' + roundId + '/scores';
+
+    jqxhr = $.ajax(url)
+        .done(function(){
+            let result = JSON.parse(jqxhr.responseText);
+            parseRoundData(result.data);
+            padRoundData(result.data, data, pilotId);
+            handleAjaxResponse(roundId, pilotId, true);
+
+        })
+        .fail(function (jqXHR, exception) {
+            var msg = '';
+            if (jqXHR.status === 0) {
+                msg = 'Not connect.\n Verify Network.';
+            } else if (jqXHR.status == 404) {
+                msg = 'Requested page not found. [404]';
+            } else if (jqXHR.status == 500) {
+                msg = 'Internal Server Error [500].';
+            } else if (exception === 'parsererror') {
+                msg = 'Requested JSON parse failed.';
+            } else if (exception === 'timeout') {
+                msg = 'Time out error.';
+            } else if (exception === 'abort') {
+                msg = 'Ajax request aborted.';
             } else {
-                destroyTable = true;
+                msg = 'Uncaught Error.\n' + jqXHR.responseText;
             }
-            //hide_message();
-            hide_loading_message();
-            loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
-            return;
-        } else if (loadingRecentFlightInfo === 'FAILED') {
-            console.log("ERROR: Could not get flight info.")
-            hide_loading_message();
-            show_message("Could not get latest flight info.", "error");
-            return;
+            console.log(msg);
+            data.columns = new Array();
+            data.data = new Array();
+            data.sheets = new Array();
+        })
+        .always(function() {
+            paintPage();
+        });
+}
+
+function loadRoundData(roundId, pilotId) {
+    // If they selected nothing, then just clear table, and clear selects...
+    if (!roundId || roundId === 'Live' || pilotId === null || pilotId === '') {
+        switch(loadingRecentFlightInfo) {
+            // ToDo: Change if block for switch..
+            case true:
+                // We're not done...
+                console.log ("Recursion at: " + recursionCounter++);
+                setTimeout(function()  { loadRoundData(roundId, pilotId); }, 30);
+                return;
+            case false:
+                // We're not loading, but we need it...
+                //lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+                recursionCounter = 1;
+                //show_message("Geting the latest flight info.", "success");
+                show_loading_message();
+                $('#pilotSel').hide();
+                getMostRecentPilotAndFlight();
+                //if (latestFlightInfo.latestScoreTime)
+                //    loadRoundData(roundId, pilotId);
+                setTimeout(function()  { loadRoundData(roundId, pilotId); }, 30);
+                return;
+            case "DONE":
+                // We got the data!
+                loadingRecentFlightInfo = false;
+                if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
+                    destroyTable = false;
+                } else {
+                    destroyTable = true;
+                }
+                //hide_message();
+                hide_loading_message();
+                loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
+                return;
+            case "FAILED":
+                console.log("ERROR: Could not get flight info.")
+                hide_loading_message();
+                show_message("Could not get latest flight info.", "error");
+                return;
+            default:
+                break;
         }
     }
 
@@ -426,21 +484,52 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             data.columns = new Array();
             data.data = new Array();
             data.sheets = new Array();
+        })
+        .always(function() {
+            paintPage();
         });
 }
 
-function populateRoundSelect(selectedRound) {
-    var xhr;
-    var url = '/data.php?job=get_rounds';
-    xhr = $.ajax(url)
-        .done(function()
-        {
-            result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', selectedRound);
-            initialRoundLoadDone = true;
-        })
-        .fail();
-    
+function getSelection() {
+    selectionData.roundId = $('#roundSel option:selected').val();
+    selectionData.pilotId = $('#pilotSel option:selected').val();
+    selectionData.autoRefresh = $('#autoRefresh').is(':checked') ? true : false;
+}
+
+function scoreDataAvailable() {
+
+    if ((latestFlightInfo.latestScoreTime && selectionData.autoRefresh === true) || (data.sheets && data.sheets.length > 0)) {
+    //if (latestFlightInfo.latestScoreTime) {
+        $("#scores").show();
+        $("#pilotNameHeader").show();
+        $("#noDataHeader").hide();
+        return true;
+    } else {
+        $("#scores").hide();
+        $("#pilotNameHeader").hide();
+        $("#noDataHeader").show();
+        return false;
+    }
+}
+
+function paintPage() {
+    // When we are here we should have all data ready to go.
+    // 1. Set the select boxes to be what they should be and display/hide as need be.
+    // 2. Paint the Class/Round/Sched etc fields if need be.
+    // 3. Set the pilot/table/nodata stuff vis/hidden as need be.
+    getSelection();
+    if (loadingPilotInfo || loadingRoundInfo) {
+        $("#pilotSel").hide();
+        return;
+    }
+
+    $("#roundSel").show();
+    if (selectionData.roundId === "Live") {
+        $("#pilotSel").hide();
+    } else {
+        $("#pilotSel").show();
+    }
+    scoreDataAvailable();
 }
 
 // Show message
@@ -469,24 +558,59 @@ function hide_loading_message(){
     $('#loading_container').hide();
 }
 
-
-function populatePilotSelect(roundId, selectedPilot) {
-    var xhr;
-    var url = '/data.php?job=get_round_pilots&roundId=' + roundId;
-    $("#pilotSel").show();
+function populateRoundSelect(selectedRound) {
+    let xhr;
+    let url = '/api/1/rounds';
+    loadingRoundInfo = true;
     xhr = $.ajax(url)
         .done(function()
         {
-            result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
+            let result = JSON.parse(xhr.responseText);
+            helpers.buildDropdownWithDefaultValue( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', 'Live', selectedRound);
+            getSelection();
+            if (!initialLoadDone  && ( selectionData.roundId === 'Live' || (typeof selectionData.roundId == 'number' && selectionData.pilotId)) ) {
+                initialLoadDone = true;
+                loadScoreData(selectionData.roundId, selectionData.pilotId);
+            }
         })
-        .fail();
+        .fail(function() {
+            console.log("ERROR: populateRoundSelect ajax call failed.");
+        })
+        .always(function() {
+            console.log("DEBUG: populateRoundSelect painting.");
+            loadingRoundInfo = false;
+            paintPage();
+        });
+
+}
+
+function populatePilotSelect(roundId, selectedPilot) {
+    let xhr;
+    let url = '/data.php?job=get_round_pilots&roundId=' + roundId;
+    loadingPilotInfo = true;
+    paintPage();
+    xhr = $.ajax(url)
+        .done(function() {
+            let result = JSON.parse(xhr.responseText);
+            helpers.buildDropdownWithMessage( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
+            //$('#pilotSel option:selected').val($('#pilotSel option:selected').val()).trigger('change');
+        })
+        .fail(function() {
+            console.log("ERROR: populatePilotSelect ajax call failed.");
+        })
+        .always(function() {
+            loadingPilotInfo = false;
+            paintPage();
+        });
 }
 
 var data = {data: [], columns: [], pilot:[], round:[]};
 var lastColumnCount = 0;
 var jqxhr, table, latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""}, lastFlightInfo, destroyTable = true;
-var initialRoundLoadDone = false;
+var selectionData = {roundId:null, pilotId:null, autoRefresh:false};
+var loadingRoundInfo = null;
+var loadingPilotInfo = null;
 var loadingRecentFlightInfo = false;
+var initialLoadDone = false;
 var recursionCounter;
 var timeout_message;

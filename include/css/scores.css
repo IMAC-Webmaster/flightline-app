@@ -25,10 +25,18 @@ body {
 }
 
 h1.pilotName {
-  font-weight: 700;
-  font-size: 2.2rem;
-  color: #000;
-  margin: 25px 0 0 0;
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: #000;
+    margin: 25px 0 0 0;
+}
+
+h1.noData {
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: #000;
+    margin: 25px 0 0 0;
+    display: none;
 }
 
 div.container {

@@ -55,11 +55,29 @@ var helpers =
         return newData;
     },
 
-    buildDropdown: function(result, dropdown, emptyMessage, selectedId)
+    buildDropdownWithMessage: function(result, dropdown, emptyMessage, selectedId)
     {
         dropdown.html('');
         if (emptyMessage !== null) {
             dropdown.append('<option value="">' + emptyMessage + '</option>');
+        }
+        if(typeof result !== 'undefined' && result !== '' && result !== null)
+        {
+            $.each(result, function(k, v) {
+                if (v.id == selectedId) {
+                    dropdown.append('<option selected value="' + v.id + '">' + v.name + '</option>');
+                } else {
+                    dropdown.append('<option value="' + v.id + '">' + v.name + '</option>');
+                }
+            });
+        }
+    },
+
+    buildDropdownWithDefaultValue: function(result, dropdown, emptyMessage, emptyValue, selectedId)
+    {
+        dropdown.html('');
+        if (emptyMessage !== null) {
+            dropdown.append('<option value="' + emptyValue + '">' + emptyMessage + '</option>');
         }
         if(typeof result !== 'undefined' && result !== '' && result !== null)
         {

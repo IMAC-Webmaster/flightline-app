@@ -231,6 +231,10 @@ button.button:active {
   display: none;
 }
 
+.hidden {
+  display: none; padding: 1px; padding-top: 10px;
+}
+
 .dataTables_filter {
   position: absolute;
   top: 0;
