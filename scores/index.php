@@ -32,13 +32,15 @@
     <link rel="stylesheet" href="/libs/fontawesome/css/all.min.css"/>
     <link rel="stylesheet" href="/include/css/slider.css">
     <link rel="stylesheet" type="text/css" href="/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css"/>
-
+<!--    <link rel="stylesheet" type="text/css" href="/libs/datatables.net-editor/css/editor.bootstrap4.min.css"/>-->
 
     <script type="text/javascript" src="/libs/jquery/dist/jquery.min.js"></script>
     <script type="text/javascript" src="/libs/datatables.net/js/jquery.dataTables.min.js"></script>
     <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script type="text/javascript" src="/libs/jquery-validation/dist/jquery.validate.min.js"></script>
     <script type="text/javascript" src="/include/js/scores.js"></script>
     <script type="text/javascript" src="/include/js/helpers.js"></script>
+<!--    <script type="text/javascript" src="/libs/datatables.net-editor/js/dataTables.editor.js"></script>-->
     <?php 
     if (isset($_GET['roundId'])) { $roundId = $_GET['roundId'];}  else $roundId = "null";
     if (isset($_GET['pilotId'])) { $pilotId = $_GET['pilotId'];}  else $pilotId = "null";
@@ -90,7 +92,7 @@
                         show_message("Auto refresh is for live scores only, but we're testing it out for all...", "error");
 
                     }
-                    reloadInterval = setTimeout(ajaxCall, 5000);
+                    reloadInterval = setTimeout(ajaxCall, 1000);
                     console.log("Enabled Auto refresh...");
                 } else {
                     clearInterval(reloadInterval); 
@@ -123,7 +125,7 @@
                         } else {
                             loadTable();
                         }
-                        setTimeout(ajaxCall, 5000);
+                        setTimeout(ajaxCall, 1000);
                     } else {
                         $('#autoRefresh').click();
                     }
@@ -157,6 +159,42 @@
           <label class="label" for="autoRefresh">Auto Refresh (5 secs)</label>
         </section>
         <button id="reload" class='scoreboard'>Reload</button>
+
+        <div class="lightbox_bg"></div>
+        <div class="lightbox_container">
+            <div class="lightbox_close"></div>
+            <div class="lightbox_content" id="editscore">
+                <h2 id="editscoreTitle">Score - </h2>
+                <h3 id="figureDetails"></h3>
+                <form class="form editscore" id="form_editscore" data-id="" novalidate>
+                    <div class="input_container">
+                        <label for="score">Score: </label>
+                        <div class="field_container">
+                            <input type="text" style="width: 100px;" class="text" name="score" id="score" placeholder="Score" value="" required>
+                        </div>
+                    </div>
+                    <div class="input_container">
+                        <label for="break">Break: </label>
+                        <div class="field_container">
+                            <section class="slider-checkbox">
+                                <input type="checkbox" id="breakFlag"/>
+                                <label class="label" for="breakFlag"></label>
+                            </section>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="breakFlag">
+                    <input type="hidden" name="sheetId">
+                    <div class="button_container">
+                        <button type="submit" id="delete" value="delete">Delete Score</button>
+                        <button type="submit" id="save" value="save">Save</button>
+                        <input type="hidden" name="button">
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
         <div id="page_container">
             <h1>Round Scores</h1>
             <h2>Class: <div class="rounddetails" id="roundClass"></div></h2>

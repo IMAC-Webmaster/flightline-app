@@ -30,6 +30,7 @@
  *                         to select from
  * @return string
  */
+
 function random_str(
     $length,
     $keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'

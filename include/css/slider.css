@@ -38,6 +38,9 @@
   width: 40px;
   height: 20px;
 }
+.slider-checkbox input:disabled + .label:before {
+  visibility: hidden;
+}
 .slider-checkbox input:checked + .label:before {
   background-color: #f70;
   font-family: 'Font Awesome 5 Free', Arial, Helvetica, sans-serif;

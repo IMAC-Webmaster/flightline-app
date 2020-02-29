@@ -463,6 +463,7 @@ $(document).ready(function() {
             }
         }
     }
+
     function fetchLoginStatus() {
 
         if (typeof(Storage) !== "undefined") {  //disable for testing.
@@ -538,7 +539,6 @@ $(document).ready(function() {
         let formObject = helpers.getFormData($('#form_login'));
         let formMethod = 'get';
         let action = $('#form_login button').text();
-
 
         switch(action) {
             case 'Logout':
@@ -715,7 +715,6 @@ $(document).ready(function() {
     // Edit round button
     $(document).on('click', '.function_edit a', function(e){
         e.preventDefault();
-        // Get company information from database
         show_loading_message();
         var round_class    = $(this).data('imacclass');
         var round_type     = $(this).data('imactype');

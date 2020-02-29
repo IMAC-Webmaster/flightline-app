@@ -49,15 +49,23 @@ div.rounddetails {
 }
 
 td.num {
-    text-align: right;
+    text-align: center;
+    vertical-align: top;
+    font-size: 140%;
+    font-weight: bold;
 }
 
 td.desc {
-    text-align: left;
+    text-align: right;
+    vertical-align: top;
+    font-size: 140%;
+    font-weight: bold;
 }
 
 td.score {
     text-align: center;
+    vertical-align: top;
+    font-weight: bold;
 }
 
 .dataTables_wrapper {
@@ -75,20 +83,44 @@ td.new div{
     -webkit-filter: blur(4px);
 }
 
-div.break::after {
-    font-size: 80%;
-    vertical-align: top;
-    color: red;
-    font-weight: bold;
-    content: " [br]";
+div.scorewrapper {
+    text-align:center;
+    display: inline-block;
 }
 
-.box::after {
+div.score {
+    font-size: 140%;
+}
+
+div.break {
     font-size: 80%;
     vertical-align: top;
     color: red;
     font-weight: bold;
-    content: " [bx]";
+    margin-left: 2px;
+    margin-left: 2px;
+    display: inline-block;
+}
+
+div.adjusted {
+    font-size: 80%;
+    vertical-align: top;
+    color: red;
+    font-weight: bold;
+    margin-left: 2px;
+    margin-left: 2px;
+    display: inline-block;
+}
+
+div.box {
+    border: 1px;
+    font-size: 80%;
+    vertical-align: top;
+    color: red;
+    font-weight: bold;
+    margin-left: 2px;
+    margin-left: 2px;
+    display: inline-block;
 }
 
 th.mpp::after {

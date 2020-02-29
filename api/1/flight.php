@@ -71,6 +71,18 @@ if (dbConnect($dbfile) === false) {
  *
  **************/
 
+Flight::route ('/jsonblah/*', function($route) {
+    global $resultObj;
+    error_log("INFO: in /jsonblah.");
+
+    apiJSONTest($resultObj, $route->splat);
+}, true);
+
+Flight::route ('/jsonblah', function() {
+    global $resultObj;
+    error_log("INFO: in /jsonblah2.");
+    apiJSONTest($resultObj);
+});
 
 Flight::route ("GET /info", function() {
     global $resultObj;
@@ -117,7 +129,6 @@ Flight::route ("GET /rounds", function() {
     global $resultObj;
     getRounds($resultObj);
 });
-
 
 Flight::route ("/rounds/@id:[0-9]+", function($id) {
     global $resultObj;
@@ -209,9 +220,11 @@ Flight::route ("/rounds/@roundId:[0-9]+/results", function($roundId) {
     getFlownRound($resultObj, $roundId);
 });
 
-Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
+Flight::route ("GET /rounds/@roundId:[0-9]+/scores", function($roundId) {
     global $resultObj;
+
     if (isset($_REQUEST['pilot']))  { $pilotId = $_REQUEST['pilot']; } else { $pilotId = null; }
+    error_log("INFO: GETTING /rounds/<id>/scores for pilot " . $pilotId);
 
     if ($pilotId && is_numeric($pilotId)) {
         getScoresForRound($resultObj, array(
@@ -222,6 +235,42 @@ Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
         getScoresForRound($resultObj, array(
             "roundId" => $roundId
         ));
+    }
+});
+
+Flight::route ("DELETE /rounds/@roundId:[0-9]+/scores", function($roundId) {
+    global $resultObj;
+
+    if (isset($_REQUEST['pilot']))  { $pilotId = $_REQUEST['pilot']; } else { $pilotId = null; }
+    error_log("INFO: DELETING /rounds/<id>/scores for pilot " . $pilotId);
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteScoreOnSheet($resultObj, array(
+            "roundId" => $roundId,
+            "pilotId" => $pilotId
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
+    }
+});
+
+
+Flight::route ("POST /rounds/@roundId:[0-9]+/scores", function($roundId) {
+    global $resultObj;
+
+    if (isset($_REQUEST['pilot']))  { $pilotId = $_REQUEST['pilot']; } else { $pilotId = null; }
+    error_log("INFO: POSTING /rounds/<id>/scores for pilot " . $pilotId);
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        adjustScoreForRound($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
     }
 });
 

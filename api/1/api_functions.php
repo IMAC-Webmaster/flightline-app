@@ -121,6 +121,40 @@ function doSQL (&$resultObj, $query, $paramArr = null) {
     return $res;
 }
 
+function apiJSONTest(&$resultObj, $qs) {
+    // Test API...   Just send back the JSON Object that was sent to us, plus auth data...
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    // Lets get the auth data to add...
+
+    global $jwtkey;
+    $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
+
+    if (!is_null($token)) {
+        require_once('jwt.php');
+        try {
+            $payload = JWT::decode($token, $jwtkey, array('HS256'));
+            $resultObj['data']['token'] = $token;
+            $resultObj['data']['authdata'] = $payload;
+        }
+        catch(Exception $e) {
+            $resultObj["verboseMsgs"][] = 'There was an error decoding the token: ' . $e->getMessage();
+        }
+    } else {
+        $resultObj["data"]["authdata"] = 'Unauthorised';
+    }
+
+    $resultObj["data"]["payload"] = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
+    $resultObj["data"]["method"] = $_SERVER['REQUEST_METHOD'];
+    $resultObj["data"]["querystring"] = $qs;
+    $resultObj["result"]  = 'success';
+    $resultObj["message"]  = 'API JSON Test - you sent me the payload';
+    error_log("DEBUG: apiJSONTest: " . print_r($resultObj, true));
+}
+
 function getRounds(&$resultObj) {
     // Get rounds
     $resultObj["result"]  = 'error';
@@ -129,7 +163,7 @@ function getRounds(&$resultObj) {
     $resultObj["verboseMsgs"] = array();
 
     $query = "select r.roundId, s.description, s.schedId, r.imacClass, r.imacType, r.roundNum, r.sequences, r.phase, r.status "
-           . "from round r left join schedule s on s.schedId = r.schedId order by r.imacClass, r.imacType, r.roundNum;";
+        . "from round r left join schedule s on s.schedId = r.schedId order by r.imacClass, r.imacType, r.roundNum;";
 
     $res = doSQL($resultObj, $query);
     if ($res === false)
@@ -231,7 +265,6 @@ function getRound(&$resultObj, $paramArray = null) {
     $res = doSQL($resultObj, $query, $pArr);
     if ($res === false)
         goto db_rollback;
-
 
     while ($round = $res->fetchArray()){
         $resultObj["data"] = array(
@@ -378,6 +411,7 @@ function getPilotSheetsForRound(&$resultObj, $roundId, $pilotId, $flightId = nul
             "flightZeroed"      => $row['flightZeroed'],
             "zeroReason"        => $row['zeroReason'],
             "phase"             => $row['phase'],
+            "flags"             => $row['flags'],
             "noteFlightId"      => $row['noteFlightId'],
             "sequenceNum"       => $row['sequenceNum']
         );
@@ -391,7 +425,8 @@ function getPilotSheetsForRound(&$resultObj, $roundId, $pilotId, $flightId = nul
     return ($resultObj['data']);
 }
 
-function getScoresForRound(&$resultObj, $paramArray = null) {
+function getScoresForRound(&$resultObj, $paramArray = null)
+{
 
     // getScoresForRound..
     // We must have roundId or imacClass+imacType+roundNum
@@ -399,7 +434,7 @@ function getScoresForRound(&$resultObj, $paramArray = null) {
     //    flightId - if we only want one flight data.
     //    pilotId - if we only want one pilots data.
 
-    $resultObj["result"]  = 'error';
+    $resultObj["result"] = 'error';
     $resultObj["message"] = 'query error';
     $resultObj["data"] = array();
     $resultObj["verboseMsgs"] = array();
@@ -422,9 +457,18 @@ function getScoresForRound(&$resultObj, $paramArray = null) {
     mergeResultMessages($resultObj, $roundResultObj);
 
     $round_data = $roundResultObj["data"];
-    $schedResultObj = createEmptyResultObject();
-    $round_data['schedule'] = getSchedule($schedResultObj, $round_data['schedId'], true);
-    mergeResultMessages($resultObj, $schedResultObj);
+    if (count($round_data) == 0) {
+        // Round does not exist...
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'query success';
+        $resultObj["data"] = array();
+        array_push($resultObj["verboseMsgs"], ("INFO: Round does not exist."));
+        goto db_rollback;
+    } else {
+        $schedResultObj = createEmptyResultObject();
+        $round_data['schedule'] = getSchedule($schedResultObj, $round_data['schedId'], true);
+        mergeResultMessages($resultObj, $schedResultObj);
+    }
 
     $pArr = array(
         "roundId" => $roundId,
@@ -567,7 +611,6 @@ function getSheetIdsForRound(&$resultObj, $roundId) {
     $res->finalize();
     db_rollback:
 }
-
 
 /**********
  * This is for import-notaumatic...   It's also in data_functions, which this file will eventually replace.
@@ -844,7 +887,6 @@ function getMppFigNumForNotaumaticFlight(&$resultObj, $noteFlightId) {
     return $mppFigNum;
 }
 
-
 function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = false) {
 
     $resultObj["result"]  = 'error';
@@ -884,12 +926,33 @@ function getScoresForSheet(&$resultObj, $sheetId, $includeFigureDescription = fa
             // Todo: This should not be needed anymore.    Only for databases with old data.   Remove it..
         } else {
             // Process this score as a normal sequence figure.
+            $query = "select * from scoredelta where sheetId = :sheetId and figureNum = :figureNum;";
+
+            $scoreres = doSQL($scoreResultObj, $query, array("sheetId" => $sheetId, "figureNum" => $score["figureNum"]));
+            if ($scoreres === false) {
+                $scoredelta = null;
+            } else {
+                $scoredelta = $scoreres->fetchArray();
+                if ($scoredelta[0] == null) {
+                    $scoredeltaobj = null;
+                } else {
+                    $scoredeltaobj["deleted"]   = $scoredelta["deleted"];
+                    $scoredeltaobj["scoreTime"] = $scoredelta["scoreTime"];
+                    $scoredeltaobj["breakFlag"] = $scoredelta["breakFlag"];
+                    $scoredeltaobj["flags"]     = $scoredelta["flags"];
+                    $scoredeltaobj["score"]     = $scoredelta["score"];
+                    $scoredeltaobj["comment"]   = $scoredelta["comment"];
+                    $scoredeltaobj["cdcomment"] = $scoredelta["cdcomment"];
+                }
+            }
             $thisScore = array(
                 "figureNum"    => $score["figureNum"],
                 "scoreTime"    => $score["scoreTime"],
                 "breakFlag"    => $score["breakFlag"],
+                "flags"        => $score["flags"],
                 "score"        => $score["score"],
-                "comment"      => $score["comment"]
+                "comment"      => $score["comment"],
+                "scoredelta"   => $scoredeltaobj
             );
             if ($includeFigureDescription) {
                 $thisScore["longDesc"] = "No description";
@@ -2146,7 +2209,6 @@ function getSheet(&$resultObj, $sheetId) {
     db_rollback:
 }
 
-
 function getFlightLineAPIVersion() {
     return "1";
 }
@@ -3022,7 +3084,6 @@ function postPilots(&$resultObj, $pilotsArray = null) {
     }       
     return null;
 }
-
 
 function postSequences(&$resultObj, $sequenceArray = null) {
 
