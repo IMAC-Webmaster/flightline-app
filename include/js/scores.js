@@ -336,7 +336,7 @@ function handleAjaxResponse(roundId, pilotId, liveResults) {
                     formMethod = 'delete';
                     break;
                 case 'delete':  //delete the score.
-                    formMethod = 'delete';
+                    formMethod = 'post';
                     break;
                 default:
                     formMethod = 'post';
@@ -346,8 +346,9 @@ function handleAjaxResponse(roundId, pilotId, liveResults) {
                     break;
             }
             var request   = $.ajax({
-                url:            "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
-                url:            "/api/1/jsonblah/" + roundId + "/pilot/" + pilotId,
+                //url:            "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
+                //url:            "/api/1/jsonblah/" + roundId + "/pilot/" + pilotId,
+                url:            "/api/1/sheets/" + formObject.sheetId + "/" + formObject.figureNum + "/adjustment",
                 cache:          false,
                 data:           JSON.stringify(formObject),
                 dataType:       'json',
@@ -413,6 +414,10 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
     // Set some defaults.
     $('input[name=score]').val("");
     $('input[name=score]').prop('disabled', false);
+    $('input[name=comment]').val("");
+    $('input[name=comment]').prop('disabled', false);
+    $('input[name=cdcomment]').val("");
+    $('input[name=cdcomment]').prop('disabled', false);
     $('#delete').prop('disabled', false);
     $('#delete').val("delete");
     $('#breakFlag').prop('disabled', false);
@@ -430,6 +435,8 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
             $('#save').prop('disabled', true);
         } else {
             $('input[name=score]').val(d.scoredelta.score);
+            $('input[name=comment]').val(d.scoredelta.comment);
+            $('input[name=cdcomment]').val(d.scoredelta.cdcomment);
             if (d.scoredelta.breakFlag)
                 $('#breakFlag').prop('checked', d.scoredelta.breakFlag == 1 ? true : false);
         }
@@ -437,12 +444,14 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
         // If there is no score, dont show the deleted button.
         $('#delete').prop('disabled', d.scoreTime ? false : true);
         $('input[name=score]').val(d.score);
+        $('input[name=comment]').val(d.comment);
         if (d.breakFlag)
             $('#breakFlag').prop('checked', (d.breakFlag == 1 ? true : false));
     }
 
     // Fill in the hidden fields.
     $('input[name=sheetId]').val(d.sheetId);
+    $('input[name=figureNum]').val(d.figureNum);
     $('input[name=breakFlag]').val($('#breakFlag').is(":checked") ? 1 : 0);
 
     $('#save').attr('disabled', true);
@@ -466,6 +475,10 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
 /*************************/
 function validateScoreForm() {
     let form_valid = true;
+
+    // Always allow undo/deleted to be pressed.
+    if ($('input[name=button]').val() === "undo" || $('input[name=button]').val() == "delete")
+        return true;
 
     if ($('#form_editscore #score').val() === "") {
         $('#form_editscore #score').parent('.field_container').addClass('error');
@@ -501,9 +514,6 @@ function renderScoreContainer (td, cellData, rowData, row, col) {
         }
         if (chosendata.breakFlag === 1 && !chosendata.deleted) {
             $(td).addClass("break");
-        }
-        if (chosendata.comment !== null) {
-            // Add comment here!
         }
         var dateNow = +new Date();
         if ((chosendata.scoreTime + 30) > (dateNow / 1000) ) { //Is this less than 30 seconds old?

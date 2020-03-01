@@ -30,6 +30,12 @@
  *                         to select from
  * @return string
  */
+require __DIR__ . '/../vendor/autoload.php';
+$logger = new Katzgrau\KLogger\Logger(__DIR__.'/../log', Psr\Log\LogLevel::DEBUG, array (
+    'extension' => 'log', // changes the log file extension
+    'prefix' => 'flightline_',
+));
+
 
 function random_str(
     $length,

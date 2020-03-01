@@ -156,7 +156,7 @@
     <body>
         <section class="slider-checkbox">
           <input type="checkbox" id="autoRefresh" />
-          <label class="label" for="autoRefresh">Auto Refresh (5 secs)</label>
+          <label class="label" for="autoRefresh">Auto Refresh</label>
         </section>
         <button id="reload" class='scoreboard'>Reload</button>
 
@@ -174,6 +174,18 @@
                         </div>
                     </div>
                     <div class="input_container">
+                        <label for="score">Judge Comment: </label>
+                        <div class="field_container">
+                            <input type="text" style="width: 300px;" class="text" name="comment" id="comment" placeholder="Judge's Comment" value="">
+                        </div>
+                    </div>
+                    <div class="input_container">
+                        <label for="score">CD Comment: </label>
+                        <div class="field_container">
+                            <input type="text" style="width: 300px;" class="text" name="cdcomment" id="cdcomment" placeholder="CD's Comment" value="">
+                        </div>
+                    </div>
+                    <div class="input_container">
                         <label for="break">Break: </label>
                         <div class="field_container">
                             <section class="slider-checkbox">
@@ -185,6 +197,7 @@
 
                     <input type="hidden" name="breakFlag">
                     <input type="hidden" name="sheetId">
+                    <input type="hidden" name="figureNum">
                     <div class="button_container">
                         <button type="submit" id="delete" value="delete">Delete Score</button>
                         <button type="submit" id="save" value="save">Save</button>

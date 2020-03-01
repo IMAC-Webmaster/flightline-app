@@ -18,6 +18,8 @@
  * along with FlightLine.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+include_once  __DIR__ . '/../../include/functions.php';
+
 function createEmptyResultObject() {
     return array(
       "result"          => null,
@@ -86,7 +88,7 @@ function rollbackTrans(&$resultObj, $failureMsg = "") {
 }
 
 function doSQL (&$resultObj, $query, $paramArr = null) {
-    global $db;
+    global $db, $logger;
 
     try {
         if ($statement = $db->prepare($query)) {
@@ -100,7 +102,7 @@ function doSQL (&$resultObj, $query, $paramArr = null) {
                 $resultObj["result"]  = 'error';
                 $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
                 array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": Could not get data. Err: " . $db->lastErrorMsg()));
-                error_log($resultObj["message"]);
+                $logger->error($resultObj["message"]);
                 return false;
             }
         } else {
@@ -115,13 +117,14 @@ function doSQL (&$resultObj, $query, $paramArr = null) {
         $resultObj["result"]  = 'error';
         $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
         array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": query error: " . $e->getMessage()));
-        error_log($resultObj["message"]);
+        $logger->error($resultObj["message"]);
         return false;
     }
     return $res;
 }
 
 function apiJSONTest(&$resultObj, $qs) {
+    global $logger;
     // Test API...   Just send back the JSON Object that was sent to us, plus auth data...
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
@@ -152,7 +155,7 @@ function apiJSONTest(&$resultObj, $qs) {
     $resultObj["data"]["querystring"] = $qs;
     $resultObj["result"]  = 'success';
     $resultObj["message"]  = 'API JSON Test - you sent me the payload';
-    error_log("DEBUG: apiJSONTest: " . print_r($resultObj, true));
+    $logger->debug("In apiJSONTest.", $resultObj);
 }
 
 function getRounds(&$resultObj) {
@@ -425,14 +428,15 @@ function getPilotSheetsForRound(&$resultObj, $roundId, $pilotId, $flightId = nul
     return ($resultObj['data']);
 }
 
-function getScoresForRound(&$resultObj, $paramArray = null)
-{
+function getScoresForRound(&$resultObj, $paramArray = null) {
 
     // getScoresForRound..
     // We must have roundId or imacClass+imacType+roundNum
     // We can then optionally have:
     //    flightId - if we only want one flight data.
     //    pilotId - if we only want one pilots data.
+
+    global $logger;
 
     $resultObj["result"] = 'error';
     $resultObj["message"] = 'query error';
@@ -520,6 +524,8 @@ function getScoresForRound(&$resultObj, $paramArray = null)
     $resultObj["result"]  = 'success';
     $resultObj["message"] = 'query success';
     $resultObj["data"] = $round_data;
+    $logger->debug("Returning from getScoresForRound.", $resultObj);
+
     db_rollback:
 }
 
@@ -3519,3 +3525,254 @@ function postSheets($sheetJSON = null) {
     /***********/
     return true;
 }
+
+function deleteScoreAdjustment(&$resultObj, $paramArray = null) {
+
+    // deleteScoreAdjustment..
+    // We must have sheetId and figureNum
+    // Delete it, even if it does not exist...
+
+    global $logger;
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    $sheetId = isset($paramArray["sheetId"]) ? $paramArray["sheetId"] : null;
+    $figureNum = isset($paramArray["figureNum"]) ? $paramArray["figureNum"] : null;
+
+    $query = "delete from scoredelta where sheetId = :sheetId and figureNum = :figureNum";
+
+    $pArr = array(
+        "sheetId" => $sheetId,
+        "figureNum" => $figureNum
+    );
+
+    $transResult = createEmptyResultObject();
+
+    if (!beginTrans($transResult)) {
+        mergeResultMessages($resultObj, $transResult);
+        goto db_rollback;
+    }
+
+    $delAdjustmentResult = createEmptyResultObject();
+
+    $logger->debug("Query: $query", $pArr);
+    $res = doSQL($delAdjustmentResult, $query, $pArr);
+    if ($res === false) {
+        mergeResultMessages($resultObj, $delAdjustmentResult);
+        goto db_rollback;
+    }
+
+    $res->finalize();
+
+    if (commitTrans($delAdjustmentResult,"Could not delete adjustment for figure $figureNum of sheet $sheetId.") ) {
+        mergeResultMessages($resultObj, $delAdjustmentResult);
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'The adjustment was deleted.';
+        $logger->info("Deleted adjustment for figure $figureNum of sheet $sheetId.");
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+        $logger->warning("Could not delete adjustment for figure $figureNum of sheet $sheetId.", $resultObj);
+    }
+    return null;
+}
+
+function postScoreAdjustment(&$resultObj, $paramArray = null) {
+
+    // postScoreAdjustment..
+    // We must have sheetId and figureNum
+    // Adjust it, even if it does not exist...
+
+    global $logger;
+    $logger->info("In: postScoreAdjustment");
+
+    $adjustment = null;
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    $sheetId = isset($paramArray["sheetId"]) ? $paramArray["sheetId"] : null;
+    $figureNum = isset($paramArray["figureNum"]) ? $paramArray["figureNum"] : null;
+
+    if (is_null($adjustment)) {
+        $adjustment = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
+        $logger->debug("Data: ", $adjustment);
+    }
+    // Copy form data accross.
+    $button = isset($adjustment["button"]) ? $adjustment["button"] : "save";
+    if ($button === "delete") {
+        $adjustment["deleted"] = 1;
+    } else {
+        $adjustment["deleted"] = 0;
+    }
+    $adjustment["sheetId"] = isset($adjustment["sheetId"]) ? $adjustment["sheetId"] : null;
+    $adjustment["figureNum"] = isset($adjustment["figureNum"]) ? $adjustment["figureNum"] : null;
+    $adjustment["scoreTime"] = isset($adjustment["scoreTime"]) ? $adjustment["scoreTime"] : 1;
+    $adjustment["breakFlag"] = isset($adjustment["breakFlag"]) ? $adjustment["breakFlag"] : null;
+    $adjustment["flags"] = isset($adjustment["flags"]) ? $adjustment["flags"] : null;
+    $adjustment["score"] = isset($adjustment["score"]) ? $adjustment["score"] : null;
+    $adjustment["comment"] = isset($adjustment["comment"]) ? $adjustment["comment"] : null;
+    $adjustment["cdcomment"] = isset($adjustment["cdcomment"]) ? $adjustment["cdcomment"] : null;
+
+    $logger->info("Data: ", $adjustment);
+
+    $query = "INSERT or REPLACE INTO scoredelta (sheetId, deleted, figureNum, scoreTime, breakFlag, flags, score, comment, cdcomment) "
+           . "VALUES (:sheetId, :deleted, :figureNum, :scoreTime, :breakFlag, :flags, :score, :comment, :cdcomment)";
+
+    $pArr = array(
+        "sheetId" => $adjustment["sheetId"],
+        "figureNum" => $adjustment["figureNum"],
+        "deleted" => $adjustment["deleted"],
+        "scoreTime" => $adjustment["scoreTime"],
+        "breakFlag" => $adjustment["breakFlag"],
+        "flags" => $adjustment["flags"],
+        "score" => $adjustment["score"],
+        "comment" => $adjustment["comment"],
+        "cdcomment" => $adjustment["cdcomment"]
+    );
+
+    $transResult = createEmptyResultObject();
+
+    if (!beginTrans($transResult)) {
+        mergeResultMessages($resultObj, $transResult);
+        goto db_rollback;
+    }
+
+    $adjustmentResult = createEmptyResultObject();
+
+    $logger->debug("Query: $query", $pArr);
+    $res = doSQL($adjustmentResult, $query, $pArr);
+    if ($res === false) {
+        mergeResultMessages($resultObj, $adjustmentResult);
+        goto db_rollback;
+    }
+
+    $res->finalize();
+
+    if (commitTrans($adjustmentResult,"Could not adjust score for figure $figureNum of sheet $sheetId.") ) {
+        mergeResultMessages($resultObj, $adjustmentResult);
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'The score was adjusted.';
+        $logger->info("Adjusted score for figure $figureNum of sheet $sheetId.");
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+        $logger->warning("Could not adjust score for figure $figureNum of sheet $sheetId.", $resultObj);
+    }
+    return null;
+}
+
+function blahpostScoreAdjustment(&$resultObj, $paramArray = null) {
+    global $db, $logger;
+    // Adjust score.   Create or edit a row showing an override for the received score.
+    //
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    if (is_null($adjustment)) {
+        $adjustment = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
+        $logger->debug("Data: ", $adjustment);
+    }
+
+    $transResult = createEmptyResultObject();
+
+    // Sanity checks.
+    if ($newRound["imacType"] == "Freestyle") $newRound["imacClass"] = "Freestyle";
+    if ($newRound["imacType"] != "Known" ) $newRound["sequences"] = 1;
+    if (!isset($newRound["phase"])) $newRound["phase"] = 'U';
+
+    $flightLineId = getStateValue($transResult, "flightLineId");
+    if ($flightLineId < 1) {
+        $flightLineId = null;
+    }
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) "
+        .  "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
+
+    // We should check on our values...
+    $res = doSQL($resultObj, $query, array(
+        "flightLine" => $flightLineId,
+        "imacClass" => $newRound["imacClass"],
+        "imacType" => $newRound["imacType"],
+        "roundNum" => $newRound["roundNum"],
+        "schedId" => $newRound["schedule"],
+        "sequences" => $newRound["sequences"],
+        "phase" => $newRound["phase"]
+    ));
+    if ($res === false)
+        goto db_rollback;
+
+    $newRoundId = $db->lastInsertRowID();
+
+    // Get the next flight id.
+    $query = "select (max(noteFlightId) + 1) as newNoteFlightId "
+        . "from flight f inner join round r on f.roundId = r.roundId "
+        . "where r.imacClass = :imacClass";
+
+    $res->finalize();
+    $nextFlightResult = createEmptyResultObject();
+    $res = doSQL($nextFlightResult, $query, array("imacClass" => $newRound["imacClass"]));
+    mergeResultMessages($resultObj, $nextFlightResult);
+
+    if ($res === false)
+        goto db_rollback;
+
+    $row = $res->fetchArray();
+    if (!$row || $row["newNoteFlightId"] == null) {
+        // Null?
+        if (($newRound["imacClass"] == "Freestyle") || ($newRound["imacType"] == "Freestyle"))  {
+            $newNoteFlightId = 1;   // At one stage we were starting freestyle flights at 91..  Not sure why,..
+        } else {
+            $newNoteFlightId = 1;
+        }
+    } else {
+        $newNoteFlightId = $row["newNoteFlightId"];
+    }
+    $res->finalize();
+
+    for ($i = 1; $i <= $newRound["sequences"]; $i++) {
+        $query = "INSERT INTO flight(noteFlightId, roundId, sequenceNum) "
+            . "VALUES(:noteFlightId, :roundId, :sequenceNum); ";
+
+        $newFlightResult = createEmptyResultObject();
+        $res = doSQL($newFlightResult, $query, array(
+            "noteFlightId" => $newNoteFlightId,
+            "roundId" => $newRoundId,
+            "sequenceNum" => $i
+        ));
+        mergeResultMessages($resultObj, $newFlightResult);
+
+        if ($res === false)
+            goto db_rollback;
+
+        $newNoteFlightId++;
+    }
+
+    if (commitTrans($transResult,"There was a problem adding the round. ") ) {
+        $resultObj["result"] = 'success';
+        $resultObj["message"] = 'Inserted new round (' . $newRoundId . ') into class ' . $newRound["imacClass"] . '.';
+    }
+
+    $res->finalize();
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        $db->exec("ROLLBACK;");
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+}
+
+
