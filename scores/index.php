@@ -38,6 +38,7 @@
     <script type="text/javascript" src="/libs/datatables.net/js/jquery.dataTables.min.js"></script>
     <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
     <script type="text/javascript" src="/libs/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script type="text/javascript" src="/include/js/scores-form-validation.js"></script>
     <script type="text/javascript" src="/include/js/scores.js"></script>
     <script type="text/javascript" src="/include/js/helpers.js"></script>
 <!--    <script type="text/javascript" src="/libs/datatables.net-editor/js/dataTables.editor.js"></script>-->
@@ -170,32 +171,32 @@
                     <div class="input_container">
                         <label for="score">Score: </label>
                         <div class="field_container">
-                            <input type="text" style="width: 100px;" class="text" name="score" id="score" placeholder="Score" value="" required>
+                            <input type="text" style="width: 100px;" class="text" name="score" id="score" placeholder="Score" value="">
                         </div>
                     </div>
                     <div class="input_container">
-                        <label for="score">Judge Comment: </label>
+                        <label for="comment">Judge Comment: </label>
                         <div class="field_container">
                             <input type="text" style="width: 300px;" class="text" name="comment" id="comment" placeholder="Judge's Comment" value="">
                         </div>
                     </div>
                     <div class="input_container">
-                        <label for="score">CD Comment: </label>
+                        <label for="cdcomment">CD Comment: </label>
                         <div class="field_container">
                             <input type="text" style="width: 300px;" class="text" name="cdcomment" id="cdcomment" placeholder="CD's Comment" value="">
                         </div>
                     </div>
                     <div class="input_container">
-                        <label for="break">Break: </label>
+                        <label for="breakFlagSlider">Break: </label>
                         <div class="field_container">
-                            <section class="slider-checkbox">
-                                <input type="checkbox" id="breakFlag"/>
-                                <label class="label" for="breakFlag"></label>
+                            <section class="slider-checkbox" style="padding-bottom: 22px;">
+                                <input type="checkbox" id="breakFlagSlider"/>
+                                <label class="label" for="breakFlagSlider"></label>
                             </section>
+                            <input type="hidden" name="breakFlag">
                         </div>
                     </div>
 
-                    <input type="hidden" name="breakFlag">
                     <input type="hidden" name="sheetId">
                     <input type="hidden" name="figureNum">
                     <div class="button_container">

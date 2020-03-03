@@ -19,7 +19,7 @@
 $(document).ready(function() {
     // Set up our handlers here.
 
-    $('#breakFlag').off('click').on('click', function () {
+    $('#breakFlagSlider').off('click').on('click', function () {
         console.log("Break penalty: " + $(this).is(":checked"));
         $('input[name=breakFlag]').val($(this).is(":checked") ? 1 : 0);
     } );
@@ -277,108 +277,6 @@ function handleAjaxResponse(roundId, pilotId, liveResults) {
         }
     });
 
-    // Set validation defaults
-    /*********************
-    jQuery.validator.setDefaults({
-        success: 'valid',
-        rules: {
-            breakFlag:     { excluded: true }
-        },
-        errorPlacement: function(error, element){
-            error.insertBefore(element);
-        },
-        highlight: function(element){
-            $(element).parent('.field_container').removeClass('valid').addClass('error');
-        },
-        unhighlight: function(element){
-            $(element).parent('.field_container').addClass('valid').removeClass('error');
-        }
-    });
-     /*********************/
-    /********************
-    $("#form_editscore").validate({
-        // Specify validation rules
-        rules: {
-            // The key name on the left side is the name attribute
-            // of an input field. Validation rules are defined
-            // on the right side
-            breakFlag: { excluded: true },
-            score: { required: true }
-        },
-        // Specify validation error messages
-        messages: {
-            score: "Please enter a score."
-        },
-        // Make sure the form is submitted to the destination defined
-        // in the "action" attribute of the form when valid
-        submitHandler: function(form) {
-            form.submit();
-        }
-    });
-     /*********************/
-
-    // Edit score submit form
-    $(document).on('submit', '#form_editscore', function(e) {
-        e.preventDefault();
-
-        if (validateScoreForm()){
-            // Send score information to database
-            //hide_ipad_keyboard();
-            //hide_lightbox();
-            show_loading_message();
-            let formObject = helpers.getFormData($('#form_editscore'));
-            let formMethod = 'get';
-            let action = $('input[name=button]').val();
-            //action = 'save';
-
-            switch(action) {
-                case 'undo':  //delete the adjustment.
-                    formMethod = 'delete';
-                    break;
-                case 'delete':  //delete the score.
-                    formMethod = 'post';
-                    break;
-                default:
-                    formMethod = 'post';
-                    if (!validateScoreForm()) {
-                        return;
-                    }
-                    break;
-            }
-            var request   = $.ajax({
-                //url:            "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
-                //url:            "/api/1/jsonblah/" + roundId + "/pilot/" + pilotId,
-                url:            "/api/1/sheets/" + formObject.sheetId + "/" + formObject.figureNum + "/adjustment",
-                cache:          false,
-                data:           JSON.stringify(formObject),
-                dataType:       'json',
-                contentType:    'application/json; charset=utf-8',
-                type:           formMethod
-            });
-            request.done(function(output){
-                if (output.result === 'success'){
-                    // Reload datable
-                    $('.lightbox_close').click();
-                    hide_loading_message();
-                    show_message(output.message, 'success');
-                    // Should we reload the table?   Probably...
-                    //table.ajax.reload(function(){
-                    //    hide_loading_message();
-                    //    show_message("Score X edited successfully." + output.message, 'success');
-                    //}, true);
-                } else {
-                    hide_loading_message();
-                    show_message('Edit request failed: ' + output.message, 'error');
-                }
-            });
-            request.fail(function(jqXHR, textStatus){
-                hide_loading_message();
-                show_message('Edit request failed: ' + textStatus, 'error');
-            });
-        }
-    }); // Edit score submit.
-
-
     // Handle score editing...
     $('#scores').off('click').on( 'click', 'tbody td.score', function (event) { displayScoreEditForm(event, this, roundId, pilotId) });
 
@@ -420,7 +318,7 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
     $('input[name=cdcomment]').prop('disabled', false);
     $('#delete').prop('disabled', false);
     $('#delete').val("delete");
-    $('#breakFlag').prop('disabled', false);
+    $('#breakFlagSlider').prop('disabled', false);
     $('#save').prop('disabled', false);
     $('#delete').html("Delete Score");
 
@@ -431,14 +329,14 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
         if (d.scoredelta.deleted) {
             $('input[name=score]').val("");
             $('input[name=score]').prop('disabled', true);
-            $('#breakFlag').prop('disabled', true);
+            $('#breakFlagSlider').prop('disabled', true);
             $('#save').prop('disabled', true);
         } else {
             $('input[name=score]').val(d.scoredelta.score);
             $('input[name=comment]').val(d.scoredelta.comment);
             $('input[name=cdcomment]').val(d.scoredelta.cdcomment);
             if (d.scoredelta.breakFlag)
-                $('#breakFlag').prop('checked', d.scoredelta.breakFlag == 1 ? true : false);
+                $('#breakFlagSlider').prop('checked', d.scoredelta.breakFlag == 1 ? true : false);
         }
     } else {
         // If there is no score, dont show the deleted button.
@@ -446,13 +344,13 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
         $('input[name=score]').val(d.score);
         $('input[name=comment]').val(d.comment);
         if (d.breakFlag)
-            $('#breakFlag').prop('checked', (d.breakFlag == 1 ? true : false));
+            $('#breakFlagSlider').prop('checked', (d.breakFlag == 1 ? true : false));
     }
 
     // Fill in the hidden fields.
     $('input[name=sheetId]').val(d.sheetId);
     $('input[name=figureNum]').val(d.figureNum);
-    $('input[name=breakFlag]').val($('#breakFlag').is(":checked") ? 1 : 0);
+    $('input[name=breakFlag]').val($('#breakFlagSlider').is(":checked") ? 1 : 0);
 
     $('#save').attr('disabled', true);
     $('#form_editscore').on('input change', function() {
@@ -471,28 +369,6 @@ function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
         });
     hide_loading_message();
 }
-
-/*************************/
-function validateScoreForm() {
-    let form_valid = true;
-
-    // Always allow undo/deleted to be pressed.
-    if ($('input[name=button]').val() === "undo" || $('input[name=button]').val() == "delete")
-        return true;
-
-    if ($('#form_editscore #score').val() === "") {
-        $('#form_editscore #score').parent('.field_container').addClass('error');
-        $('#form_editscore #score-error').text("Score cannot be empty.").show();
-        form_valid = false;
-    }
-
-    if (form_valid === true) {
-        // Anything else to do before submit?
-    }
-
-    return form_valid;
-}
-/*************************/
 
 function getFigureDetails(figureNum) {
     var foundItem = null;
