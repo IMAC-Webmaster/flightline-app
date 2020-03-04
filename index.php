@@ -30,6 +30,8 @@
  *      RowGroup (Future: group by one of the columns (Knowns, Unknowns, Class etc)...
  *      SearchPanes (Future: quick filters - a bit like RowGroup I guess...)
  *      RowReorder (drag/drop flight ordering...)
+ *  ToDo: remove all of the !important CSS hacks.
+ *  Done: Fix boostrap CSS issue...  Including breaks the style...
  *
  ****************/
 ?>
@@ -43,13 +45,8 @@
       <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 
-      <!--  This one is the bundle. <link rel="stylesheet" type="text/css" href="/libs/dataTables.min.css"/>
-      Breaks some styling!  (because the bootstrap css is included...
-      -->
-      <!--
+      <!--  This one is the bundle. <link rel="stylesheet" type="text/css" href="/libs/dataTables.min.css"/> -->
       <link rel="stylesheet" type="text/css" href="/libs/Bootstrap-4-4.1.1/css/bootstrap.min.css"/>
-      Breaks some styling!
-      -->
       <link rel="stylesheet" type="text/css" href="/libs/DataTables-1.10.20/css/dataTables.bootstrap4.min.css"/>
       <link rel="stylesheet" type="text/css" href="/libs/Editor-1.9.2/css/editor.bootstrap4.min.css"/>
       <link rel="stylesheet" type="text/css" href="/libs/RowReorder-1.2.6/css/rowReorder.bootstrap4.min.css"/>
