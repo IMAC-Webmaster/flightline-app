@@ -90,6 +90,8 @@ function rollbackTrans(&$resultObj, $failureMsg = "") {
 function doSQL (&$resultObj, $query, $paramArr = null) {
     global $db, $logger;
 
+    //$logger->debug($query, $paramArr);
+
     try {
         if ($statement = $db->prepare($query)) {
             if (isset($paramArr) && is_array($paramArr)) {
@@ -1258,6 +1260,7 @@ function getUsers(&$resultObj) {
 
 function getPilot(&$resultObj, $pilotId) {
 
+    // Fix me!
     $resultObj["result"]  = 'error';
     $resultObj["message"] = 'query error';
     $resultObj["data"] = array();
@@ -1285,13 +1288,13 @@ function getPilot(&$resultObj, $pilotId) {
             "active"          => $pilot["active"]
         );
         $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'query success';
     } else {
         $resultObj["result"]  = 'warn';
         $resultObj["data"] = null;
-        array_push($resultObj["verboseMsgs"], "DEBUG: Could not find pilot with ID:" . $pilotId);
+        $resultObj["message"] = "Could not find pilot with ID:" . $pilotId;
     }
 
-    $resultObj["message"] = 'query success';
     $res->finalize();
     db_rollback:
     return $resultObj["data"];
@@ -1808,147 +1811,140 @@ function getNextRoundIds(&$resultObj) {
     db_rollback:
 }
 
-function setNextFlight() {
-    global $db;
-    global $result;
-    global $message;
+function setNextFlight(&$resultObj) {
+    // setNextFlight..
+    // If we have the round, pilot and flight number, we can set the next flight...
+
+    global $logger;
+    $logger->info("In: setNextFlight");
+
+    $nextrndrequest = null;
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    // Start transaction.
     $transResult = createEmptyResultObject();
-
-    $message = null;
-    $sqlite_data = null;
-
-    // Set the next flight (pilot, noteFlightId)
-    // Note: each round has 1 flight per sequence.
-    
-    $imacClass = null;
-    $compId = null;
-    
-    // Set next flight...   
-    // Checks:
-    //  - Round is open.
-    //  - Pilot is valid for round.
-    //  
-    if (isset($_GET['noteFlightId']))  { $noteFlightId = $_GET['noteFlightId'];  } else $noteFlightId = null;
-    if (isset($_GET['pilotId']))       { $pilotId      = $_GET['pilotId'];  }      else $pilotId = null;
-    if (isset($_GET['roundId']))       { $roundId      = $_GET['roundId'];  }      else $roundId = null;
-    if (isset($_GET['seqnum']))        { $sequenceNum  = $_GET['seqnum'];  }       else $sequenceNum = null;
-
-    $query = "select imacClass from round where roundId = :roundId and phase = 'O';";
-    $compId = 0;
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId', $roundId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            return;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return;
-    }
-
-    if ($res === FALSE) {
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        $round = $res->fetchArray();
-        if (!$round) {
-            $result  = 'error';
-            $message = 'This round is not open.';
-            return;
-        } else {
-            $imacClass = $round["imacClass"];
-            // compId is the numeric form of the class (freestyle is also a kind of class...)
-            $compId = convertClassToCompID($imacClass);
-        }
-    }
-
-    $query = "select freestyle, imacClass, fullName from pilot where pilotId = :pilotId and active = 1;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':pilotId', $pilotId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
-            return;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
-        return;
-    }
-
-    $pilot = $res->fetchArray();
-    if (!$pilot) {
-        $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not active or in the ' . $imacClass . ' class.';
-        return;
-    } else if ( ($imacClass == "Freestyle") && ($pilot["freestyle"] != 1) ) {
-        $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not registered for freestyle.';
-        return;
-    } else if ($pilot["imacClass"] != $imacClass && $imacClass != "Freestyle") {
-        $result  = 'error';
-        $message = 'Pilot ' . $pilotId . ' is not in the ' . $imacClass . ' class.';
-        return;
-    }
-
-
-    if (!beginTrans($transResult))
+    if (!beginTrans($transResult)) {
+        mergeResultMessages($resultObj, $transResult);
         goto db_rollback;
+    }
 
-    // Now do the update
+    //$logger->debug("Got: " . (($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"));
+    // Get request payload.
+    if (is_null($nextrndrequest)) {
+        $nextrndrequest = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
+    }
 
-    $result = "";
+    // Get the round data and check it's open..
+    $roundResult = createEmptyResultObject();
+    getRound($roundResult, array(
+        "roundId" => $nextrndrequest["roundId"],
+        "imacClass" => null,
+        "imacType" => null,
+        "roundNum" => null
+    ));
+
+    if ($roundResult["result"] === 'success') {
+        $roundData = $roundResult["data"];
+    } else {
+        mergeResultMessages($resultObj, $roundResult);
+        goto db_rollback;
+    }
+
+    if ($roundData["phase"] !== "O") {
+        // Round is not open...   Lets bail.
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = 'This round is not open.';
+        $resultObj["data"] = array();
+        $resultObj["verboseMsgs"] = ["Round is in phase " . $roundData["phase"]];
+        goto db_rollback;
+    }
+
+
+    $pilotResult = createEmptyResultObject();
+    getPilotsForRound($pilotResult, array(
+        "roundId" => $nextrndrequest["roundId"]
+    ));
+
+    if ($pilotResult["result"] === 'success') {
+        $pilotData = $pilotResult["data"];
+    } else {
+        mergeResultMessages($resultObj, $pilotResult);
+        goto db_rollback;
+    }
+
+
+    if (is_null($pilotData)) {
+        // Error getting pilots for round.   Lets bail.
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = $pilotResult["message"];
+        $resultObj["data"] = array();
+        goto db_rollback;
+    }
+
+    $foundPilot = null;
+    foreach ( $pilotData as $pilot) {
+        $logger->debug("Looking for pilot " . $nextrndrequest["pilotId"] . ", found pilot: ", $pilot);
+        if ($pilot["pilotId"] != $nextrndrequest["pilotId"])
+            continue;
+        else
+            $foundPilot = $pilot;
+    }
+
+
+    if (is_null($foundPilot)) {
+        // Round is not the pilot's class.   Lets bail.
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Pilot is not in this round.";
+        $resultObj["data"] = array();
+        goto db_rollback;
+    }
+
     $query = "DELETE FROM nextFlight; ";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':compId', $compId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+    $nextFlightDeleteResult = createEmptyResultObject();
+    $res = doSQL($nextFlightDeleteResult, $query);
+    if ($res === false) {
+        mergeResultMessages($resultObj, $nextFlightDeleteResult);
         goto db_rollback;
     }
 
+    $compId = convertClassToCompID($roundData["imacClass"]);
     $query = "INSERT INTO nextFlight(nextNoteFlightId, nextCompId, nextPilotId) "
-             . "VALUES(:noteFlightId, :compId, :pilotId); ";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':noteFlightId', $noteFlightId);
-            $statement->bindValue(':compId', $compId);
-            $statement->bindValue(':pilotId', $pilotId);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = $db->lastErrorMsg();
+        . "VALUES(:nextNoteFlightId, :nextCompId, :nextPilotId); ";
+
+    $pArr = array(
+        "nextNoteFlightId" => $nextrndrequest["noteFlightId"],
+        "nextCompId" => $compId,
+        "nextPilotId" => $nextrndrequest["pilotId"]
+    );
+
+    $nextFlightResult = createEmptyResultObject();
+
+    $res = doSQL($nextFlightResult, $query, $pArr);
+    if ($res === false) {
+        mergeResultMessages($resultObj, $nextFlightResult);
         goto db_rollback;
     }
 
-    if (commitTrans($transResult, "There was a problem setting the next flight. ") ) {
-        $result  = 'success';
-        $message = 'Next flight set to ' . $noteFlightId . ' of comp ' . $compId . ' (' . $imacClass . ') with pilot ' . $pilotId . '.';
+    $res->finalize();
+
+    if (commitTrans($adjustmentResult,"Could not set next flight.") ) {
+        mergeResultMessages($resultObj, $adjustmentResult);
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = "Next flight is set.";
+        $logger->info("Next flight is set.", $nextrndrequest);
     }
-    
+
     db_rollback:
-    if ($result == "error"){
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
-    }    
+    if ($resultObj["result"] !== "success"){
+        rollbackTrans($resultObj);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+        $logger->warning("Could not set the nextflight.", $resultObj);
+    }
+
+    return null;
 }
 
 function getNextFlight(&$resultObj, $roundId) {
@@ -3603,7 +3599,6 @@ function postScoreAdjustment(&$resultObj, $paramArray = null) {
 
     if (is_null($adjustment)) {
         $adjustment = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
-        $logger->debug("Data: ", $adjustment);
     }
     // Copy form data accross.
     $button = isset($adjustment["button"]) ? $adjustment["button"] : "save";

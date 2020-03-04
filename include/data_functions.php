@@ -1366,6 +1366,11 @@ function setNextFlight() {
     global $result;
     global $message;
 
+
+    $result  = 'error';
+    $message = 'setNextFlight: This function is now only available via the API!';
+    return;
+/*****
     $message = null;
     $sqlite_data = null;
 
@@ -1500,7 +1505,8 @@ function setNextFlight() {
     if ($result == "error"){
         $db->exec("ROLLBACK;");
         if ($message == null) { $message = 'query error'; }
-    }    
+    }
+ ******/
 }
 
 function getNextFlight() {

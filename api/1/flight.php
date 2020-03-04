@@ -68,6 +68,7 @@ if (dbConnect($dbfile) === false) {
  * /flights                     - flights interface.
  * /sheets                      - sheets interface.
  * /users                       - users interface.
+ * /nextflight                  - sets or gets next flight(s).
  *
  **************/
 
@@ -111,6 +112,18 @@ Flight::route ("POST /auth", function() {
     // authData should be an array with keys username and password...
 
     authLogon($resultObj, $authData);
+});
+
+Flight::route ("POST /nextflight", function() {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        setNextFlight($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set next flight.";
+    }
 });
 
 Flight::route ("POST /rounds", function() {
@@ -408,6 +421,7 @@ Flight::start();
 dbDisconnect();
 unset($db);
 
+$logger->debug("Sending back: ", $resultObj);
 // Convert PHP array to JSON array
 if ($jsondebug === false || $jsondebug === "false") {
     $json_data = json_encode($resultObj, null);
