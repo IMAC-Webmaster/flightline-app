@@ -17,6 +17,21 @@
  * You should have received a copy of the GNU General Public License
  * along with FlightLine.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+
+/**************
+ * List of things still to do..
+ *
+ *  ToDo: Flightline: Delete button in score adjustment should not validate.
+ *  ToDo: Flightline: Do pilot flight ordering.
+ *  ToDo: Update Datatables and add extensions:
+ *      FixedHeader (Puts the header at the top of the page when scrolling.
+ *      FixedColums (Future: left/right scrolling keeps certain columns fixed).
+ *      RowGroup (Future: group by one of the columns (Knowns, Unknowns, Class etc)...
+ *      SearchPanes (Future: quick filters - a bit like RowGroup I guess...)
+ *      RowReorder (drag/drop flight ordering...)
+ *
+ ****************/
 ?>
 <!doctype html>
 <html lang="en" dir="ltr">
