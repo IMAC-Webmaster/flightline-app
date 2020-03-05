@@ -143,16 +143,6 @@ Flight::route ("GET /rounds", function() {
     getRounds($resultObj);
 });
 
-Flight::route ("/rounds/@id:[0-9]+", function($id) {
-    global $resultObj, $logger;
-    getRound($resultObj, array(
-        "roundId" => $id,
-        "imacClass" => null,
-        "imacType" => null,
-        "roundNum" => null
-    ));
-});
-
 Flight::route ("/rounds/@id:[0-9]+/sheets", function($id) {
     global $resultObj, $logger;
     getRoundSheets($resultObj, $id);
@@ -173,7 +163,17 @@ Flight::route ("/sheets", function() {
     getSheets($resultObj);
 });
 
-Flight::route ("/rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
+Flight::route ("GET /rounds/@id:[0-9]+", function($id) {
+    global $resultObj, $logger;
+    getRound($resultObj, array(
+        "roundId" => $id,
+        "imacClass" => null,
+        "imacType" => null,
+        "roundNum" => null
+    ));
+});
+
+Flight::route ("GET /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
     global $resultObj, $logger;
     getRound($resultObj, array(
         "roundId" => null,
@@ -183,7 +183,7 @@ Flight::route ("/rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", func
     ));
 });
 
-Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
+Flight::route ("GET /rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
     global $resultObj, $logger;
     getRound($resultObj, array(
         "roundId" => null,
@@ -191,6 +191,59 @@ Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
         "imacType" => "Freestyle",
         "roundNum" => $roundNum
     ));
+});
+
+Flight::route ("DELETE /rounds/@id:[0-9]+", function($id) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => $id,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+});
+
+Flight::route ("DELETE /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => $class,
+            "imacType" => $type,
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+});
+
+Flight::route ("DELETE /rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => null,
+            "imacType" => "Freestyle",
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/nextflight", function($roundId) {

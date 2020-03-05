@@ -36,6 +36,9 @@ function mergeResultMessages(&$resultObj, $resultObjToAppend) {
     if (!empty($resultObjToAppend["verboseMsgs"])) {
         $resultObj["verboseMsgs"] = array_merge ($resultObj["verboseMsgs"], $resultObjToAppend["verboseMsgs"]);
     }
+    if ($resultObjToAppend["message"] != null) {
+        $resultObj["verboseMsgs"][] = $resultObjToAppend["message"];
+    }
     switch ($resultObjToAppend["result"]) {
         case "error":
             $resultObj["result"] = "error";
@@ -1893,7 +1896,6 @@ function setNextFlight(&$resultObj) {
             $foundPilot = $pilot;
     }
 
-
     if (is_null($foundPilot)) {
         // Round is not the pilot's class.   Lets bail.
         $resultObj["result"]  = 'error';
@@ -2247,11 +2249,12 @@ function getFlightLineDetails(&$resultObj) {
 }
 
 function addRound(&$resultObj, $newRound = null) {
-    global $db;
+    global $db, $logger;
     // Add round
     
-    // Insert into two tables...   First one is the round table.
+    // Insert into three tables...   First one is the round table.
     // Second is the flight table (1 flight row per sequence).
+    // Third one is the flightOrder table, to set up the round order.
     // 
     // First, lets get a the flight ID...
     //
@@ -2322,6 +2325,7 @@ function addRound(&$resultObj, $newRound = null) {
     }
     $res->finalize();
 
+    $usedNoteFlightIds = array();
     for ($i = 1; $i <= $newRound["sequences"]; $i++) {
         $query = "INSERT INTO flight(noteFlightId, roundId, sequenceNum) "
                . "VALUES(:noteFlightId, :roundId, :sequenceNum); ";
@@ -2337,9 +2341,49 @@ function addRound(&$resultObj, $newRound = null) {
         if ($res === false)
             goto db_rollback;
 
+        $usedNoteFlightIds[] = $newNoteFlightId;
         $newNoteFlightId++;
     }
-    
+
+    // Now do flightOrder.
+    // One per sequence, per pilot.
+
+    $pilotResult = createEmptyResultObject();
+    getPilotsForRound($pilotResult, array(
+        "roundId" => $newRoundId
+    ));
+
+    if ($pilotResult["result"] === 'success') {
+        $pilotData = $pilotResult["data"];
+    } else {
+        mergeResultMessages($resultObj, $pilotResult);
+        goto db_rollback;
+    }
+
+
+    $foundPilot = null;
+    shuffle($pilotData);
+    $i = 0;
+    foreach ( $pilotData as $pilot) {
+        foreach ($usedNoteFlightIds as $flightId) {
+            $i++;
+            $query = "INSERT INTO flightOrder(roundId, pilotId, noteFlightId, flightOrder) "
+                . "VALUES(:roundId, :pilotId, :noteFlightId, :flightOrder); ";
+
+            $newFlightOrderResult = createEmptyResultObject();
+            $res = doSQL($newFlightOrderResult, $query, array(
+                "roundId" => $newRoundId,
+                "pilotId" => $pilot["pilotId"],
+                "noteFlightId" => $flightId,
+                "flightOrder" => $i
+            ));
+            mergeResultMessages($resultObj, $newFlightOrderResult);
+
+            if ($res === false || $newFlightOrderResult["result"] == "error")
+                goto db_rollback;
+        }
+    }
+
     if (commitTrans($transResult,"There was a problem adding the round. ") ) {
         $resultObj["result"] = 'success';
         $resultObj["message"] = 'Inserted new round (' . $newRoundId . ') into class ' . $newRound["imacClass"] . '.';
@@ -2695,88 +2739,125 @@ function finishRound() {
     }    
 }
 
-function deleteRound() {
-    global $db;
-    global $result;
-    global $message;
-    
-    $message = null;
+function deleteRound(&$resultObj, $paramArray = null) {
+    // postScoreAdjustment..
+    // We must have sheetId and figureNum
+    // Adjust it, even if it does not exist...
 
-    // Delete round
-    if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
-    if (isset($_GET['imacType'])){ $imacType = $_GET['imacType'];} else $imacType = null;
-    if (isset($_GET['roundNum'])){ $roundNum = $_GET['roundNum'];} else $roundNum = null;
-    //$query = "delete from round where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and phase ='U';";
-    $query = "select * from round where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':imacClass',    $imacClass);
-            $statement->bindValue(':imacType',     $imacType);
-            $statement->bindValue(':roundNum',     $roundNum);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
-        }
-        $round = $res->fetchArray();
-        if ($round["phase"] != 'U') {
-            $message = "This round has already been opened.   It cannot be deleted.";
-            $result  = 'error';
-            return;
-        }
-    } else {
-        $result  = 'error';
-        $message = "Unknown DB error";
-        return;
-    }
+    global $logger;
+    $logger->info("In: deleteRound");
 
-    $db->exec("BEGIN TRANSACTION;");
-    $query = "delete from round where roundId = :roundId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',     $round["roundId"]);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = "Unknown DB error";
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    // Delete round.
+    $imacClass = isset($paramArray["imacClass"]) ? $paramArray["imacClass"] : null;
+    $imacType = isset($paramArray["imacType"]) ? $paramArray["imacType"] : null;
+    $roundNum = isset($paramArray["roundNum"]) ? $paramArray["roundNum"] : null;
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
+
+    $transResult = createEmptyResultObject();
+
+    if (!beginTrans($transResult)) {
+        mergeResultMessages($resultObj, $transResult);
         goto db_rollback;
     }
-    
+
+    // Get the round data and check it's open..
+    $roundResult = createEmptyResultObject();
+    if ($roundId === null) {
+        getRound($roundResult, array(
+            "roundId" => null,
+            "imacClass" => $imacClass,
+            "imacType" => $imacType,
+            "roundNum" => $roundNum
+        ));
+        $logger->debug("Roundsearch:", $roundResult);
+    } else {
+        getRound($roundResult, array(
+            "roundId" => $roundId,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    }
+
+    mergeResultMessages($resultObj, $roundResult);
+
+    if ($roundResult["result"] === 'success') {
+        $roundData = $roundResult["data"];
+        if ( empty($roundData) ) {
+            // Round does not exist...
+            $resultObj["message"] = 'There is no such round.';
+            goto db_rollback;
+        } else
+            $roundId = $roundData["roundId"];
+    } else {
+        goto db_rollback;
+    }
+
+    $pArr = array(
+        "roundId" => $roundId
+    );
+
     $query = "delete from flight where roundId = :roundId;";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':roundId',     $round["roundId"]);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();
-            goto db_rollback;
-        }
-    } else {
-        $result  = 'error';
-        $message = "Unknown DB error";
+
+    $delFlightResult = createEmptyResultObject();
+
+    $logger->debug("Query: $query", $pArr);
+    $res = doSQL($delFlightResult, $query, $pArr);
+    mergeResultMessages($resultObj, $delFlightResult);
+
+    if ($res === false) {
+        $resultObj["message"] = "Could not delete round $roundId from the flight table.";
         goto db_rollback;
     }
-    
-    db_rollback:
-    if ($result == "error") {
-        $db->exec("ROLLBACK;");
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        if (!$db->exec("COMMIT;")) {
-            $err = $db->lastErrorMsg();
-            $result  = 'error';
-            $message = "There was a problem deleting round " . $round["roundId"] . ".  Error was: " . $err;
-        } else {
-            $result  = 'success';
-            $message = 'Round ' . $round["roundId"] . ' has been deleted.';
-        }
+
+    $query = "delete from flightOrder where roundId = :roundId;";
+
+    $delFlightOrderResult = createEmptyResultObject();
+
+    $logger->debug("Query: $query", $pArr);
+    $res = doSQL($delFlightOrderResult, $query, $pArr);
+    mergeResultMessages($resultObj, $delFlightOrderResult);
+
+    if ($res === false) {
+        $resultObj["message"] = "Could not delete round $roundId from the flightOrder table.";
+        goto db_rollback;
     }
+
+    $query = "delete from round where roundId = :roundId;";
+
+    $delRoundResult = createEmptyResultObject();
+
+    $logger->debug("Query: $query", $pArr);
+    $res = doSQL($delRoundResult, $query, $pArr);
+    mergeResultMessages($resultObj, $delRoundResult);
+
+    if ($res === false) {
+        $resultObj["message"] = "Could not delete round $roundId from the round table.";
+        goto db_rollback;
+    }
+
+    $res->finalize();
+
+    if (commitTrans($adjustmentResult,"Could not delete round" . isset($roundId) ? " $roundId." : ".") ) {
+        mergeResultMessages($resultObj, $adjustmentResult);
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = isset($roundId) ? 'Round has ' . $roundId . ' been deleted.' : 'Round has been deleted.';
+        $logger->info('Round has been deleted.', $paramArray);
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($resultObj);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+        $logger->warning("Could not delete round" . isset($roundId) ? " $roundId." : ".", $resultObj);
+    }
+    return null;
+
 }
 
 function clearResults(&$resultObj) {
@@ -3665,109 +3746,6 @@ function postScoreAdjustment(&$resultObj, $paramArray = null) {
         $logger->warning("Could not adjust score for figure $figureNum of sheet $sheetId.", $resultObj);
     }
     return null;
-}
-
-function blahpostScoreAdjustment(&$resultObj, $paramArray = null) {
-    global $db, $logger;
-    // Adjust score.   Create or edit a row showing an override for the received score.
-    //
-    $resultObj["result"]  = 'error';
-    $resultObj["message"] = 'query error';
-    $resultObj["data"] = array();
-    $resultObj["verboseMsgs"] = array();
-
-    if (is_null($adjustment)) {
-        $adjustment = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
-        $logger->debug("Data: ", $adjustment);
-    }
-
-    $transResult = createEmptyResultObject();
-
-    // Sanity checks.
-    if ($newRound["imacType"] == "Freestyle") $newRound["imacClass"] = "Freestyle";
-    if ($newRound["imacType"] != "Known" ) $newRound["sequences"] = 1;
-    if (!isset($newRound["phase"])) $newRound["phase"] = 'U';
-
-    $flightLineId = getStateValue($transResult, "flightLineId");
-    if ($flightLineId < 1) {
-        $flightLineId = null;
-    }
-    if (!beginTrans($transResult))
-        goto db_rollback;
-
-    $query =  "INSERT into round (flightLine, imacClass, imacType, roundNum, schedId, sequences, phase) "
-        .  "VALUES (:flightLine, :imacClass, :imacType, :roundNum, :schedId, :sequences, :phase );";
-
-    // We should check on our values...
-    $res = doSQL($resultObj, $query, array(
-        "flightLine" => $flightLineId,
-        "imacClass" => $newRound["imacClass"],
-        "imacType" => $newRound["imacType"],
-        "roundNum" => $newRound["roundNum"],
-        "schedId" => $newRound["schedule"],
-        "sequences" => $newRound["sequences"],
-        "phase" => $newRound["phase"]
-    ));
-    if ($res === false)
-        goto db_rollback;
-
-    $newRoundId = $db->lastInsertRowID();
-
-    // Get the next flight id.
-    $query = "select (max(noteFlightId) + 1) as newNoteFlightId "
-        . "from flight f inner join round r on f.roundId = r.roundId "
-        . "where r.imacClass = :imacClass";
-
-    $res->finalize();
-    $nextFlightResult = createEmptyResultObject();
-    $res = doSQL($nextFlightResult, $query, array("imacClass" => $newRound["imacClass"]));
-    mergeResultMessages($resultObj, $nextFlightResult);
-
-    if ($res === false)
-        goto db_rollback;
-
-    $row = $res->fetchArray();
-    if (!$row || $row["newNoteFlightId"] == null) {
-        // Null?
-        if (($newRound["imacClass"] == "Freestyle") || ($newRound["imacType"] == "Freestyle"))  {
-            $newNoteFlightId = 1;   // At one stage we were starting freestyle flights at 91..  Not sure why,..
-        } else {
-            $newNoteFlightId = 1;
-        }
-    } else {
-        $newNoteFlightId = $row["newNoteFlightId"];
-    }
-    $res->finalize();
-
-    for ($i = 1; $i <= $newRound["sequences"]; $i++) {
-        $query = "INSERT INTO flight(noteFlightId, roundId, sequenceNum) "
-            . "VALUES(:noteFlightId, :roundId, :sequenceNum); ";
-
-        $newFlightResult = createEmptyResultObject();
-        $res = doSQL($newFlightResult, $query, array(
-            "noteFlightId" => $newNoteFlightId,
-            "roundId" => $newRoundId,
-            "sequenceNum" => $i
-        ));
-        mergeResultMessages($resultObj, $newFlightResult);
-
-        if ($res === false)
-            goto db_rollback;
-
-        $newNoteFlightId++;
-    }
-
-    if (commitTrans($transResult,"There was a problem adding the round. ") ) {
-        $resultObj["result"] = 'success';
-        $resultObj["message"] = 'Inserted new round (' . $newRoundId . ') into class ' . $newRound["imacClass"] . '.';
-    }
-
-    $res->finalize();
-    db_rollback:
-    if ($resultObj["result"] == "error"){
-        $db->exec("ROLLBACK;");
-        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
-    }
 }
 
 

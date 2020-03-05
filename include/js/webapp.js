@@ -230,8 +230,10 @@ $(document).ready(function() {
         $('#roundnum-details').text(data.roundNum);
 
         table_pilotlist = $('#table_pilotlist').DataTable({
-            // OldWay: "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId + "&imacType=" + data.imacType,
             "ajax": "api/1/rounds/" + data.roundId + "/pilotflights",
+            //rowReorder: {
+            //    dataSrc: 'noteFlightId'
+            //},
             "columns": [
                 { "data": "pilotId"},
                 { "data": "fullName"},
@@ -873,11 +875,12 @@ $(document).ready(function() {
         if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
             show_loading_message();
             var request = $.ajax({
-                url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                //url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num,
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
-                type:         'get'
+                type:         'delete'
             });
             request.done(function(output){
                 if (output.result === 'success'){
