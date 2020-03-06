@@ -31,6 +31,7 @@
  *      SearchPanes (Future: quick filters - a bit like RowGroup I guess...)
  *      RowReorder (drag/drop flight ordering...)
  *  ToDo: remove all of the !important CSS hacks.
+ *  ToDO: populatePilotSelect is broken for freestyle...
  *  Done: Fix boostrap CSS issue...  Including breaks the style...
  *
  ****************/
