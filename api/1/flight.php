@@ -68,41 +68,66 @@ if (dbConnect($dbfile) === false) {
  * /flights                     - flights interface.
  * /sheets                      - sheets interface.
  * /users                       - users interface.
+ * /nextflight                  - sets or gets next flight(s).
  *
  **************/
 
+Flight::route ('/jsonblah/*', function($route) {
+    global $resultObj, $logger;
+    $logger->debug("in /jsonblah.");
+
+    apiJSONTest($resultObj, $route->splat);
+}, true);
+
+Flight::route ('/jsonblah', function() {
+    global $resultObj, $logger;
+    $logger->debug("in /jsonblah.");
+    apiJSONTest($resultObj);
+});
 
 Flight::route ("GET /info", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     getFlightLineDetails($resultObj);
 });
 
 Flight::route ("DELETE /auth", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     authLogoff($resultObj);
 });
 
 Flight::route ("GET /auth/@role", function($role) {
-    global $resultObj;
+    global $resultObj, $logger;
     authHasRole($resultObj, $role);
 });
 
 Flight::route ("GET /auth", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     // Just get the current auth object (JS does not have access to the cookies).
     authGetPayload($resultObj);
 });
 
 Flight::route ("POST /auth", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authData = @json_decode((($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}"), true);
     // authData should be an array with keys username and password...
 
     authLogon($resultObj, $authData);
 });
 
+Flight::route ("POST /nextflight", function() {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        setNextFlight($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set next flight.";
+    }
+});
+
 Flight::route ("POST /rounds", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
     if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
         mergeResultMessages($resultObj, $authResultObj);
@@ -114,13 +139,32 @@ Flight::route ("POST /rounds", function() {
 });
 
 Flight::route ("GET /rounds", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     getRounds($resultObj);
 });
 
+Flight::route ("/rounds/@id:[0-9]+/sheets", function($id) {
+    global $resultObj, $logger;
+    getRoundSheets($resultObj, $id);
+});
 
-Flight::route ("/rounds/@id:[0-9]+", function($id) {
-    global $resultObj;
+Flight::route ("/flights/@id:[0-9]+/sheets", function($id) {
+    global $resultObj, $logger;
+    getFlightSheets($resultObj, $id);
+});
+
+Flight::route ("/sheets/@id:[0-9]+", function($id) {
+    global $resultObj, $logger;
+    getSheet($resultObj, $id);
+});
+
+Flight::route ("/sheets", function() {
+    global $resultObj, $logger;
+    getSheets($resultObj);
+});
+
+Flight::route ("GET /rounds/@id:[0-9]+", function($id) {
+    global $resultObj, $logger;
     getRound($resultObj, array(
         "roundId" => $id,
         "imacClass" => null,
@@ -129,28 +173,8 @@ Flight::route ("/rounds/@id:[0-9]+", function($id) {
     ));
 });
 
-Flight::route ("/rounds/@id:[0-9]+/sheets", function($id) {
-    global $resultObj;
-    getRoundSheets($resultObj, $id);
-});
-
-Flight::route ("/flights/@id:[0-9]+/sheets", function($id) {
-    global $resultObj;
-    getFlightSheets($resultObj, $id);
-});
-
-Flight::route ("/sheets/@id:[0-9]+", function($id) {
-    global $resultObj;
-    getSheet($resultObj, $id);
-});
-
-Flight::route ("/sheets", function() {
-    global $resultObj;
-    getSheets($resultObj);
-});
-
-Flight::route ("/rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
-    global $resultObj;
+Flight::route ("GET /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
     getRound($resultObj, array(
         "roundId" => null,
         "imacClass" => $class,
@@ -159,8 +183,8 @@ Flight::route ("/rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", func
     ));
 });
 
-Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
-    global $resultObj;
+Flight::route ("GET /rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
+    global $resultObj, $logger;
     getRound($resultObj, array(
         "roundId" => null,
         "imacClass" => null,
@@ -169,28 +193,81 @@ Flight::route ("/rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
     ));
 });
 
+Flight::route ("DELETE /rounds/@id:[0-9]+", function($id) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => $id,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+});
+
+Flight::route ("DELETE /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => $class,
+            "imacType" => $type,
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+});
+
+Flight::route ("DELETE /rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => null,
+            "imacType" => "Freestyle",
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to add a round.";
+    }
+
+});
+
 Flight::route ("/rounds/@roundId:[0-9]+/nextflight", function($roundId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getNextFlight($resultObj, $roundId);
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/flightstatus", function($roundId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getRoundFlightStatus($resultObj, $roundId);
 });
 
 Flight::route ("/rounds/nextids", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     getNextRoundIds($resultObj);
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/pilotflights", function($roundId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getRoundPilotFlights($resultObj, $roundId);
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/pilots/@pilotId:[0-9]+", function($roundId, $pilotId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getPilotsForRound($resultObj, array(
         "roundId" => $roundId,
         "pilotId" => $pilotId
@@ -198,20 +275,22 @@ Flight::route ("/rounds/@roundId:[0-9]+/pilots/@pilotId:[0-9]+", function($round
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/pilots", function($roundId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getPilotsForRound($resultObj, array(
         "roundId" => $roundId
     ));
 });
 
 Flight::route ("/rounds/@roundId:[0-9]+/results", function($roundId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getFlownRound($resultObj, $roundId);
 });
 
-Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
-    global $resultObj;
+Flight::route ("GET /rounds/@roundId:[0-9]+/scores", function($roundId) {
+    global $resultObj, $logger;
+
     if (isset($_REQUEST['pilot']))  { $pilotId = $_REQUEST['pilot']; } else { $pilotId = null; }
+    $logger->info("GETTING /rounds/<id>/scores for pilot " . $pilotId);
 
     if ($pilotId && is_numeric($pilotId)) {
         getScoresForRound($resultObj, array(
@@ -225,9 +304,96 @@ Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
     }
 });
 
+Flight::route ("DELETE /sheets/@sheetId:[0-9]+/@figureNum:[0-9]+", function($sheetId, $figureNum) {
+    global $resultObj, $logger;
+
+    // Note!    This actually does delete the score (and any delta) rather than adding a 'delete' adjustment...
+    $logger->info("DELETING /sheets/<id=$sheetId>/<figure=$figureNum>");
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        /*
+        deleteScoreOnSheet($resultObj, array(
+            "sheetId" => $sheetId,
+            "figureNum" => $figureNum
+        ));
+        */
+        $logger->info("This method is not yet implemented.");
+        $resultObj["result"]  = 'not implemented';
+        $resultObj['message'] = "This method is not yet implemented.";
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
+    }
+});
+
+Flight::route ("DELETE /sheets/@sheetId:[0-9]+/@figureNum:[0-9]+/adjustment", function($sheetId, $figureNum) {
+    global $resultObj, $logger;
+
+    // Note!  Where here to just delete the delta!
+    $logger->info("DELETING the adjustment of /sheets/<id=$sheetId>/<figure=$figureNum>");
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+
+        deleteScoreAdjustment($resultObj, array(
+            "sheetId" => $sheetId,
+            "figureNum" => $figureNum
+        ));
+
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
+    }
+});
+
+Flight::route ("POST /sheets/@sheetId:[0-9]+/@figureNum:[0-9]+/adjustment", function($sheetId, $figureNum) {
+    global $resultObj, $logger;
+
+    // Note!  Where here to just delete the delta!
+    $logger->info("POSTING the adjustment of /sheets/<id=$sheetId>/<figure=$figureNum>");
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+
+        postScoreAdjustment($resultObj, array(
+            "sheetId" => $sheetId,
+            "figureNum" => $figureNum
+        ));
+
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
+    }
+});
+
+
+Flight::route ("POST /sheets/@sheetId:[0-9]+/@figureNum:[0-9]+", function($sheetId, $figureNum) {
+    global $resultObj, $logger;
+
+    // Note!    This actually does adjust the score rather than manking an adjustment...
+    $logger->info("POSTING /sheets/<id=$sheetId>/<figure=$figureNum>");
+
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        //editScoreForRound($resultObj);
+
+        $logger->info("This method is not yet implemented.");
+        $resultObj["result"]  = 'not implemented';
+        $resultObj['message'] = "This method is not yet implemented.";
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to adjust scores.";
+    }
+});
+
 // Not sure if this is a better API.
 //Flight::route ("/rounds/@roundId:[0-9]+/pilots/@pilotId:[0-9]+/scores", function($roundId, $pilotId) {
-//    global $resultObj;
+//    global $resultObj, $logger;
 //    getScoresForRound($resultObj, array(
 //        "roundId" => $roundId,
 //        "pilotId" => $pilotId
@@ -235,17 +401,17 @@ Flight::route ("/rounds/@roundId:[0-9]+/scores", function($roundId) {
 //});
 
 Flight::route ("/flights/@flightId:[0-9]+", function($flightId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getSheetsForFlight($resultObj, $flightId);
 });
 
 Flight::route ("/pilots/@pilotId:[0-9]*", function($pilotId) {
-    global $resultObj;
+    global $resultObj, $logger;
     getPilot($resultObj, $pilotId);
 });
 
 Flight::route ("DELETE /pilots", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
     if (authHasRole($authResultObj, "ADMIN")) {
         mergeResultMessages($resultObj, $authResultObj);
@@ -257,7 +423,7 @@ Flight::route ("DELETE /pilots", function() {
 });
 
 Flight::route ("DELETE /results", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
     if (authHasRole($authResultObj, "ADMIN")) {
         mergeResultMessages($resultObj, $authResultObj);
@@ -269,7 +435,7 @@ Flight::route ("DELETE /results", function() {
 });
 
 Flight::route ("POST /pilots", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
     if (authHasRole($authResultObj, "ADMIN")) {
         mergeResultMessages($resultObj, $authResultObj);
@@ -281,18 +447,18 @@ Flight::route ("POST /pilots", function() {
 });
 
 Flight::route ("/schedules", function() {
-    global $resultObj;
-    error_log("WARN: /schedules is depricated.   Use /sequences instead.");
+    global $resultObj, $logger;
+    $logger->warning(" /schedules is depricated.   Use /sequences instead.");
     getSchedList($resultObj);
 });
 
 Flight::route ("GET /sequences", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     getSchedList($resultObj);
 });
 
 Flight::route ("POST /sequences", function() {
-    global $resultObj;
+    global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
     if (authHasRole($authResultObj, "ADMIN")) {
         mergeResultMessages($resultObj, $authResultObj);
@@ -308,6 +474,7 @@ Flight::start();
 dbDisconnect();
 unset($db);
 
+$logger->debug("Sending back: ", $resultObj);
 // Convert PHP array to JSON array
 if ($jsondebug === false || $jsondebug === "false") {
     $json_data = json_encode($resultObj, null);

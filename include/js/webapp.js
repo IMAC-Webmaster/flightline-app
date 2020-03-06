@@ -230,8 +230,10 @@ $(document).ready(function() {
         $('#roundnum-details').text(data.roundNum);
 
         table_pilotlist = $('#table_pilotlist').DataTable({
-            // OldWay: "ajax": "data.php?job=get_round_pilots&roundId=" + data.roundId + "&imacType=" + data.imacType,
             "ajax": "api/1/rounds/" + data.roundId + "/pilotflights",
+            //rowReorder: {
+            //    dataSrc: 'noteFlightId'
+            //},
             "columns": [
                 { "data": "pilotId"},
                 { "data": "fullName"},
@@ -463,6 +465,7 @@ $(document).ready(function() {
             }
         }
     }
+
     function fetchLoginStatus() {
 
         if (typeof(Storage) !== "undefined") {  //disable for testing.
@@ -538,7 +541,6 @@ $(document).ready(function() {
         let formObject = helpers.getFormData($('#form_login'));
         let formMethod = 'get';
         let action = $('#form_login button').text();
-
 
         switch(action) {
             case 'Logout':
@@ -715,7 +717,6 @@ $(document).ready(function() {
     // Edit round button
     $(document).on('click', '.function_edit a', function(e){
         e.preventDefault();
-        // Get company information from database
         show_loading_message();
         var round_class    = $(this).data('imacclass');
         var round_type     = $(this).data('imactype');
@@ -874,11 +875,12 @@ $(document).ready(function() {
         if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
             show_loading_message();
             var request = $.ajax({
-                url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                //url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num,
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
-                type:         'get'
+                type:         'delete'
             });
             request.done(function(output){
                 if (output.result === 'success'){
@@ -1045,26 +1047,32 @@ $(document).ready(function() {
         var next_pilotid      = $(thisButton).data('pilotid');
         var next_noteflightid = $(thisButton).data('noteflightid');
         var next_pilotname    = $(thisButton).data('pilotname');
-        var blOkToGo = true;
 
         //show_message("Setting next flight to " + next_noteflightid + " pilot " + next_pilotid, 'success');
         blOkToGo = true;
 
         if (blOkToGo) {
             show_loading_message();
+            let formObject = {  "roundId": next_roundid,
+                            "pilotId": next_pilotid,
+                            "noteFlightId": next_noteflightid
+            };
+
+            let jsonobj = JSON.stringify(formObject);
+
             var request = $.ajax({
-                url:          'data.php?job=set_next_flight&roundId=' + next_roundid + '&seqNum=' + next_seqnum + '&pilotId=' + next_pilotid + '&noteFlightId=' + next_noteflightid,
-                cache:        false,
+                url:          '/api/1/nextflight',
+                data:         JSON.stringify(formObject),
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
-                type:         'get'
+                type:         'post'
             });
             request.done(function(output){
                 if (output.result === 'success'){
                     // Reload datable
                     table_roundlist.ajax.reload(function(){
                         hide_loading_message();
-                        show_message("Set next flight to " + next_noteflightid + " pilot " + next_pilotid, 'success');
+                        show_message("Next flight for this round is  pilot " + next_pilotid + " flight " + next_noteflightid, 'success');
                         fillNextFlight(next_roundid, next_pilotname, next_seqnum);
                         adjustNextFlightButtons(next_roundid);
                         // Reset the Buttons!

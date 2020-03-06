@@ -16,6 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with FlightLine.  If not, see <https://www.gnu.org/licenses/>.
  */
+$(document).ready(function() {
+    // Set up our handlers here.
+
+    $('#breakFlagSlider').off('click').on('click', function () {
+        console.log("Break penalty: " + $(this).is(":checked"));
+        $('input[name=breakFlag]').val($(this).is(":checked") ? 1 : 0);
+    } );
+
+    $('button[type=submit]').off('click').on('click', function () {
+        $('input[name=button]').val($(this).val());
+        console.log("Pressed button: " + $(this).text());
+    } );
+
+});
 
 function parseRoundData(round) {
     // round.* is from round table...
@@ -25,7 +39,9 @@ function parseRoundData(round) {
     // round.pilots.sheets are the pilots sheets for the round (double round with 2 judges = 4 sheets!)
     // round.pilots.sheets.scores are the scores!
 
-    var roundInfo = gatherInfo(round);
+    // Save the round globally..
+    currentRound = round;
+    let roundInfo = gatherInfo(round);
     roundInfo['sequenceCount'] = round.sequences;
     roundInfo['sheetCount'] = round.sequences * roundInfo['judgeCount'];
     let thisColumnCount = (roundInfo['sheetCount'] + 2 );
@@ -40,9 +56,9 @@ function parseRoundData(round) {
         destroyTable = false;
     }
     console.log("Building datatable data.");
-    var dataTable = {columns:[ {title: "Num.", data:"num"}, {title: "Figure",  data:"fig"}], data:[]};
+    let dataTable = {columns:[ {data:"num", title: "Num."}, {data:"fig", title: "Figure"} ], data:[]};
     // Lets do this for each pilot in the data!
-    var judgeCols = {};
+    let judgeCols = {};
     for (var pIdx in round.pilots) {
         dataTable.data.push(new Array());
         for (var fIdx in round.schedule.figures) {
@@ -53,9 +69,14 @@ function parseRoundData(round) {
             for (var sIdx in round.pilots[pIdx].sheets) {
                 var colSeqNum = round.pilots[pIdx].sheets[sIdx].sequenceNum;
                 var colJudgeNum = round.pilots[pIdx].sheets[sIdx].judgeNum;
+                var colSheetId = round.pilots[pIdx].sheets[sIdx].sheetId;
                 var colName = " Seq " + colSeqNum + " Judge " + colJudgeNum;
                 var colData = "S" + colSeqNum + "J" + colJudgeNum;
-                myDataRow[colData] = round.pilots[pIdx].sheets[sIdx].scores[fIdx];
+
+                myDataRow[colData] = {};
+                myDataRow[colData] = { ...round.pilots[pIdx].sheets[sIdx].scores[fIdx] };
+                //myDataRow[colData] = round.pilots[pIdx].sheets[sIdx].scores[fIdx];
+                myDataRow[colData]["sheetId"] = colSheetId;
                 judgeCols[colData] = { title: colName, seqnum: colSeqNum, judgenum: colJudgeNum};
             }
             // We really only want to add  
@@ -68,175 +89,9 @@ function parseRoundData(round) {
     for (var colIdx in colIds) {
         dataTable["columns"].push({data: colIds[colIdx], title: judgeCols[colIds[colIdx]].title, seqnum: judgeCols[colIds[colIdx]].seqnum, judgenum: judgeCols[colIds[colIdx]].judgenum});
     }
-    
+
     round["datatable_columns"] = dataTable["columns"];
-    
-}
 
-function gatherInfo(item) {
-    var roundInfo = new Array();
-    roundInfo['pilotCount'] = item.pilots.length;
-    console.log("Pilot Count: " +  roundInfo['pilotCount']);
-    var maxSheets = 0;
-    var maxJudgeNum = 0;
-    var judgeNumbers = new Array();
-    roundInfo['judgeCount'] = 0;
-    for (pilot in item.pilots) {  
-        if (item.pilots[pilot].sheets.length > maxSheets) {
-            maxSheets = item.pilots[pilot].sheets.length;
-        }
-        for (sheet in item.pilots[pilot].sheets) {
-            if (judgeNumbers[item.pilots[pilot].sheets[sheet].judgeNum] === undefined) {
-                judgeNumbers[item.pilots[pilot].sheets[sheet].judgeNum] = ++roundInfo['judgeCount'];
-            }
-            if (item.pilots[pilot].sheets[sheet].judgeNum > maxJudgeNum) {
-                maxJudgeNum = item.pilots[pilot].sheets[sheet].judgeNum;
-            }
-        }
-        roundInfo['judgeIds'] = Object.keys(judgeNumbers);
-        roundInfo['judgeIds'].sort();
-    }
-    
-    roundInfo['sheetCount'] = maxSheets;
-    console.log("Judge Count: " +  roundInfo['judgeCount']);
-    return (roundInfo);
-}
-
-function drawTableInfo() {
-    // Draw the pilot details.
-    $("#pilotName").html(data.pilot.fullName);
-    $("#roundNum").html(data.round.roundNum);
-    if (data.round.sequences === 1) {
-        $("#roundType").html(data.round.imacType + " Single");
-    } else if (data.round.sequences === 2) {
-        $("#roundType").html(data.round.imacType + " Double");
-    }
-    $("#roundClass").html(data.round.imacClass);
-    $("#roundSchedule").html(data.round.description);
-
-    lastFlightInfo.pilotId = data.pilot.pilotId;
-    lastFlightInfo.roundId = data.round.roundId;
-}
-
-function handleAjaxResponse(roundId, pilotId, liveResults) {
-    var str;
-
-    console.log("Doing pilot: " + data.pilot.fullName + " T: " + pilotId+ " L: " + lastFlightInfo.pilotId );
-    if (liveResults === true && (lastFlightInfo.roundId != roundId || lastFlightInfo.pilotId != pilotId) ) {
-        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
-            table.clear();
-            table.destroy();
-            $("#scores thead tr").empty();
-        }
-    } else {
-        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
-            console.log("Not destroying table...");
-            drawTableInfo();
-            return;
-        }
-        console.log("Creating Datatable...");
-    }
-
-    // Iterate each column and print table headers for Datatables
-    $.each(data.columns, function (k, colObj) {
-        //str = '<th>' + colObj.name + '</th>';
-        str = '<th></th>';
-        $(str).appendTo('#scores>thead>tr');
-    });
-
-    $.fn.dataTable.ext.errMode = 'none';
-    table = $('#scores')
-        .on( 'error.dt', function ( e, settings, techNote, message ) {
-            console.log( 'An error has been reported by DataTables: ', message );
-        } )
-        .DataTable({
-        "ajax": {
-            //"url": "/api/1/rounds/" + roundId + "/pilots/" + pilotId + "/   // Not sure which is a better API pattern
-            "url": "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
-            "dataSrc": function ( json ) {
-                return processAJAXResposeForDT(json);
-            }
-        },
-        "dom": "t",
-        "columns": data.columns,
-        "lengthChange": false,
-        "pageLength": 12,
-        "ordering": false,
-        "columnDefs": [
-            { "targets": [0, 1],    className: "desc" },
-            { "targets": "_all",    className: "score" },
-            { "targets": "_all",    createdCell: function (td, cellData, rowData, row, col) { renderScoreContainer(td, cellData, rowData, row, col); } },
-            { "targets": "_all",    render: function ( data, type, row ) { return (typeof data === "object") ? renderScore(data, type, row) : data; } }
-        ],
-        "fnInitComplete": function () {
-            // Event handler to be fired when rendering is complete (Turn off Loading gif for example)
-            console.log('Datatable rendering complete');
-        }
-    });
-    drawTableInfo();
-}
-
-function renderScoreContainer (td, cellData, rowData, row, col) {
-    if ((typeof cellData === "object") && (cellData !== null)) {
-        if (cellData.breakFlag === 1) {
-            $(td).addClass("break");
-        }
-        if (cellData.comment !== null) {
-            // Add comment here!
-        }
-        var dateNow = +new Date();
-        if ((cellData.scoreTime + 30) > (dateNow / 1000) ) { //Is this less than 30 seconds old?
-            $(td).addClass("new");
-        }
-    }
-}
-
-function renderScore (d, t, r) {
-    var classes = "score";
-    if (typeof d.features !== "undefined") {
-        for (var i = 0, len = d.features.length; i < len; i++) {
-          classes = classes + " " + d.features[i];
-        }
-    }
-    if (d.breakFlag === 1) {
-        classes = classes + " break";
-    }
-    return ("<div class='" + classes + "'>" + d.score + "</div>");
-}
-function getPilotIndexFromId(id, data) {
-    var idx = null;
-    $.each(data, function (i, v) {
-        if (v["pilotId"] == id) {
-            idx = i;
-        }
-    });
-    return idx;
-}
-
-function getMostRecentPilotAndFlight() {
-    var xhr;
-    var result = null;
-    loadingRecentFlightInfo = true;
-    console.log("Getting the most recent flight data.")
-    xhr = $.ajax(
-        {
-            url: '/data.php?job=get_latest_round_and_pilot',
-            type: 'GET',
-            cache: false,
-            timeout: 15000,
-            async: true
-        })
-        .done(function()
-        {
-            loadingRecentFlightInfo = 'DONE';
-            result = JSON.parse(xhr.responseText);
-            latestFlightInfo = result.data;
-        })
-        .fail(function()
-        {
-            loadingRecentFlightInfo = 'FAILED';
-            latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""};
-        });
 }
 
 function padRoundData(resultdata, tabledata, pilotId) {
@@ -250,9 +105,24 @@ function padRoundData(resultdata, tabledata, pilotId) {
     // Fill empty pilot sheets here (based on whats in resultdata.datable_columns)
     for (var dti in resultdata.pilots[p].datatable) {
         for (var col in resultdata.datatable_columns) {
-            if (typeof resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] === "undefined") {
+            // The sheet itself was not there.   So we don't have any data.
+            if ((col > 1) && (typeof resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] === "undefined")) {
+                console.log("There is no data for this pilot in this resultset!");
+                // How to destroy the DT?
+                tabledata.data = resultdata.pilots[p].datatable;
+                tabledata.sheets = resultdata.pilots[p].sheets;
+                tabledata.columns = resultdata.datatable_columns;
+                return;
+            }
+
+            // If we had a sheet, but did not have a score for this fig, then the 'score' property of the score object wont be defined.
+            // The object itself will be there because we already added the sheetId when parsing the response.
+            if ((col > 1) && (typeof resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data].score === "undefined")) {
                 // We need to add it.  (A blank one)
-                resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] = {figureNum: null, scoreTime: null, breakFlag: null, score: 'No Score', comment: null};
+                let currentScoreObject = resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data];
+                let defaultScoreObject = {figureNum: resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[0].data], scoreTime: null, breakFlag: null, score: 'No Score', comment: null, scoreDelta: null}
+                // ES6 Only!   Pre 2015 will break.
+                resultdata.pilots[p].datatable[dti][resultdata.datatable_columns[col].data] = {...currentScoreObject, ...defaultScoreObject};
             }
         }
     }
@@ -268,7 +138,8 @@ function padRoundData(resultdata, tabledata, pilotId) {
             for (var sheet in tabledata.sheets) {
                 if (tabledata.sheets[sheet].sequenceNum === tabledata.columns[col].seqnum && tabledata.sheets[sheet].judgeNum === tabledata.columns[col].judgenum) {
                     // This is the sheet!   Delete the scores to save some memory...
-                    delete tabledata.sheets[sheet].scores;
+                    // Hold it...   Maybe we need to pass this one to the API!
+                    //delete tabledata.sheets[sheet].scores;
                     tabledata.columns[col]["sheet"] = tabledata.sheets[sheet];
                     if (tabledata.sheets[sheet].mppFlag === 1) {
                         tabledata.columns[col]["className"] = "score mpp";
@@ -301,6 +172,307 @@ function padRoundData(resultdata, tabledata, pilotId) {
     };
 }
 
+function gatherInfo(item) {
+    var roundInfo = new Array();
+    roundInfo['pilotCount'] = item.pilots.length;
+    console.log("Pilot Count: " +  roundInfo['pilotCount']);
+    var maxSheets = 0;
+    var maxJudgeNum = 0;
+    var judgeNumbers = new Array();
+    roundInfo['judgeCount'] = 0;
+    for (pilot in item.pilots) {  
+        if (item.pilots[pilot].sheets.length > maxSheets) {
+            maxSheets = item.pilots[pilot].sheets.length;
+        }
+        for (sheet in item.pilots[pilot].sheets) {
+            if (judgeNumbers[item.pilots[pilot].sheets[sheet].judgeNum] === undefined) {
+                judgeNumbers[item.pilots[pilot].sheets[sheet].judgeNum] = ++roundInfo['judgeCount'];
+            }
+            if (item.pilots[pilot].sheets[sheet].judgeNum > maxJudgeNum) {
+                maxJudgeNum = item.pilots[pilot].sheets[sheet].judgeNum;
+            }
+        }
+        roundInfo['judgeIds'] = Object.keys(judgeNumbers);
+        roundInfo['judgeIds'].sort();
+    }
+    
+    roundInfo['sheetCount'] = maxSheets;
+    console.log("Judge Count: " +  roundInfo['judgeCount']);
+    return (roundInfo);
+}
+
+function paintTableInfo() {
+    // Draw the pilot details.
+    $("#pilotName").html(data.pilot.fullName);
+    $("#roundNum").html(data.round.roundNum);
+    if (data.round.sequences === 1) {
+        $("#roundType").html(data.round.imacType + " Single");
+    } else if (data.round.sequences === 2) {
+        $("#roundType").html(data.round.imacType + " Double");
+    }
+    $("#roundClass").html(data.round.imacClass);
+    $("#roundSchedule").html(data.round.description);
+
+    lastFlightInfo.pilotId = data.pilot.pilotId;
+    lastFlightInfo.roundId = data.round.roundId;
+}
+
+function handleAjaxResponse(roundId, pilotId, liveResults) {
+    var str;
+    console.log("Displaying pilot: " + data.pilot.fullName + " T: " + pilotId+ " L: " + lastFlightInfo.pilotId );
+
+    // Check if we need to destroy the old table.    Need to make this more generic.   Lastflightinfo is for live scores but we need a 'lastShownFlightInfo' as well.
+    if (liveResults === true && (lastFlightInfo.roundId != roundId || lastFlightInfo.pilotId != pilotId) ) {
+        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+            console.log("Different round/pilot, recreating table...");
+            table.clear();
+            table.destroy();
+            $("#scores thead tr").empty();
+        }
+    } else {
+        if ( $.fn.DataTable.isDataTable( '#scores' ) ) {
+            paintTableInfo();
+            return;
+        }
+        console.log("Creating Datatable...");
+    }
+
+    // Datatable is empty.   Create it from scratch.
+    // Iterate each column and print table headers for Datatables
+    $.each(data.columns, function (k, colObj) {
+        str = '<th></th>';
+        $(str).appendTo('#scores>thead>tr');
+    });
+
+
+    $.fn.dataTable.ext.errMode = 'none';
+    table = $('#scores')
+        .on( 'error.dt', function ( e, settings, techNote, message ) {
+            console.log( 'An error has been reported by DataTables: ', message );
+        } )
+        .DataTable({
+        "ajax": {
+            // Not sure which is a better API pattern
+            // "url": "/api/1/rounds/" + roundId + "/pilots/" + pilotId,
+            "url": "/api/1/rounds/" + roundId + "/scores"+ "?pilot=" + pilotId,
+            "dataSrc": function ( json ) {
+                return processAJAXResposeForDT(json);
+            }
+        },
+        "dom": "t",
+        "columns": data.columns,
+        "lengthChange": false,
+        "pageLength": 12,
+        "ordering": false,
+        "columnDefs": [
+            { "targets": [0],    className: "num" },
+            { "targets": [1],    className: "desc" },
+            { "targets": "_all",    className: "score" },
+            { "targets": "_all",    createdCell: function (td, cellData, rowData, row, col) { renderScoreContainer(td, cellData, rowData, row, col); } },
+            { "targets": "_all",    render: function ( data, type, row ) { return (typeof data === "object") ? renderScore(data, type, row) : data; } }
+        ],
+        "fnInitComplete": function () {
+            // Event handler to be fired when rendering is complete (Turn off Loading gif for example)
+            console.log('Datatable rendering complete');
+        }
+    });
+
+    // Handle score editing...
+    $('#scores').off('click').on( 'click', 'tbody td.score', function (event) { displayScoreEditForm(event, this, roundId, pilotId) });
+
+    // Handle close....
+    $(document).off('click').on('click', '.lightbox_close', function(){
+        $('.lightbox_bg').hide();
+        $('.lightbox_container').hide();
+        $('.lightbox_content').hide();
+    });
+
+    // Handle Escape Key
+    $(document).keyup(function(e) { if (e.keyCode === 27) $('.lightbox_close').click(); });
+
+    paintTableInfo();
+}
+
+function displayScoreEditForm(event, theScoreCell, roundId, pilotId) {
+    event.preventDefault();
+    show_loading_message();
+    let d = table.cell( theScoreCell ).data();
+    let offset = $(theScoreCell).offset();
+    let fig = getFigureDetails(d.figureNum);
+    console.log("Score cell data: ");
+    console.log( d );
+    console.log("Set up event for DT R:" + roundId + " P:" + pilotId);
+    console.log("Figure:");
+    console.log(fig);
+    $('#editscoreTitle').html("Score");
+    $('#figureDetails').html("<div>Figure: " + fig.figureNum + "</div><div>Desc: " + fig.longDesc + "</div><div>K-Factor: " + fig.k + "</div><div>Rule: " + fig.rule + "</div><div>Long Desc: " + fig.spokenText + "</div>");
+    $('#form_editscore').trigger("reset");
+    $('#form_editscore').validate().resetForm();
+
+    // Set some defaults.
+    $('input[name=score]').val("");
+    $('input[name=score]').prop('disabled', false);
+    $('input[name=comment]').val("");
+    $('input[name=comment]').prop('disabled', false);
+    $('input[name=cdcomment]').val("");
+    $('input[name=cdcomment]').prop('disabled', false);
+    $('#delete').prop('disabled', false);
+    $('#delete').val("delete");
+    $('#breakFlagSlider').prop('disabled', false);
+    $('#save').prop('disabled', false);
+    $('#delete').html("Delete Score");
+
+    if (d.scoredelta) {
+        // There is extra score info...   Add it.
+        $('#delete').html("Undo adjustment");
+        $('#delete').val("undo");
+        if (d.scoredelta.deleted) {
+            $('input[name=score]').val("");
+            $('input[name=score]').prop('disabled', true);
+            $('#breakFlagSlider').prop('disabled', true);
+            $('#save').prop('disabled', true);
+        } else {
+            $('input[name=score]').val(d.scoredelta.score);
+            $('input[name=comment]').val(d.scoredelta.comment);
+            $('input[name=cdcomment]').val(d.scoredelta.cdcomment);
+            if (d.scoredelta.breakFlag)
+                $('#breakFlagSlider').prop('checked', d.scoredelta.breakFlag == 1 ? true : false);
+        }
+    } else {
+        // If there is no score, dont show the deleted button.
+        $('#delete').prop('disabled', d.scoreTime ? false : true);
+        $('input[name=score]').val(d.score);
+        $('input[name=comment]').val(d.comment);
+        if (d.breakFlag)
+            $('#breakFlagSlider').prop('checked', (d.breakFlag == 1 ? true : false));
+    }
+
+    // Fill in the hidden fields.
+    $('input[name=sheetId]').val(d.sheetId);
+    $('input[name=figureNum]').val(d.figureNum);
+    $('input[name=breakFlag]').val($('#breakFlagSlider').is(":checked") ? 1 : 0);
+
+    $('#save').attr('disabled', true);
+    $('#form_editscore').on('input change', function() {
+        $('#save').attr('disabled', false);
+    });
+
+    $("div.lightbox_content#editscore").show();
+    $('.lightbox_bg').show();
+    $('.lightbox_container').show();
+
+    $('.lightbox_container')
+        .fadeIn()
+        .css({
+            left: Math.min( offset.left, (($(window).innerWidth() / 2) - ($('.lightbox_container').outerWidth() / 2)) ),
+            top:  Math.min( (offset.top + $(this).innerHeight()), (($(window).innerHeight() / 2) - ($('.lightbox_container').outerHeight() / 2)) )
+        });
+    hide_loading_message();
+}
+
+function getFigureDetails(figureNum) {
+    var foundItem = null;
+    if (currentRound)
+    currentRound.schedule.figures.forEach(function(item, index) {
+        if (item.figureNum && item.figureNum == figureNum)
+            foundItem = item;
+    });
+    return foundItem;
+}
+
+function renderScoreContainer (td, cellData, rowData, row, col) {
+    var chosendata = cellData;
+
+    if ((typeof cellData === "object") && (cellData !== null)) {
+        if (cellData.scoredelta) {
+            // We've got adjusted scores!
+            chosendata = cellData.scoredelta;
+        }
+        if (chosendata.breakFlag === 1 && !chosendata.deleted) {
+            $(td).addClass("break");
+        }
+        var dateNow = +new Date();
+        if ((chosendata.scoreTime + 30) > (dateNow / 1000) ) { //Is this less than 30 seconds old?
+            $(td).addClass("new");
+        }
+    }
+}
+
+function renderScore (d, t, r) {
+    var classes = "score";
+    var extradivs = "";
+    var chosendata = d;
+    if (typeof d.features !== "undefined") {
+        for (var i = 0, len = d.features.length; i < len; i++) {
+          classes = classes + " " + d.features[i];
+        }
+    }
+
+    if (d.scoredelta) {
+        chosendata = d.scoredelta;
+    }
+
+    if (chosendata.breakFlag === 1) {
+        extradivs = extradivs + "<div class='break'>[br]</div>";
+    }
+
+    if (chosendata.boxFlag === 1) {
+        // We dont do box errors any more.
+        extradivs = extradivs + "<div class='box'>[bx]</div>";
+    }
+
+    if (d.scoredelta) {
+        extradivs = extradivs + "<div class='adjusted'>[adjusted]</div>";
+    }
+    if (chosendata.deleted) {
+        // If the score is deleted, ignore the other classes (such as break)
+        return ("<div class='" + classes + "'>No Score</div><div class='scorewrapper'><div class='adjusted'>[adjusted]</div></div>");
+    } else {
+        return ("<div class='" + classes + "'>" + chosendata.score + "</div><div class='scorewrapper'>" + extradivs + "</div>");
+    }
+}
+
+function getPilotIndexFromId(id, data) {
+    var idx = null;
+    $.each(data, function (i, v) {
+        if (v["pilotId"] == id) {
+            idx = i;
+        }
+    });
+    return idx;
+}
+
+function getMostRecentPilotAndFlight(loadScores = false) {
+    var xhr;
+    var result = null;
+    loadingRecentFlightInfo = true;
+    console.log("Getting the most recent flight data.")
+    xhr = $.ajax(
+        {
+            url: '/data.php?job=get_latest_round_and_pilot',
+            type: 'GET',
+            cache: false,
+            timeout: 15000,
+            async: true
+        })
+        .done(function()
+        {
+            loadingRecentFlightInfo = 'DONE';
+            result = JSON.parse(xhr.responseText);
+            latestFlightInfo = result.data;
+            console.log("DEBUG: Most recent round: " + result.data.roundId);
+            console.log("DEBUG: Most recent pilot: " + result.data.pilotId);
+            if (loadScores) {
+                loadScoreData(result.data.roundId, result.data.pilotId);
+            }
+        })
+        .fail(function()
+        {
+            loadingRecentFlightInfo = 'FAILED';
+            latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""};
+        });
+}
+
 function processAJAXResposeForDT(result) {
 
     // Number 1...   Are we looking at live data?
@@ -308,10 +480,9 @@ function processAJAXResposeForDT(result) {
 
     let roundId = $('#roundSel option:selected').val();
     let pilotId = $('#pilotSel option:selected').val();
-    let seqNum = null;       // Not supported yet.
     let liveResults = false;  // Are we operating from liveData or did the user select something.
 
-    if ( (roundId === null || roundId === '') || (pilotId === null || pilotId === '')) {
+    if ( (!roundId || roundId === 'Live') || (pilotId === null || pilotId === '')) {
 
         switch(loadingRecentFlightInfo) {
             // ToDo: Change if block for switch...
@@ -351,44 +522,99 @@ function processAJAXResposeForDT(result) {
     return data.data;
 }
 
-function loadRoundData(roundId, pilotId, sequenceNum) {
-    // If they selected nothing, then just clear table, and clear selects...
-    if (roundId === null || roundId === '' || pilotId === null || pilotId === '') {
-        switch(loadingRecentFlightInfo) {
-            // ToDo: Change if block for switch...
-        }
-        if (loadingRecentFlightInfo === true) {
-            // We're not done...
-            console.log ("Recursion at: " + recursionCounter++);
-            setTimeout(function()  { loadRoundData(roundId, pilotId, sequenceNum); }, 30);
-            return;
-        } else if (loadingRecentFlightInfo === false) {
-            // We're not loading, but we need it...
-            //lastFlightInfo = latestFlightInfo;  // Should be set from last time...
-            recursionCounter = 1;
-            //show_message("Geting the latest flight info.", "success");
-            show_loading_message();
-            $('#pilotSel').hide();
-            getMostRecentPilotAndFlight();
-            loadRoundData(roundId, pilotId, sequenceNum);
-            return;
-        } else if (loadingRecentFlightInfo === 'DONE') {
-            // We got the data!
-            loadingRecentFlightInfo = false;
-            if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
-                destroyTable = false;
+function loadScoreData(roundId, pilotId) {
+    // sequenceNumber is optional...    The others are not.
+    if (!roundId && !pilotId) {
+        return;
+    }
+
+    if (roundId === 'Live') {
+        // In this case we don't know what round to get the data for.   So first we mist ask.
+        getMostRecentPilotAndFlight(true);
+        return;
+    }
+
+    //Before creating the table, we need to get the data once so we can check out the columns.
+    //This means a second ajax call the first time we load the page...  :-(
+
+    var url = '/api/1/rounds/' + roundId + '/scores';
+
+    jqxhr = $.ajax(url)
+        .done(function(){
+            let result = JSON.parse(jqxhr.responseText);
+            parseRoundData(result.data);
+            padRoundData(result.data, data, pilotId);
+            handleAjaxResponse(roundId, pilotId, true);
+
+        })
+        .fail(function (jqXHR, exception) {
+            var msg = '';
+            if (jqXHR.status === 0) {
+                msg = 'Not connect.\n Verify Network.';
+            } else if (jqXHR.status == 404) {
+                msg = 'Requested page not found. [404]';
+            } else if (jqXHR.status == 500) {
+                msg = 'Internal Server Error [500].';
+            } else if (exception === 'parsererror') {
+                msg = 'Requested JSON parse failed.';
+            } else if (exception === 'timeout') {
+                msg = 'Time out error.';
+            } else if (exception === 'abort') {
+                msg = 'Ajax request aborted.';
             } else {
-                destroyTable = true;
+                msg = 'Uncaught Error.\n' + jqXHR.responseText;
             }
-            //hide_message();
-            hide_loading_message();
-            loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
-            return;
-        } else if (loadingRecentFlightInfo === 'FAILED') {
-            console.log("ERROR: Could not get flight info.")
-            hide_loading_message();
-            show_message("Could not get latest flight info.", "error");
-            return;
+            console.log(msg);
+            data.columns = new Array();
+            data.data = new Array();
+            data.sheets = new Array();
+        })
+        .always(function() {
+            paintPage();
+        });
+}
+
+function loadRoundData(roundId, pilotId) {
+    // If they selected nothing, then just clear table, and clear selects...
+    if (!roundId || roundId === 'Live' || pilotId === null || pilotId === '') {
+        switch(loadingRecentFlightInfo) {
+            // ToDo: Change if block for switch..
+            case true:
+                // We're not done...
+                console.log ("Recursion at: " + recursionCounter++);
+                setTimeout(function()  { loadRoundData(roundId, pilotId); }, 30);
+                return;
+            case false:
+                // We're not loading, but we need it...
+                //lastFlightInfo = latestFlightInfo;  // Should be set from last time...
+                recursionCounter = 1;
+                //show_message("Geting the latest flight info.", "success");
+                show_loading_message();
+                $('#pilotSel').hide();
+                getMostRecentPilotAndFlight();
+                //if (latestFlightInfo.latestScoreTime)
+                //    loadRoundData(roundId, pilotId);
+                setTimeout(function()  { loadRoundData(roundId, pilotId); }, 30);
+                return;
+            case "DONE":
+                // We got the data!
+                loadingRecentFlightInfo = false;
+                if ( lastFlightInfo && (latestFlightInfo.roundId == lastFlightInfo.roundId) && (latestFlightInfo.pilotId == lastFlightInfo.pilotId) ) {
+                    destroyTable = false;
+                } else {
+                    destroyTable = true;
+                }
+                //hide_message();
+                hide_loading_message();
+                loadRoundData(latestFlightInfo.roundId, latestFlightInfo.pilotId, null);
+                return;
+            case "FAILED":
+                console.log("ERROR: Could not get flight info.")
+                hide_loading_message();
+                show_message("Could not get latest flight info.", "error");
+                return;
+            default:
+                break;
         }
     }
 
@@ -426,21 +652,53 @@ function loadRoundData(roundId, pilotId, sequenceNum) {
             data.columns = new Array();
             data.data = new Array();
             data.sheets = new Array();
+        })
+        .always(function() {
+            paintPage();
         });
 }
 
-function populateRoundSelect(selectedRound) {
-    var xhr;
-    var url = '/data.php?job=get_rounds';
-    xhr = $.ajax(url)
-        .done(function()
-        {
-            result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', selectedRound);
-            initialRoundLoadDone = true;
-        })
-        .fail();
-    
+function getSelection() {
+    selectionData.roundId = $('#roundSel option:selected').val();
+    selectionData.pilotId = $('#pilotSel option:selected').val();
+    selectionData.autoRefresh = $('#autoRefresh').is(':checked') ? true : false;
+}
+
+function scoreDataAvailable() {
+
+    if ((latestFlightInfo.latestScoreTime && selectionData.autoRefresh === true) || (data.sheets && data.sheets.length > 0)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function paintPage() {
+    // When we are here we should have all data ready to go.
+    // 1. Set the select boxes to be what they should be and display/hide as need be.
+    // 2. Paint the Class/Round/Sched etc fields if need be.
+    // 3. Set the pilot/table/nodata stuff vis/hidden as need be.
+    getSelection();
+    if (loadingPilotInfo || loadingRoundInfo) {
+        $("#pilotSel").hide();
+        return;
+    }
+
+    $("#roundSel").show();
+    if (selectionData.roundId === "Live") {
+        $("#pilotSel").hide();
+    } else {
+        $("#pilotSel").show();
+    }
+    if (scoreDataAvailable()) {
+        $("#scores").show();
+        $("#pilotNameHeader").show();
+        $("#noDataHeader").hide();
+    } else {
+        $("#scores").hide();
+        $("#pilotNameHeader").hide();
+        $("#noDataHeader").show();
+    }
 }
 
 // Show message
@@ -454,6 +712,7 @@ function show_message(message_text, message_type){
         hide_message();
     }, 10000);
 }
+
 // Hide message
 function hide_message(){
     $('#message').html('').attr('class', '');
@@ -465,28 +724,65 @@ function show_loading_message(){
     $('#loading_container').show();
 }
 // Hide loading message
+
 function hide_loading_message(){
     $('#loading_container').hide();
 }
 
-
-function populatePilotSelect(roundId, selectedPilot) {
-    var xhr;
-    var url = '/data.php?job=get_round_pilots&roundId=' + roundId;
-    $("#pilotSel").show();
+function populateRoundSelect(selectedRound) {
+    let xhr;
+    let url = '/api/1/rounds';
+    loadingRoundInfo = true;
     xhr = $.ajax(url)
         .done(function()
         {
-            result = JSON.parse(xhr.responseText);
-            helpers.buildDropdown( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
+            let result = JSON.parse(xhr.responseText);
+            helpers.buildDropdownWithDefaultValue( helpers.cleanData("Round", result.data), $('#roundSel'), 'Live Data', 'Live', selectedRound);
+            getSelection();
+            if (!initialLoadDone  && ( selectionData.roundId === 'Live' || (typeof selectionData.roundId == 'number' && selectionData.pilotId)) ) {
+                initialLoadDone = true;
+                loadScoreData(selectionData.roundId, selectionData.pilotId);
+            }
         })
-        .fail();
+        .fail(function() {
+            console.log("ERROR: populateRoundSelect ajax call failed.");
+        })
+        .always(function() {
+            console.log("DEBUG: populateRoundSelect painting.");
+            loadingRoundInfo = false;
+            paintPage();
+        });
+
+}
+
+function populatePilotSelect(roundId, selectedPilot) {
+    let xhr;
+    let url = '/data.php?job=get_round_pilots&roundId=' + roundId;
+    loadingPilotInfo = true;
+    paintPage();
+    xhr = $.ajax(url)
+        .done(function() {
+            let result = JSON.parse(xhr.responseText);
+            helpers.buildDropdownWithMessage( helpers.cleanData("Pilot", result.data), $('#pilotSel'), 'Choose Pilot', selectedPilot);
+            //$('#pilotSel option:selected').val($('#pilotSel option:selected').val()).trigger('change');
+        })
+        .fail(function() {
+            console.log("ERROR: populatePilotSelect ajax call failed.");
+        })
+        .always(function() {
+            loadingPilotInfo = false;
+            paintPage();
+        });
 }
 
 var data = {data: [], columns: [], pilot:[], round:[]};
+var currentRound = null;
 var lastColumnCount = 0;
-var jqxhr, table, latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""}, lastFlightInfo, destroyTable = true;
-var initialRoundLoadDone = false;
+var jqxhr, table, scoresEditor, latestFlightInfo = {latestScoreTime:"", pilotId:"", roundId:""}, lastFlightInfo, destroyTable = true;
+var selectionData = {roundId:null, pilotId:null, autoRefresh:false};
+var loadingRoundInfo = null;
+var loadingPilotInfo = null;
 var loadingRecentFlightInfo = false;
+var initialLoadDone = false;
 var recursionCounter;
 var timeout_message;

@@ -17,6 +17,24 @@
  * You should have received a copy of the GNU General Public License
  * along with FlightLine.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+
+/**************
+ * List of things still to do..
+ *
+ *  ToDo: Flightline: Delete button in score adjustment should not validate.
+ *  ToDo: Flightline: Do pilot flight ordering.
+ *  ToDo: Update Datatables and add extensions:
+ *      FixedHeader (Puts the header at the top of the page when scrolling.
+ *      FixedColums (Future: left/right scrolling keeps certain columns fixed).
+ *      RowGroup (Future: group by one of the columns (Knowns, Unknowns, Class etc)...
+ *      SearchPanes (Future: quick filters - a bit like RowGroup I guess...)
+ *      RowReorder (drag/drop flight ordering...)
+ *  ToDo: remove all of the !important CSS hacks.
+ *  ToDO: populatePilotSelect is broken for freestyle...
+ *  Done: Fix boostrap CSS issue...  Including breaks the style...
+ *
+ ****************/
 ?>
 <!doctype html>
 <html lang="en" dir="ltr">
@@ -28,18 +46,27 @@
       <meta name="viewport" content="width=1000, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 
-    <!--
-    This one is the bundle.
-    <link rel="stylesheet" type="text/css" href="include/DataTables/dataTables.css"/>
-    <script type="text/javascript" src="include/DataTables/datatables.js"></script>
-    -->
-      <link rel="stylesheet" type="text/css" href="/libs/datatables.net-bs4/css/dataTables.bootstrap4.css"/>
+      <!--  This one is the bundle. <link rel="stylesheet" type="text/css" href="/libs/dataTables.min.css"/> -->
+      <link rel="stylesheet" type="text/css" href="/libs/Bootstrap-4-4.1.1/css/bootstrap.min.css"/>
+      <link rel="stylesheet" type="text/css" href="/libs/DataTables-1.10.20/css/dataTables.bootstrap4.min.css"/>
+      <link rel="stylesheet" type="text/css" href="/libs/Editor-1.9.2/css/editor.bootstrap4.min.css"/>
+      <link rel="stylesheet" type="text/css" href="/libs/RowReorder-1.2.6/css/rowReorder.bootstrap4.min.css"/>
+      <!-- Remove those above if you want to use the one bundled file... -->
+
       <link rel="stylesheet" href="/include/css/layout.css"/>
       <link rel="stylesheet" href="/libs/fontawesome/css/all.min.css"/>
 
+
       <script type="text/javascript" src="/libs/jquery/dist/jquery.min.js"></script>
-      <script type="text/javascript" src="/libs/datatables.net/js/jquery.dataTables.min.js"></script>
-      <script type="text/javascript" src="/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+      <script type="text/javascript" src="/libs/datatables.min.js"></script>
+      <!--  This one is the bundle. <script type="text/javascript" src="/libs/datatables.min.js"></script>  -->
+      <script type="text/javascript" src="/libs/Bootstrap-4-4.1.1/js/bootstrap.min.js"></script>
+      <script type="text/javascript" src="/libs/DataTables-1.10.20/js/jquery.dataTables.min.js"></script>
+      <script type="text/javascript" src="/libs/DataTables-1.10.20/js/dataTables.bootstrap4.min.js"></script>
+      <script type="text/javascript" src="/libs/Editor-1.9.2/js/dataTables.editor.min.js"></script>
+      <script type="text/javascript" src="/libs/Editor-1.9.2/js/editor.bootstrap4.min.js"></script>
+      <script type="text/javascript" src="/libs/RowReorder-1.2.6/js/dataTables.rowReorder.min.js"></script>
+      <!-- Remove those above if you want to use the one bundled file... -->
       <script type="text/javascript" src="/libs/jquery-validation/dist/jquery.validate.min.js"></script>
       <script type="text/javascript" src="/include/js/webapp.js"></script>
       <script type="text/javascript" src="/include/js/helpers.js"></script>
