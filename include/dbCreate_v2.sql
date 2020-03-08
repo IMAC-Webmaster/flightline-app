@@ -38,14 +38,14 @@ Phases:
 *****************************/
 
 drop table user;
-CREATE TABLE IF NOT EXISTS "user"
+CREATE TABLE "user"
 (
    username varchar not null,
    fullName varchar not null,
    password varchar not null,
    address varchar not null,
    roles varchar not null,
-   PRIMARY KEY(`username`),
+   PRIMARY KEY(`username`)
 );
 
 drop table schedule;
@@ -179,6 +179,7 @@ CREATE TABLE "nextFlight" (
 
 insert into state values ('flightLineId', '1');
 insert into state values ('flightLineName', 'Default Flightline 1');
+insert into state values ('dbVersion', '2');
 insert into user values ('judge', 'Judge 1', 'password', '', 'JUDGE');
 insert into user values ('admin', 'Comp Admin', 'password', '', 'ADMIN,JUDGE');
 
