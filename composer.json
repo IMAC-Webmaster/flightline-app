@@ -1,0 +1,15 @@
+{
+  "name": "sputnik/flightline",
+  "description": "Flightline management webapp for IMAC events.",
+  "minimum-stability": "stable",
+  "license": "GPLv3",
+  "authors": [
+    {
+      "name": "Dan Carroll",
+      "email": "danny@dannysplace.ner"
+    }
+  ],
+  "require": {
+    "katzgrau/klogger": "dev-master"
+  }
+}
