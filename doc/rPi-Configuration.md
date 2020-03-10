@@ -132,7 +132,7 @@ The directory .ssh should be created with mode 750 and the file should be 600.  
 Some utilities are necessary to get things working.
 We want this as minimal as possible so that the upgrade list is the smallest impact.
 
-    root@raspberrypi:~# apt-get install -y git sqlite3 docker-compose
+    root@raspberrypi:~# apt-get install -y git sqlite3 docker-compose composer
     Reading package lists... Done
     Building dependency tree
     Reading state information... Done
@@ -202,28 +202,8 @@ The first time you run the composer command it will download the docker containe
 Then it will check composer.json and install the extra components in /vendor
 
     root@raspberrypi:/data/volumes# cd /data/score-flightline-node/
-    root@raspberrypi:/data/score-flightline-node# docker run --rm --interactive --tty \
-       --volume $PWD:/app \
-       composer install
-    Unable to find image 'composer:latest' locally
-    latest: Pulling from library/composer
-    3a2c5e3c37b2: Pull complete 
-    8eecb809efef: Pull complete 
-    bf6ec95513b0: Pull complete 
-    459d1b57d2f0: Pull complete 
-    6c4926893665: Downloading [======================================>            ]
-    5e5617623e9a: Download complete 
-    b4302d0c4f38: Downloading [===========================>                       ]
-    3fc244875b69: Download complete 
-    04543010f9cd: Download complete 
-    f12c5ab65e2a: Downloading [=======>                                           ]
-    af88c21669dd: Waiting 
-    407d2599e395: Waiting 
-    abc1b6f8226a: Waiting 
-    cee739a7af1b: Waiting 
-    3956a8f2dde9: Waiting
-    Digest: sha256:6d4e41d21adc0b5a888cea8099d27617de48739fae7a39be0a07ec9dcbf7122d
-    Status: Downloaded newer image for composer:latest
+    root@raspberrypi:/data/score-flightline-node# composer install
+    Do not run Composer as root/super user! See https://getcomposer.org/root for details
     Loading composer repositories with package information
     Updating dependencies (including require-dev)
     Package operations: 2 installs, 0 updates, 0 removals
@@ -232,6 +212,8 @@ Then it will check composer.json and install the extra components in /vendor
     Writing lock file
     Generating autoload files
     root@raspberrypi:/data/score-flightline-node#
+
+Note.    
 
 Now the proxy, web and php containers are essentially ready.   However there is no database yet.
 Evetually this will be part of a web process, but for now, lets create it manually.
