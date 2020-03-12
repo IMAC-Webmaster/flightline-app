@@ -62,7 +62,7 @@ if (dbConnect($dbfile) === false) {
 /**************
  *
  * /rounds                      - rounds interface.
- * /rounds(/[0-1]+)?/results    - results interface.  Full result info for round(s).
+ * /results                     - results interface.  Get/Delete results.
  * /rounds/scores               - scores interface.  Basic data with scoresheets.
  * /pilots                      - pilots interface.
  * /flights                     - flights interface.

@@ -2873,6 +2873,16 @@ function clearResults(&$resultObj) {
 
     mergeResultMessages($resultObj, $transResult);
 
+    $delScoreDeltaResultObj = createEmptyResultObject();
+    $query = "delete from scoredelta;";
+    $res = doSQL($delScoreDeltaResultObj, $query);
+    mergeResultMessages($resultObj, $delScoreDeltaResultObj);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted score adjustments.";
+
     $delScoreResultObj = createEmptyResultObject();
     $query = "delete from score;";
     $res = doSQL($delScoreResultObj, $query);
@@ -2915,6 +2925,16 @@ function clearResults(&$resultObj) {
         goto db_rollback;
     $res->finalize();
     $resultObj["verboseMsgs"][] = "Deleted flight records.";
+
+    $delFlightOrderResultObj = createEmptyResultObject();
+    $query = "delete from flightorder;";
+    $res = doSQL($delFlightOrderResultObj, $query);
+    mergeResultMessages($resultObj, $delFlightOrderResultObj);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted flight ordering.";
 
     $delFlightResultObj = createEmptyResultObject();
     $query = "delete from sqlite_sequence where name = 'flight'";
