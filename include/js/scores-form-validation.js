@@ -115,7 +115,7 @@ $(function() {
                 validIMACScore: true
             },
             cdcomment: {
-                required: true
+                required: false
             },
             breakFlag: {
                 zeroWithBreak: true
