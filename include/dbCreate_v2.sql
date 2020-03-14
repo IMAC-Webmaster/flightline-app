@@ -2,15 +2,17 @@
  * Bare bones SQL script
  */
 
+/** Old table **/
+drop table if exists config;
 
-drop table state;
+drop table if exists state;
 CREATE TABLE IF NOT EXISTS "state" (
    `key`	TEXT NOT NULL,
    `value`	TEXT,
    PRIMARY KEY(`key`)
 );
 
-drop table round;
+drop table if exists round;
 CREATE TABLE IF NOT EXISTS "round" (
      `roundId`	integer,
      `flightLine`	tinyint,
@@ -37,7 +39,7 @@ Phases:
    D = Done - complete.
 *****************************/
 
-drop table user;
+drop table if exists user;
 CREATE TABLE "user"
 (
    username varchar not null,
@@ -48,7 +50,7 @@ CREATE TABLE "user"
    PRIMARY KEY(`username`)
 );
 
-drop table schedule;
+drop table if exists schedule;
 CREATE TABLE schedule (
    schedId        varchar(8) not null primary key,
    imacClass      varchar(15),
@@ -56,7 +58,7 @@ CREATE TABLE schedule (
    description    varchar(64) not null
 );
 
-drop table figure;
+drop table if exists figure;
 CREATE TABLE "figure" (
    `figureNum`	tinyint NOT NULL,
    `schedId`	varchar ( 8 ),
@@ -68,7 +70,7 @@ CREATE TABLE "figure" (
    PRIMARY KEY(`figureNum`,`schedId`)
 );
 
-drop table pilot;
+drop table if exists pilot;
 CREATE TABLE "pilot" (
    `pilotId`	integer NOT NULL,
    `primaryId`	integer NOT NULL,
@@ -83,7 +85,7 @@ CREATE TABLE "pilot" (
    PRIMARY KEY(`pilotId`)
 );
 
-drop table flight;
+drop table if exists flight;
 CREATE TABLE `flight` (
    `flightId`	integer NOT NULL PRIMARY KEY AUTOINCREMENT,
    `noteFlightId`	integer NOT NULL,
@@ -93,7 +95,7 @@ CREATE TABLE `flight` (
    CONSTRAINT `roundid_seq` UNIQUE(`roundId`,`sequenceNum`)
 );
 
-drop table flightOrder;
+drop table if exists flightOrder;
 CREATE TABLE `flightOrder` (
    `roundId`      integer NOT NULL,
    `pilotId`      integer NOT NULL,
@@ -104,22 +106,7 @@ CREATE TABLE `flightOrder` (
    FOREIGN KEY(`pilotId`) REFERENCES `pilot`(`pilotId`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-drop table sheet;
-   create table sheet (
-      sheetId          integer not null primary key,
-      flightId         integer not null,
-      sequenceNum      tinyint not null,
-      judgeNum         tinyint not null,
-      judgeName        text,
-      scribeName       text,
-      comment          text,
-      mppPenalty       tinyint CHECK( mppPenalty IN (0, 1) ) NOT NULL DEFAULT 0,
-      flightZeroed     tinyint CHECK( flightZeroed IN (0, 1) ) NOT NULL DEFAULT 0,
-      zeroReason       text,
-      UNIQUE (flightId, sequenceNum, judgeNum) ON CONFLICT ROLLBACK
-   );
-
-drop table score;
+drop table if exists score;
 CREATE TABLE `score` (
    `sheetId`    integer NOT NULL,
    `figureNum`    tinyint NOT NULL,
@@ -132,7 +119,7 @@ CREATE TABLE `score` (
    FOREIGN KEY(`sheetId`) REFERENCES `sheet`(`sheetId`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-drop table sheet;
+drop table if exists sheet;
 CREATE TABLE "sheet" (
    `sheetId`        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
    `roundId`        integer NOT NULL,
@@ -153,7 +140,7 @@ CREATE TABLE "sheet" (
    FOREIGN KEY(`roundId`) REFERENCES `round`(`roundId`)
 );
 
-drop table scoredelta;
+drop table if exists scoredelta;
 CREATE TABLE `scoredelta` (
    `sheetId`    integer NOT NULL,
    `deleted`    tinyint NOT NULL DEFAULT 0 CHECK(deleted IN ( 0 , 1 )),
@@ -168,7 +155,7 @@ CREATE TABLE `scoredelta` (
    FOREIGN KEY(`sheetId`) REFERENCES `sheet`(`sheetId`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-drop table nextFlight;
+drop table if exists nextFlight;
 CREATE TABLE "nextFlight" (
    `nextNoteFlightId`	integer NOT NULL,
    `nextCompId`	integer NOT NULL,
