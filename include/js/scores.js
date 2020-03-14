@@ -428,7 +428,7 @@ function renderScore (d, t, r) {
         // If the score is deleted, ignore the other classes (such as break)
         return ("<div class='" + classes + "'>No Score</div><div class='scorewrapper'><div class='adjusted'>[adjusted]</div></div>");
     } else {
-        return ("<div class='" + classes + "'>" + chosendata.score + "</div><div class='scorewrapper'>" + extradivs + "</div>");
+        return ("<div class='" + classes + "'>" + ( (chosendata.score == null ) ? "Not observed" : chosendata.score ) + "</div><div class='scorewrapper'>" + extradivs + "</div>");
     }
 }
 
