@@ -3530,11 +3530,9 @@ function postSequences(&$resultObj, $sequenceArray = null) {
 
     error_log("Ready to upload sequences...");
 
-    //error_log("Ready to upload pilots..." . ($stream = fopen('php://input', 'r')) !== false ? stream_get_contents($stream) : "{}");
     foreach($sequenceArray as $sequence) {
 
         // If there are rounds defined using this sequence, we must abort the delete, but can still replace later,...
-
         $query = "SELECT count(*) as roundcount FROM round where schedId = :schedId";
         $countRoundsResult = createEmptyResultObject();
         $res = doSQL($countRoundsResult, $query, array(

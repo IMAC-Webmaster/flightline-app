@@ -325,9 +325,12 @@ $(document).ready(function() {
     function fillSchedules(imacClass, imacType) {
         var schedsel = document.getElementById("schedule");
         removeOptions(schedsel);
-        if (imacType === "Freestyle") imacClass = "Freestyle";
+        // if (imacType === "Freestyle") imacClass = "Freestyle";
         for (var sched in schedulelist) {
-            if (schedulelist[sched].imacClass === imacClass  && schedulelist[sched].imacType === imacType) {
+
+            // Make sure we have the same class/type (or for freestyle ignore the type)
+            if ( (schedulelist[sched].imacClass === imacClass && schedulelist[sched].imacType === imacType) ||
+                 (imacType === "Freestyle" && schedulelist[sched].imacType === imacType) ) {
                 var opt = document.createElement("option");
                 opt.text = schedulelist[sched].description;
                 opt.value = schedulelist[sched].schedId;
@@ -631,7 +634,7 @@ $(document).ready(function() {
         // Now get the schedules.
         var sched_request = $.ajax({
             //Oldway: url:          'data.php?job=get_schedlist',
-            url:          'api/1/schedules',
+            url:          'api/1/sequences',
             cache:        false,
             dataType:     'json',
             contentType:  'application/json; charset=utf-8',
