@@ -193,6 +193,30 @@ Flight::route ("GET /rounds/Freestyle/@roundNum:[0-9]+", function($roundNum) {
     ));
 });
 
+Flight::route ("DELETE /competition/", function() {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        resetCompetition($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to reset the competition.";
+    }
+});
+
+Flight::route ("DELETE /rounds/", function() {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteAllRounds($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to delete a round.";
+    }
+});
+
 Flight::route ("DELETE /rounds/@id:[0-9]+", function($id) {
     global $resultObj, $logger;
     $authResultObj = createEmptyResultObject();
@@ -206,7 +230,7 @@ Flight::route ("DELETE /rounds/@id:[0-9]+", function($id) {
         ));
     } else {
         mergeResultMessages($resultObj, $authResultObj);
-        $resultObj['message'] = "Not authorised to add a round.";
+        $resultObj['message'] = "Not authorised to delete a round.";
     }
 });
 
@@ -465,7 +489,19 @@ Flight::route ("POST /sequences", function() {
         postSequences($resultObj);
     } else {
         mergeResultMessages($resultObj, $authResultObj);
-        $resultObj['message'] = "Not authorised to add schedules.";
+        $resultObj['message'] = "Not authorised to add sequences.";
+    }
+});
+
+Flight::route ("DELETE /sequences", function() {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN")) {
+        mergeResultMessages($resultObj, $authResultObj);
+        deleteSequences($resultObj);
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to delete sequences.";
     }
 });
 

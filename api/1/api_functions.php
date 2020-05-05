@@ -93,8 +93,6 @@ function rollbackTrans(&$resultObj, $failureMsg = "") {
 function doSQL (&$resultObj, $query, $paramArr = null) {
     global $db, $logger;
 
-    //$logger->debug($query, $paramArr);
-
     try {
         if ($statement = $db->prepare($query)) {
             if (isset($paramArr) && is_array($paramArr)) {
@@ -230,6 +228,7 @@ function getRounds(&$resultObj) {
     $resultObj["message"]  = 'query success';
     $res->finalize();
     db_rollback:
+    return $resultObj["data"];
 }
 
 function getRound(&$resultObj, $paramArray = null) {
@@ -1594,6 +1593,9 @@ function getFlightLineData(&$resultObj) {
  * @param $roundId
  * @return array
  */
+/* This function is broken!
+ *
+ * It tries to use noteFlightId when it really needs to check flightId + seqnum
 function getRoundResults(&$resultObj, $roundId) {
     global $db;
     // Get the full data for a round.
@@ -1663,7 +1665,7 @@ function getRoundResults(&$resultObj, $roundId) {
     db_rollback:
     return $resultObj["data"];
 }
-
+*/
 /**
  * @param $resultObj
  * @param null $roundId
@@ -2248,6 +2250,69 @@ function getFlightLineDetails(&$resultObj) {
     return $resultObj["data"];
 }
 
+function resetCompetition (&$resultObj) {
+    // Delete all results, rounds, pilots and sequences, only user accounts remain.
+    global $logger;
+    $logger->info("In: resetFlightLine");
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    unset($resultObj["data"]);
+    $resultObj["verboseMsgs"] = array();
+
+    $resultsResult = createEmptyResultObject();
+    clearResults($resultsResult);
+    mergeResultMessages($resultObj, $resultsResult);
+
+    if ($resultsResult["result"] !== "success") {
+        goto db_rollback;
+    }
+
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    mergeResultMessages($resultObj, $transResult);
+
+    $deleteRounds = createEmptyResultObject();
+    $query = "delete from round;";
+    $res = doSQL($deleteRounds, $query);
+    mergeResultMessages($resultObj, $deleteRounds);
+    $res->finalize();
+
+    $deletePilots = createEmptyResultObject();
+    $query = "delete from pilot;";
+    $res = doSQL($deletePilots, $query);
+    mergeResultMessages($resultObj, $deletePilots);
+    $res->finalize();
+
+    $deleteFigures = createEmptyResultObject();
+    $query = "delete from figure;";
+    $res = doSQL($deleteFigures, $query);
+    mergeResultMessages($resultObj, $deleteFigures);
+
+    $deleteSchedules = createEmptyResultObject();
+    $query = "delete from schedule;";
+    $res = doSQL($deleteSchedules, $query);
+    mergeResultMessages($resultObj, $deleteSchedules);
+    $res->finalize();
+
+    $resultObj["verboseMsgs"][] = "Competition is reset.";
+
+    if (commitTrans($transResult,"Could not reset the competition data. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'Competition is reset.';
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
+
+}
+
 function addRound(&$resultObj, $newRound = null) {
     global $db, $logger;
     // Add round
@@ -2740,10 +2805,6 @@ function finishRound() {
 }
 
 function deleteRound(&$resultObj, $paramArray = null) {
-    // postScoreAdjustment..
-    // We must have sheetId and figureNum
-    // Adjust it, even if it does not exist...
-
     global $logger;
     $logger->info("In: deleteRound");
 
@@ -2765,7 +2826,7 @@ function deleteRound(&$resultObj, $paramArray = null) {
         goto db_rollback;
     }
 
-    // Get the round data and check it's open..
+    // Get the round data and check it's ok to delete..
     $roundResult = createEmptyResultObject();
     if ($roundId === null) {
         getRound($roundResult, array(
@@ -2783,7 +2844,6 @@ function deleteRound(&$resultObj, $paramArray = null) {
             "roundNum" => null
         ));
     }
-
     mergeResultMessages($resultObj, $roundResult);
 
     if ($roundResult["result"] === 'success') {
@@ -2802,17 +2862,70 @@ function deleteRound(&$resultObj, $paramArray = null) {
         "roundId" => $roundId
     );
 
-    $query = "delete from flight where roundId = :roundId;";
+    // Now to clear all of the results for this round.....
+    // Get the flights...
+    // For each flight get the sheets.
+    // For each sheet delete the scores and scoredeltas.
 
-    $delFlightResult = createEmptyResultObject();
+    $flightsResult = createEmptyResultObject();
+    $flights = getFlightsForRound($flightsResult, $roundId);
+    mergeResultMessages($resultObj, $flightsResult);
 
-    $logger->debug("Query: $query", $pArr);
-    $res = doSQL($delFlightResult, $query, $pArr);
-    mergeResultMessages($resultObj, $delFlightResult);
-
-    if ($res === false) {
-        $resultObj["message"] = "Could not delete round $roundId from the flight table.";
+    if (is_null($flights)) {
+        // Error - it came back null.
         goto db_rollback;
+    }
+
+    foreach ($flights as $flight) {
+        $sheetResult = createEmptyResultObject();
+        $flightSheets = $flight["sheets"];
+        mergeResultMessages($resultObj, $sheetResult);
+
+        if (is_array($flightSheets)) {
+            foreach ($flightSheets as $sheet) {
+
+                $sheetId = $sheet["sheetId"];
+                $delScoreDeltaResultObj = createEmptyResultObject();
+                $query = "delete from scoredelta where sheetId = :sheetId;";
+                $res = doSQL($delScoreDeltaResultObj, $query, array("sheetId" => $sheet["sheetId"]));
+                mergeResultMessages($resultObj, $delScoreDeltaResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted score adjustments for sheet $sheetId.";
+
+                $delScoreResultObj = createEmptyResultObject();
+                $query = "delete from score where sheetId = :sheetId;";
+                $res = doSQL($delScoreResultObj, $query, array("sheetId" => $sheetId));
+
+                mergeResultMessages($resultObj, $delScoreResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted scores for sheet $sheetId..";
+
+                $delSheetResultObj = createEmptyResultObject();
+                $query = "delete from sheet where sheetId = :sheetId;";
+                $res = doSQL($delSheetResultObj, $query, array("sheetId" => $sheetId));
+                mergeResultMessages($resultObj, $delSheetResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted sheet $sheetId..";
+            }
+        }
+
+        $query = "delete from flight where flightId = :flightId;";
+        $res = doSQL($delSheetResultObj, $query, array("flightId" => $flight["flightId"]));
+        mergeResultMessages($resultObj, $delSheetResultObj);
+
+        if ($res === false)
+            goto db_rollback;
+        $res->finalize();
+        $resultObj["verboseMsgs"][] = "Deleted flight " . $flight["flightId"] . ".";
     }
 
     $query = "delete from flightOrder where roundId = :roundId;";
@@ -2855,6 +2968,50 @@ function deleteRound(&$resultObj, $paramArray = null) {
         rollbackTrans($resultObj);
         if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
         $logger->warning("Could not delete round" . isset($roundId) ? " $roundId." : ".", $resultObj);
+    }
+    return null;
+
+}
+
+function deleteAllRounds (&$resultObj) {
+    // Delete all rounds, including the results.
+    global $logger;
+    $logger->info("In: deleteRound");
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = array();
+    $resultObj["verboseMsgs"] = array();
+
+    $resultsResult = createEmptyResultObject();
+    clearResults($resultsResult);
+    mergeResultMessages($resultObj, $resultsResult);
+
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    mergeResultMessages($resultObj, $transResult);
+
+    $deleteRounds = createEmptyResultObject();
+    $query = "delete from round;";
+    $res = doSQL($deleteRounds, $query);
+    mergeResultMessages($resultObj, $deleteRounds);
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted rounds.";
+
+    if (commitTrans($transResult,"Could not delete rounds. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'All rounds deleted.';
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
     }
     return null;
 
@@ -2980,6 +3137,107 @@ function clearResults(&$resultObj) {
     }
     return null;
 
+}
+
+function clearResultsForRound(&$resultObj, $paramArray = null, $atomic = true)
+{
+    // We're not using this right now!!!
+    // It would be useful if we could have nested transactions but until I refactor to allow that, it's a no go...
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    $resultObj["data"] = null;
+    $resultObj["verboseMsgs"] = array();
+
+    // paramArray is a round object.   So clear all tables...
+
+    if ($atomic) {
+        $transResult = createEmptyResultObject();
+        if (!beginTrans($transResult))
+            goto db_rollback;
+
+        mergeResultMessages($resultObj, $transResult);
+    }
+
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
+    // Get the flights...
+    // For each flight get the sheets.
+    // For each sheet delete the scores and scoredeltas.
+
+    $flightsResult = createEmptyResultObject();
+    $flights = getFlightsForRound($flightsResult, $roundId);
+    mergeResultMessages($resultObj, $flightsResult);
+
+    if (is_null($flights)) {
+        // Error - it came back null.
+        goto db_rollback;
+    }
+
+    foreach ($flights as $flight) {
+        $sheetResult = createEmptyResultObject();
+        $flightSheets = $flight["sheets"];
+        mergeResultMessages($resultObj, $sheetResult);
+
+        if (is_array($flightSheets)) {
+            foreach ($flightSheets as $sheet) {
+
+                $sheetId = $sheet["sheetId"];
+                $delScoreDeltaResultObj = createEmptyResultObject();
+                $query = "delete from scoredelta where sheetId = :sheetId;";
+                $res = doSQL($delScoreDeltaResultObj, $query, array("sheetId" => $sheet["sheetId"]));
+                mergeResultMessages($resultObj, $delScoreDeltaResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted score adjustments for sheet $sheetId.";
+
+                $delScoreResultObj = createEmptyResultObject();
+                $query = "delete from score where sheetId = :sheetId;";
+                $res = doSQL($delScoreResultObj, $query, array("sheetId" => $sheetId));
+
+                mergeResultMessages($resultObj, $delScoreResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted scores for sheet $sheetId..";
+
+                $delSheetResultObj = createEmptyResultObject();
+                $query = "delete from sheet where sheetId = :sheetId;";
+                $res = doSQL($delSheetResultObj, $query, array("sheetId" => $sheetId));
+                mergeResultMessages($resultObj, $delSheetResultObj);
+
+                if ($res === false)
+                    goto db_rollback;
+                $res->finalize();
+                $resultObj["verboseMsgs"][] = "Deleted sheet $sheetId..";
+            }
+        }
+
+        $query = "delete from flight where flightId = :flightId;";
+        $res = doSQL($delSheetResultObj, $query, array("flightId" => $flight["flightId"]));
+        mergeResultMessages($resultObj, $delSheetResultObj);
+
+        if ($res === false)
+            goto db_rollback;
+        $res->finalize();
+        $resultObj["verboseMsgs"][] = "Deleted flight " . $flight["flightId"] . ".";
+    }
+
+
+    if (commitTrans($transResult,"Could not clear result for round $roundId. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = "The results for round $roundId are cleared.";
+    }
+    $res->finalize();
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
 }
 
 function clearPilots(&$resultObj) {
@@ -3186,6 +3444,60 @@ function postPilots(&$resultObj, $pilotsArray = null) {
         if ( $resultObj["message"] == null) {  $resultObj["message"] = 'query error'; }
     }       
     return null;
+}
+
+function deleteSequences (&$resultObj) {
+    // Delete all sequences, including the results.
+    global $logger;
+    $logger->info("In: deleteSequences");
+
+    $resultObj["result"] = 'error';
+    $resultObj["message"] = 'query error';
+    unset($resultObj["data"]);
+    $resultObj["verboseMsgs"] = array();
+
+    // Don't delete if rounds exist...
+    $roundResult = createEmptyResultObject();
+    $rounds = getRounds($roundResult);
+    if (is_array($rounds) && sizeof($rounds) > 0) {
+        // We have data...
+        $resultObj["message"] = 'Cannot delete sequences when rounds exist.';
+        return null;
+    }
+
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+    mergeResultMessages($resultObj, $transResult);
+
+    $deleteFigures = createEmptyResultObject();
+    $query = "delete from figure;";
+    $res = doSQL($deleteFigures, $query);
+    mergeResultMessages($resultObj, $deleteFigures);
+
+    $deleteSchedules = createEmptyResultObject();
+    $query = "delete from schedule;";
+    $res = doSQL($deleteSchedules, $query);
+    mergeResultMessages($resultObj, $deleteSchedules);
+
+
+    if ($res === false)
+        goto db_rollback;
+    $res->finalize();
+    $resultObj["verboseMsgs"][] = "Deleted sequences.";
+
+    if (commitTrans($transResult,"Could not delete sequences. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = 'All sequences deleted.';
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
+
 }
 
 function postSequences(&$resultObj, $sequenceArray = null) {
@@ -3760,12 +4072,10 @@ function postScoreAdjustment(&$resultObj, $paramArray = null) {
     }
 
     db_rollback:
-    if ($resultObj["result"] == "error"){
+    if ($resultObj["result"] == "error") {
         rollbackTrans($resultObj);
         if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
         $logger->warning("Could not adjust score for figure $figureNum of sheet $sheetId.", $resultObj);
     }
     return null;
 }
-
-

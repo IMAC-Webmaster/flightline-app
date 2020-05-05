@@ -97,9 +97,10 @@ switch ($job) {
     case 'get_flightline_data':
         getFlightLineData();
         break;
-    case 'get_round_results':
-        getRoundResults();
-        break;
+    //case 'get_round_results':
+    //    // This function is broken.
+    //    getRoundResults();
+    //    break;
     case 'get_round_pilots':
         getRoundPilots();
         break;
