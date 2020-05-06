@@ -300,6 +300,7 @@ function getPilotsForRound(&$resultObj, $paramArr) {
     $resultObj["data"] = array();
     $resultObj["verboseMsgs"] = array();
 
+    // First...  We need to check if a round is a FreeStyle round.
 
     if (isset($paramArr) && is_array($paramArr)) {
         $roundId = isset($paramArr["roundId"]) ? $paramArr["roundId"] : null;
@@ -310,6 +311,16 @@ function getPilotsForRound(&$resultObj, $paramArr) {
         $resultObj["message"] = "Please supply the parameter array.";
         array_push($resultObj["verboseMsgs"], "ERROR: Please supply the parameter array.");
         goto db_rollback;
+    }
+
+    $rndResultObj = createEmptyResultObject();
+    getRound($rndResultObj, array("roundId" => $roundId));
+    mergeResultMessages($resultObj, $rndResultObj);
+
+    if ($rndResultObj["data"]["imacType"] === "Freestyle") {
+        $blIsFreestyleRound = true;
+    } else {
+        $blIsFreestyleRound = false;
     }
 
     // Get the full list of pilots for the round.
