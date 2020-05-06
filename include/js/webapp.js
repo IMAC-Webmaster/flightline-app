@@ -27,7 +27,6 @@ $(document).ready(function() {
     // On page load: datatable
     var table_pilotlist = null;
     var table_roundlist = $('#table_roundlist').DataTable({
-        // Oldway: "ajax": "data.php?job=get_rounds",
         "ajax": "/api/1/rounds/",
         "processing": false,
         "columns": [
@@ -599,7 +598,6 @@ $(document).ready(function() {
 
         // First, get the next round numbers.
         var next_round_request = $.ajax({
-            // Oldway: url:          'data.php?job=get_nextrnd_ids',
             url:          '/api/1/rounds/nextids',
             cache:        false,
             dataType:     'json',
@@ -633,7 +631,6 @@ $(document).ready(function() {
 
         // Now get the schedules.
         var sched_request = $.ajax({
-            //Oldway: url:          'data.php?job=get_schedlist',
             url:          'api/1/sequences',
             cache:        false,
             dataType:     'json',
@@ -679,7 +676,6 @@ $(document).ready(function() {
             var formObject = helpers.getFormData($('#form_round'));
 
             var request   = $.ajax({
-                //Oldway: url:          'data.php?job=add_round',
                 url:          'api/1/rounds',
                 cache:        false,
                 data:         JSON.stringify(formObject),
@@ -734,7 +730,6 @@ $(document).ready(function() {
 
         // First, get the next round numbers.
         var next_round_request = $.ajax({
-            // Oldway: url:          'data.php?job=get_nextrnd_ids',
             url:          '/api/1/rounds/nextids',
             cache:        false,
             dataType:     'json',
@@ -764,7 +759,6 @@ $(document).ready(function() {
 
         // Now get the schedules.
         var sched_request = $.ajax({
-            //Oldway: url:          'data.php?job=get_schedlist',
             url:          'api/1/schedules',
             cache:        false,
             dataType:     'json',
@@ -793,7 +787,6 @@ $(document).ready(function() {
         });
 
         var round_request = $.ajax({
-            //Oldway: url:          'data.php?job=get_round',
             url:          'api/1/rounds/' + round_class + '/' + round_type + '/' + round_num,
             cache:        false,
             dataType:     'json',
@@ -878,7 +871,6 @@ $(document).ready(function() {
         if (confirm("Are you sure you want to delete '" + round_type + "' round '" + round_num + "' in class '" + round_class + "' ?")){
             show_loading_message();
             var request = $.ajax({
-                //url:          'data.php?job=delete_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
                 url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num,
                 cache:        false,
                 dataType:     'json',
@@ -1143,7 +1135,6 @@ $(document).ready(function() {
         if (pilotName === null || seqNum === null) {
 
             var request = $.ajax({
-                //Oldway: url:          'data.php?job=get_next_flight&roundId=' + roundId,
                 url:          'api/1/rounds/' + roundId + '/nextflight',
                 cache:        false,
                 dataType:     'json',
@@ -1173,7 +1164,6 @@ $(document).ready(function() {
     function adjustNextFlightButtons(roundId) {
         //var roundId = $(this).data('roundId');
         var request = $.ajax({
-            //Oldway: url:          'data.php?job=get_round_flightstatus&roundId=' + roundId,
             url:          'api/1/rounds/' + roundId + '/flightstatus',
             cache:        false,
             dataType:     'json',
