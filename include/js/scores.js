@@ -757,7 +757,7 @@ function populateRoundSelect(selectedRound) {
 
 function populatePilotSelect(roundId, selectedPilot) {
     let xhr;
-    let url = '/data.php?job=get_round_pilots&roundId=' + roundId;
+    let url = '/api/1/rounds/' + roundId + "/pilots";
     loadingPilotInfo = true;
     paintPage();
     xhr = $.ajax(url)
