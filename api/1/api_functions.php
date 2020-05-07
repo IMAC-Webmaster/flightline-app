@@ -90,6 +90,16 @@ function rollbackTrans(&$resultObj, $failureMsg = "") {
     }
 }
 
+function getDBQueryDetails () {
+    global $db;
+    $info = array();
+    $info["changes"] = $db->changes();
+    $info["lastErrorCode"] = $db->lastErrorCode();
+    $info["lastErrorMsg"] = $db->lastErrorMsg();
+    $info["lastInsertRowID"] = $db->lastInsertRowID();
+    return $info;
+}
+
 function doSQL (&$resultObj, $query, $paramArr = null) {
     global $db, $logger;
 
@@ -2654,165 +2664,157 @@ function editRound() {
     
 }
 
-function startRound() {
-    global $db;
-    global $result;
-    global $message;
+function startRound(&$resultObj, $paramArray) {
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    unset($resultObj["data"]);
+    $resultObj["verboseMsgs"] = array();
 
-    $message = null;
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
 
-    // Start round
-    if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
-    if (isset($_GET['imacType'])){ $imacType = $_GET['imacType'];} else $imacType = null;
-    if (isset($_GET['roundNum'])){ $roundNum = $_GET['roundNum'];} else $roundNum = null;
-    $blOkToGo = true;
+    if (is_null($roundId)) {
+        $roundResultObj = createEmptyResultObject();
+        getRound($roundResultObj, $paramArray);
+        mergeResultMessages($resultObj, $roundResultObj);
+        isset($roundResultObj["data"]["roundId"]) ? $roundId = $roundResultObj["data"]["roundId"] : null;
+    }
+
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    $roundCountResult = createEmptyResultObject();
     $query = "select count(*) as flycount from round where phase = 'O';";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage(); 
-            $blOkToGo = false;
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
-        $blOkToGo = false;
+    $res = doSQL($roundCountResult, $query);
+    mergeResultMessages($resultObj, $roundCountResult);
+
+    $round = $res->fetchArray();
+    if ($round["flycount"] > 0) {
+        $resultObj["message"] = 'There is already an open round.';
+        goto db_rollback;
+    }
+    $res->finalize();
+
+    $adjustRoundResult = createEmptyResultObject();
+    $query = "update round set phase = 'O', startTime = strftime('%s','now') where roundId = :roundId and (phase ='U' or phase = 'P');";
+    $res = doSQL($adjustRoundResult, $query, array("roundId" => $roundId));
+    mergeResultMessages($resultObj, $adjustRoundResult);
+    $qryInfo = getDBQueryDetails();
+    $res->finalize();
+    // Query was OK, but let's check if we actually started it (business rule - can only start paused or unflown rounds).
+    if ($qryInfo["changes"] !== 1) {
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Unable to start round $roundId.  Wrong phase?";
+        $resultObj["verboseMsgs"][] = "Unexpected number of DB changes: " . $qryInfo["changes"];
+        goto db_rollback;
     }
 
-    if ($res === FALSE) {
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        $round = $res->fetchArray();
-        if ($round["flycount"] > 0) {
-            $result  = 'error';
-            $message = 'There is already an open round.';
-            $blOkToGo = false;
-        }
+    if (commitTrans($transResult,"Could not start round $roundId. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = "Round $roundId is started.";
     }
-    if ($blOkToGo) {
-        $query = "update round set phase = 'O', startTime = strftime('%s','now') where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and (phase ='U' or phase = 'P');";
-        if ($statement = $db->prepare($query)) {
-            try {
-                $statement->bindValue(':imacClass',    $imacClass);
-                $statement->bindValue(':imacType',     $imacType);
-                $statement->bindValue(':roundNum',      $roundNum);
-                $res = $statement->execute();
-            } catch (Exception $e) {
-                $result  = 'error';
-                $message = 'query error: ' . $e->getMessage();          
-            }
-        } else {
-            $res = FALSE;
-            $err = error_get_last();
-            $message = $err['message'];
-        }
 
-        if ($res === FALSE) {
-            $result  = 'error';
-            if ($message == null) { $message = 'query error'; }
-        } else {
-            // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
-            if ($db->changes() === 1) {
-                $result  = 'success';
-                $message = 'query success';
-            } elseif ($db->changes() === 0) {
-                $result  = 'error';
-                $message = 'Unable to start this round.  Wrong phase?';
-            }
-        }
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
     }
+    return null;
 }
 
-function pauseRound() {
-    global $db;
-    global $result;
-    global $message;
+function pauseRound(&$resultObj, $paramArray) {
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    unset($resultObj["data"]);
+    $resultObj["verboseMsgs"] = array();
 
-    $message = null;
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
 
-    // Pause round
-    if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
-    if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType  = null;
-    if (isset($_GET['roundNum']))  { $roundNum   = $_GET['roundNum'];  } else $roundNum   = null;
- 
-    $query = "update round set phase = 'P' where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and phase ='O';";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':imacClass',    $imacClass);
-            $statement->bindValue(':imacType',     $imacType);
-            $statement->bindValue(':roundNum',      $roundNum);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+    if (is_null($roundId)) {
+        $roundResultObj = createEmptyResultObject();
+        getRound($roundResultObj, $paramArray);
+        mergeResultMessages($resultObj, $roundResultObj);
+        isset($roundResultObj["data"]["roundId"]) ? $roundId = $roundResultObj["data"]["roundId"] : null;
     }
 
-    if ($res === FALSE){
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
-        if ($db->changes() === 1) {
-            $result  = 'success';
-            $message = 'query success';
-        } elseif ($db->changes() === 0) {
-            $result  = 'error';
-            $message = 'Unable to pause this round.  Wrong phase?';
-        }
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    $adjustRoundResult = createEmptyResultObject();
+    $query = "update round set phase = 'P' where roundId = :roundId and phase ='O';";
+    $res = doSQL($adjustRoundResult, $query, array("roundId" => $roundId));
+    mergeResultMessages($resultObj, $adjustRoundResult);
+    $qryInfo = getDBQueryDetails();
+    $res->finalize();
+    // Query was OK, but let's check if we actually paused it (business rule - can only pause open rounds).
+    if ($qryInfo["changes"] !== 1) {
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = 'Unable to pause this round.  Wrong phase?';
+        $resultObj["verboseMsgs"][] = "Unexpected number of DB changes: " . $qryInfo["changes"];
+
+        goto db_rollback;
     }
+
+    if (commitTrans($transResult,"Could not pause round $roundId. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = "Round $roundId is paused.";
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
+
 }
 
-function finishRound() {
-    global $db;
-    global $result;
-    global $message;
+function finishRound(&$resultObj, $paramArray) {
+    $resultObj["result"]  = 'error';
+    $resultObj["message"] = 'query error';
+    unset($resultObj["data"]);
+    $resultObj["verboseMsgs"] = array();
 
-    $message = null;
+    $roundId = isset($paramArray["roundId"]) ? $paramArray["roundId"] : null;
 
-    // Finish round
-    if (isset($_GET['imacClass'])){ $imacClass = $_GET['imacClass'];} else $imacClass = null;
-    if (isset($_GET['imacType'])) { $imacType  = $_GET['imacType']; } else $imacType  = null;
-    if (isset($_GET['roundNum']))  { $roundNum   = $_GET['roundNum'];  } else $roundNum   = null;
- 
-    $query = "update round set phase = 'D', finishTime = strftime('%s','now') where imacClass = :imacClass and imacType = :imacType and roundNum = :roundNum and phase ='P';";
-    if ($statement = $db->prepare($query)) {
-        try {
-            $statement->bindValue(':imacClass',    $imacClass);
-            $statement->bindValue(':imacType',     $imacType);
-            $statement->bindValue(':roundNum',      $roundNum);
-            $res = $statement->execute();
-        } catch (Exception $e) {
-            $result  = 'error';
-            $message = 'query error: ' . $e->getMessage();          
-        }
-    } else {
-        $res = FALSE;
-        $err = error_get_last();
-        $message = $err['message'];
+    if (is_null($roundId)) {
+        $roundResultObj = createEmptyResultObject();
+        getRound($roundResultObj, $paramArray);
+        mergeResultMessages($resultObj, $roundResultObj);
+        isset($roundResultObj["data"]["roundId"]) ? $roundId = $roundResultObj["data"]["roundId"] : null;
     }
 
-    if ($res === FALSE){
-        $result  = 'error';
-        if ($message == null) { $message = 'query error'; }
-    } else {
-        // Query was OK, but let's check if we actually started it (business rule - can only start unflown or paused rounds).
-        if ($db->changes() === 1) {
-            $result  = 'success';
-            $message = 'query success';
-        } elseif ($db->changes() === 0) {
-            $result  = 'error';
-            $message = 'Unable to complete this round.  Wrong phase?';
-        }
-    }    
+    $transResult = createEmptyResultObject();
+    if (!beginTrans($transResult))
+        goto db_rollback;
+
+    $adjustRoundResult = createEmptyResultObject();
+    $query = "update round set phase = 'D', finishTime = strftime('%s','now') where roundId = :roundId and phase ='P';";
+    $res = doSQL($adjustRoundResult, $query, array("roundId" => $roundId));
+    mergeResultMessages($resultObj, $adjustRoundResult);
+    $qryInfo = getDBQueryDetails();
+    $res->finalize();
+    // Query was OK, but let's check if we actually finished it (business rule - can only finish paused rounds).
+    if ($qryInfo["changes"] !== 1) {
+        $resultObj["result"]  = 'error';
+        $resultObj["message"] = "Unable to complete round $roundId.  Wrong phase?";
+        $resultObj["verboseMsgs"][] = "Unexpected number of DB changes: " . $qryInfo["changes"];
+        goto db_rollback;
+    }
+
+    if (commitTrans($transResult,"Could not complete round $roundId. ") ) {
+        $resultObj["result"]  = 'success';
+        $resultObj["message"] = "Round $roundId is completed.";
+    }
+
+    db_rollback:
+    if ($resultObj["result"] == "error"){
+        rollbackTrans($transResult);
+        if ($resultObj["message"] == null) { $resultObj["message"] = 'query error'; }
+    }
+    return null;
+
 }
 
 function deleteRound(&$resultObj, $paramArray = null) {

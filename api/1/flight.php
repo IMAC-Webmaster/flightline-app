@@ -143,6 +143,102 @@ Flight::route ("GET /rounds", function() {
     getRounds($resultObj);
 });
 
+Flight::route ("GET /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+/start", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        startRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => $class,
+            "imacType" => $type,
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
+Flight::route ("GET /rounds/@id:[0-9]+/start", function($id) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        startRound($resultObj, array(
+            "roundId" => $id,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
+Flight::route ("GET /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+/pause", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        pauseRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => $class,
+            "imacType" => $type,
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
+Flight::route ("GET /rounds/@id:[0-9]+/pause", function($id) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        pauseRound($resultObj, array(
+            "roundId" => $id,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
+Flight::route ("GET /rounds/@class:[A-Za-z]+/@type:[A-Za-z]+/@roundNum:[0-9]+/finish", function($class, $type, $roundNum) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        finishRound($resultObj, array(
+            "roundId" => null,
+            "imacClass" => $class,
+            "imacType" => $type,
+            "roundNum" => $roundNum
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
+Flight::route ("GET /rounds/@id:[0-9]+/finish", function($id) {
+    global $resultObj, $logger;
+    $authResultObj = createEmptyResultObject();
+    if (authHasRole($authResultObj, "ADMIN,JUDGE")) {
+        finishRound($resultObj, array(
+            "roundId" => $id,
+            "imacClass" => null,
+            "imacType" => null,
+            "roundNum" => null
+        ));
+    } else {
+        mergeResultMessages($resultObj, $authResultObj);
+        $resultObj['message'] = "Not authorised to set the round state.";
+    }
+});
+
 Flight::route ("/rounds/@id:[0-9]+/sheets", function($id) {
     global $resultObj, $logger;
     getRoundSheets($resultObj, $id);

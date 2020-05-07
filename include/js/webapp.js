@@ -915,7 +915,7 @@ $(document).ready(function() {
         if (blOkToGo) {
             show_loading_message();
             var request = $.ajax({
-                url:          'data.php?job=start_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num + '/start',
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
@@ -959,7 +959,7 @@ $(document).ready(function() {
         if (blOkToGo) {
             show_loading_message();
             var request = $.ajax({
-                url:          'data.php?job=pause_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num + '/pause',
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
@@ -1008,7 +1008,7 @@ $(document).ready(function() {
         if (blOkToGo) {
             show_loading_message();
             var request = $.ajax({
-                url:          'data.php?job=finish_round&imacClass=' + round_class + '&imacType=' + round_type + '&roundNum=' + round_num,
+                url:          '/api/1/rounds/' + round_class + '/' + round_type + '/' + round_num + '/finish',
                 cache:        false,
                 dataType:     'json',
                 contentType:  'application/json; charset=utf-8',
