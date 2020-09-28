@@ -11,6 +11,7 @@
   ],
   "require": {
     "katzgrau/klogger": "dev-master",
-    "twbs/bootstrap": "v3.x"
+    "twbs/bootstrap": "v3.x",
+    "ext-json": "*"
   }
 }
