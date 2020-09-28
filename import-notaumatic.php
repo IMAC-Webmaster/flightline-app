@@ -141,6 +141,7 @@ switch ($nautoption) {
         echo "return:0&H:".date('YmdHis', time());
         break;
 
+    /** @noinspection PhpMissingBreakStatementInspection */
     case "N":
         // Update a single flight score.
         // Fall through to 'U' since it really is the same code only the array is small.

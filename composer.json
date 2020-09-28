@@ -12,6 +12,7 @@
   "require": {
     "katzgrau/klogger": "dev-master",
     "twbs/bootstrap": "v3.x",
-    "ext-json": "*"
+    "ext-json": "*",
+    "ext-sqlite3": "*"
   }
 }
