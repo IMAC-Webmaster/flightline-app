@@ -2259,15 +2259,20 @@ function getFlightLineDetails(&$resultObj) {
     $resultObj["verboseMsgs"] = array();
 
 
-    $resultObj["data"]['flightLineId'] = getStateValue($detailsResultObj, "flightLineId");
-    $resultObj["data"]['flightLineName'] = getStateValue($detailsResultObj, "flightLineName");
-    $resultObj["data"]['flightLineUrl'] = getStateValue($detailsResultObj, "flightLineUrl");
-    $resultObj["data"]['flightLineAPIVersion'] = getFlightLineAPIVersion();
-    $resultObj["data"]['flightLineAvailableAPIs'] = getFlightLineAPIsAvailable();
-    if ($resultObj["data"]['flightLineUrl'] === null) {
-        unset ($resultObj["data"]['flightLineUrl']);
+    //$resultObj["data"]['flightLineId'] = getStateValue($detailsResultObj, "flightLineId");
+    $resultObj["data"]['Name'] = getStateValue($detailsResultObj, "flightLineName");
+    $resultObj["data"]['URL'] = getStateValue($detailsResultObj, "flightLineUrl");
+    $resultObj["data"]['apiVersion'] = getFlightLineAPIVersion();
+    $resultObj["data"]['apiType'] = "FLIGHTLINE";
+    $resultObj["data"]['availableAPIs'] = getFlightLineAPIsAvailable();
+    if ($resultObj["data"]['URL'] === null) {
+        unset ($resultObj["data"]['URL']);
     }
     mergeResultMessages($resultObj, $detailsResultObj);
+
+    $resultObj["result"]  = 'success';
+    $resultObj["message"] = "";
+
     return $resultObj["data"];
 }
 
