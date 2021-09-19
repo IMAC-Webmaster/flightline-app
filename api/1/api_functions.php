@@ -2260,7 +2260,7 @@ function getFlightLineDetails(&$resultObj) {
 
 
     //$resultObj["data"]['flightLineId'] = getStateValue($detailsResultObj, "flightLineId");
-    $resultObj["data"]['Name'] = getStateValue($detailsResultObj, "flightLineName");
+    $resultObj["data"]['name'] = getStateValue($detailsResultObj, "flightLineName");
     $resultObj["data"]['URL'] = getStateValue($detailsResultObj, "flightLineUrl");
     $resultObj["data"]['apiVersion'] = getFlightLineAPIVersion();
     $resultObj["data"]['apiType'] = "FLIGHTLINE";
