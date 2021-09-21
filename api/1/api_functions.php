@@ -1125,7 +1125,7 @@ function authLogoff(&$resultObj) {
  */
 function authHasRole(&$resultObj, $roles) {
 
-    global $jwtkey;
+    global $jwtkey, $logger;
     $blClearCookie = true;
     $blAuthorised = false;
     $token = (isset($_COOKIE['FlightlineAuthToken']) ? $_COOKIE['FlightlineAuthToken'] : null);
@@ -1133,6 +1133,7 @@ function authHasRole(&$resultObj, $roles) {
     $resultObj["message"] = 'auth failure';
     $resultObj["data"] = array();
     $resultObj["verboseMsgs"] = array();
+    $logger->debug("Here:");
 
     switch (getType($roles)) {
         case "string":
@@ -1149,10 +1150,12 @@ function authHasRole(&$resultObj, $roles) {
         require_once('jwt.php');
         try {
             $payload = JWT::decode($token, $jwtkey, array('HS256'));
+            $logger->debug("Payload:" . print_r($payload, true));
+
             $resultObj['data']['username'] = $payload->username;
             if (isset($payload->exp)) {
                 $resultObj['data']['exp'] = $payload->exp;
-                $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
+                $resultObj['data']['expires'] = date_format(new DateTime("@". $payload->exp), DateTimeInterface::ISO8601);
             }
             if (isset($payload->name)) {
                 $resultObj['data']['name'] = $payload->name;
@@ -1215,7 +1218,7 @@ function authGetPayload(&$resultObj) {
             $resultObj['data']['username'] = $payload->username;
             if (isset($payload->exp)) {
                 $resultObj['data']['exp'] = $payload->exp;
-                $resultObj['data']['expires'] = date(DateTime::ISO8601, $payload->exp);
+                $resultObj['data']['expires'] = date_format(new DateTime("@". $payload->exp), DateTimeInterface::ISO8601);
             }
             if (isset($payload->name)) {
                 $resultObj['data']['name'] = $payload->name;
