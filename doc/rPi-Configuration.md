@@ -20,7 +20,7 @@ FlightLine's aim is to (eventually) also support other devices such as Peter Vog
 
 ##Prepare SD Card
 Write the Raspberian image to the card.
-You can get it here: https://www.raspberrypi.org/downloads/raspbian/
+You can get it here: https://www.raspberrypi.com/software/
 
 When the image is written and mounted, the boot Fat32 partition should be seen.
 To enable ssh, create an empty file called ssh in the root folder of this partition.
@@ -29,9 +29,88 @@ On a mac:
     <Laika:danny> 07:48 ~ : touch /Volumes/boot/ssh
     <Laika:danny> 07:48 ~ :
 
-You can now put the SD Card into your rPi hardware and reboot.
+On windows, create the file in windows explorer.  Be carefull not to create a file called ssh.txt or with some other extension.   It should be simply "ssh".
+If you wish to do it in the command line of windows, you can with the command ```type nul > W:\ssh```.
+
+The following example assumes the 'boot' drive is drive W:
+
+
+    Microsoft Windows [Version 10.0.19043.1466]
+    (c) Microsoft Corporation. All rights reserved.
+
+    C:\Users\danny>type nul > w:\ssh
+
+    C:\Users\danny>dir w:\
+
+     Volume in drive W is boot
+     Volume Serial Number is 1EDA-F965
+
+     Directory of W:\
+
+    11/02/2022  01:31 AM    <DIR>          .
+    11/02/2022  01:31 AM    <DIR>          ..
+    11/02/2022  01:31 AM                 0 ssh
+                   1 File(s)              0 bytes
+                   2 Dir(s)  71,592,923,136 bytes free
+
+    W:\>
+
+You can now eject the SD Card and put it into your rPi hardware and reboot.
 
 When it is available, log into the rPi via ssh.  If you cannot find the IP address, it's displayed on the console via HDMI at the end of the boot process.
+
+##A note on SSH and the unix command line
+Raspberry Pi OS is just another variant of Unix/Linux (it's based on Debian).   There's a lot of stuff that needs to be done on the Unix command line.    It can be sometimes confusing to know exactly what to type.
+
+You can access the command line interface via the desktop if you installed that version of Raspberry Pi OS, by running the 'Terminal' application.
+Otherwise, from your laptop you can connect to the rPi via SSH client software.
+
+For Mac, this is already available running 'ssh' from the terminal application., 
+
+For Windows, I'd recommend either 'puTTY' from https://www.putty.org/ or 'MobaXTerm' from https://mobaxterm.mobatek.net/
+
+Both are excellent, with MobaXTerm also including a nice file transfer interface as well as simply the SSH interface.
+
+To that end, if you are unfamiliar with unix, I'd suggest following this tutorial from the Ubuntu website on unix command line basics.
+
+https://ubuntu.com/tutorials/command-line-for-beginners
+
+Whether you connect with ssh, putty, mobaxterm or terminal, you always end up with a 'shell' session.   That is, a command line prompt into the Unix OS.
+
+The one thing I would add is information about the default raspberry pi shell prompt.
+This is the first part of the line in the shell.
+
+It looks a little like this:
+
+    pi@raspberrypi:~ $
+
+Lets break it down.   The format is as follows.
+
+    <user>@<hostname>:<path><privilage>
+    where:
+        <user> is the username of the user you are currently running as.
+        <hostname> is the name of the rPi.   (defaults to raspberrypi)
+        <path> is where in the unix filesystem you are currently
+               (~ is a shortcut for the home dir of the current user.)
+        <privilege> is an indicater that you are either operating as a normal user ( $) or a super user (#).
+               It is meant to give you a warning if you are a super user that you should be careful.
+
+So when we see the following command:
+
+    pi@raspberrypi:~ $ passwd
+
+It means that my instruction expects you to be logged in as the pi user, in their home dir, and you should run the command ```passwd```.
+If you don't see a prompt, that usually indicates the command's output.
+
+The following set of commands means: Change to the root user, and run the command "uptime" to display some information about how long the rPi has been powered on.
+
+    pi@raspberrypi:~ $ sudo su -
+    root@raspberrypi:~# uptime
+    01:15:02 up  1:21,  2 users,  load average: 0.00, 0.00, 0.00
+
+Notice how there was no output from the 'sudo' command, but the prompt changed to the root user?   The uptime command told us how long the machine was 'up', the number of logged in users, and the load averages for the last 1, 5 and 15 minutes (0.00 means the pi is not really working at all).
+
+So if you are logged in as the pi user and need to be the root user, the command ```sudo su -``` will do that for you.
 
 ##Change the default password
     pi@raspberrypi:~ $ passwd
@@ -42,6 +121,7 @@ When it is available, log into the rPi via ssh.  If you cannot find the IP addre
     passwd: password updated successfully
     pi@raspberrypi:~ $
 
+Note: Changing the password with the passwd command, you wont see the passwords as you type them.
 ##Create local admin user
 
 In this case I used username 'danny' and user description (full name) 'Dan Carroll'
@@ -127,12 +207,25 @@ The directory .ssh should be created with mode 750 and the file should be 600.  
     root@raspberrypi:~# sudo usermod -aG docker pi
     root@raspberrypi:~# sudo usermod -aG docker danny
 
+##Install Docker Compose V2
+    root@raspberrypi:~# curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-aarch64 -o /usr/libexec/docker/cli-plugins/docker-compose
+        % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+        Dload  Upload   Total   Spent    Left  Speed
+        100   665  100   665    0     0   1286      0 --:--:-- --:--:-- --:--:--  1286
+        100 23.3M  100 23.3M    0     0  3820k      0  0:00:06  0:00:06 --:--:-- 5005k
+
+    root@raspberrypi:~# chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+    # Test the install...
+    root@raspberrypi:~# docker compose version
+    Docker Compose version v2.2.3
+
 ##Install command line utilities
 
 Some utilities are necessary to get things working.
 We want this as minimal as possible so that the upgrade list is the smallest impact.
 
-    root@raspberrypi:~# apt-get install -y git sqlite3 docker-compose composer
+    root@raspberrypi:~# apt-get install -y git sqlite3 composer
     Reading package lists... Done
     Building dependency tree
     Reading state information... Done
@@ -142,7 +235,6 @@ We want this as minimal as possible so that the upgrade list is the smallest imp
     .
     .
     Processing triggers for man-db (2.8.5-2) ...
-    root@raspberrypi:~#
 
 ##Install Flightline
 
@@ -161,7 +253,9 @@ The 3 containers are:
 
 
     root@raspberrypi:~# mkdir -p /data/volumes
+
     root@raspberrypi:~# cd /data/
+
     root@raspberrypi:/data# git clone https://git.dannysplace.net/scm/score/flightline.git
     Cloning into 'flightline'...
     remote: Counting objects: 269, done.
@@ -189,7 +283,9 @@ The 3 containers are:
 Now link the html dir of the web server, back to the score-flightline-node repo dir.
 
     root@raspberrypi:/data# cd /data/volumes/
+
     root@raspberrypi:/data/volumes# ln -s ../score-flightline-node html
+
     root@raspberrypi:/data/volumes# ls -asl
     total 8
     4 drwxr-xr-x 2 root root 4096 Mar  8 08:21 .
@@ -201,82 +297,138 @@ There are some components of the web-app that are easily updated via composer.  
 The first time you run the composer command it will download the docker container.
 Then it will check composer.json and install the extra components in /vendor
 
-    root@raspberrypi:/data/volumes# cd /data/score-flightline-node/
-    root@raspberrypi:/data/score-flightline-node# composer install
-    Do not run Composer as root/super user! See https://getcomposer.org/root for details
-    Loading composer repositories with package information
-    Updating dependencies (including require-dev)
-    Package operations: 2 installs, 0 updates, 0 removals
-      - Installing psr/log (1.1.2): Downloading (100%)
-      - Installing katzgrau/klogger (dev-master de2d3ab): Cloning de2d3ab677 from cache
-    Writing lock file
-    Generating autoload files
-    root@raspberrypi:/data/score-flightline-node#
+    root@raspberrypi:/data/volumes# exit
 
-Note.    
+    pi@raspberrypi:/data/volumes $ cd /data/score-flightline-node
+
+    pi@raspberrypi:/data/score-flightline-node $ composer install
+    Composer is operating significantly slower than normal because you do not have the PHP curl extension enabled.
+    No lock file found. Updating dependencies instead of installing from lock file. Use composer update over composer install if you do not have a lock file.
+    Loading composer repositories with package information
+    Updating dependencies
+    Lock file operations: 2 installs, 0 updates, 0 removals
+      - Locking katzgrau/klogger (dev-master de2d3ab)
+      - Locking psr/log (1.1.4)
+        Writing lock file
+        Installing dependencies from lock file (including require-dev)
+        Package operations: 2 installs, 0 updates, 0 removals
+      - Downloading psr/log (1.1.4)
+      - Syncing katzgrau/klogger (dev-master de2d3ab) into cache
+      - Installing psr/log (1.1.4): Extracting archive
+      - Installing katzgrau/klogger (dev-master de2d3ab): Cloning de2d3ab677 from cache
+        Generating autoload files
 
 Now the proxy, web and php containers are essentially ready.   However there is no database yet.
 Evetually this will be part of a web process, but for now, lets create it manually.
 
-    root@raspberrypi:/data/score-flightline-node# sqlite3 db/flightline.db < include/dbCreate_v2.sql
-    root@raspberrypi:/data/score-flightline-node#
+    pi@raspberrypi:/data/score-flightline-node $ sqlite3 db/flightline.db < include/dbCreate_v2.sql
 
 Finally, before we can start the containers we must make sure that they can write to the DB and to the log dir.  It will also need to write to the api directory to create a secret token.
 
-```
-root@raspberrypi:/data/score-flightline-node# chown -R www-data:www-data log db
-root@raspberrypi:/data/score-flightline-node# chgrp www-data api/[0-9]*
-root@raspberrypi:/data/score-flightline-node# chmod 775 api/[0-9]*
-root@raspberrypi:/data/score-flightline-node#
-```
+    pi@raspberrypi:/data/score-flightline-node $ sudo chown -R www-data:www-data log db
+    pi@raspberrypi:/data/score-flightline-node $ sudo chgrp www-data api/[0-9]*
+    pi@raspberrypi:/data/score-flightline-node $ sudo chmod 775 api/[0-9]*
 
 Finally, start the service!
 
-    root@raspberrypi:/data/score-flightline-node# cd /data/flightline/flightline/
-    root@raspberrypi:/data/flightline/flightline# docker-compose up
-    Creating network "flightline_default" with the default driver
-    Creating volume "flightline_web_confd" with local driver
-    Creating volume "flightline_html" with local driver
-    Creating volume "flightline_proxy_confd" with local driver
-    Creating volume "flightline_proxy_certs" with local driver
-    Creating flightline_proxy_1 ... done
-    Creating flightline_php_1   ... done
-    Creating flightline_web_1   ... done
-    Attaching to flightline_php_1, flightline_proxy_1, flightline_web_1
-    php_1    | [08-Mar-2020 09:06:14] NOTICE: fpm is running, pid 1
-    php_1    | [08-Mar-2020 09:06:14] NOTICE: ready to handle connections
+    pi@raspberrypi:/data/score-flightline-node $ cd /data/flightline/flightline
+    pi@raspberrypi:/data/flightline/flightline $ docker compose up
+    [+] Running 28/28
+    ⠿ php Pulled                                                   32.8s
+    ⠿ ffabeb2e77ed Pull complete                                   16.6s
+    ⠿ 4aeae596b5e6 Pull complete                                   16.7s
+    ⠿ ce05405c3f08 Pull complete                                   16.9s
+    ⠿ d1c7579ea307 Pull complete                                   17.1s
+    ⠿ 094b52a40f15 Pull complete                                   17.3s
+    ⠿ 0a621354cfac Pull complete                                   17.5s
+    ⠿ 0747d54d607d Pull complete                                   17.7s
+    ⠿ 07bef3c029d6 Pull complete                                   17.8s
+    ⠿ 01770dc7b2f1 Pull complete                                   18.0s
+    ⠿ ddc85c2a4787 Pull complete                                   18.2s
+    ⠿ 1e348220758b Pull complete                                   18.4s
+    ⠿ dd40e1889052 Pull complete                                   24.4s
+    ⠿ b5bca0f8795c Pull complete                                   24.6s
+    ⠿ 0a18dd3db6b6 Pull complete                                   25.1s
+    ⠿ 451aace03281 Pull complete                                   25.3s
+    ⠿ 5077d88849fb Pull complete                                   27.2s
+    ⠿ 49d569b8292e Pull complete                                   27.3s
+    ⠿ 28a326bd3824 Pull complete                                   27.5s
+    ⠿ 0def13e155ca Pull complete                                   27.6s
+    ⠿ proxy Pulled                                                 47.4s
+    ⠿ 6fba654dd4ee Pull complete                                   41.0s
+    ⠿ 13b3c8cc8cde Pull complete                                   41.3s
+    ⠿ 573040833908 Pull complete                                   41.5s
+    ⠿ web Pulled                                                   47.4s
+    ⠿ 8998bd30e6a1 Pull complete                                   38.8s
+    ⠿ 661b4150d3a3 Pull complete                                   41.2s
+    ⠿ 5de8f8b958d2 Pull complete                                   41.7s
+    [+] Running 8/8
+    ⠿ Network flightline_default       Created                      0.1s
+    ⠿ Volume "flightline_proxy_certs"  Created                      0.0s
+    ⠿ Volume "flightline_html"         Created                      0.0s
+    ⠿ Volume "flightline_web_confd"    Created                      0.0s
+    ⠿ Volume "flightline_proxy_confd"  Created                      0.0s
+    ⠿ Container flightline-php-1       Created                     24.7s
+    ⠿ Container flightline-web-1       Created                      0.2s
+    ⠿ Container flightline-proxy-1     Created
 
-At this point, the containers look like their are running.    But the container is running inthe foreground and we need to run it in the background.
+At this point, the containers look like they are running.    But the container is running inthe foreground and we need to run it in the background.
 
 If you hit ctrl-c then the container will stop.
 
     ^CGracefully stopping... (press Ctrl+C again to force)
-    Stopping flightline_web_1   ... done
-    Stopping flightline_php_1   ... done
-    Stopping flightline_proxy_1 ... done
+    [+] Running 3/3
+    ⠿ Container flightline-proxy-1  Stopped                        0.6s
+    ⠿ Container flightline-web-1    Stopped                        0.5s
+    ⠿ Container flightline-php-1    Stopped                       10.5s
+    canceled
 
 Now if we stop the whole service we can restart it in the background.    The -d option means detach..
 
-    root@raspberrypi:/data/flightline/flightline# docker-compose down
-    Removing flightline_web_1   ... done
-    Removing flightline_php_1   ... done
-    Removing flightline_proxy_1 ... done
-    Removing network flightline_default
-    
-    root@raspberrypi:/data/flightline/flightline# docker-compose up -d
-    Creating network "flightline_default" with the default driver
-    Creating flightline_proxy_1 ... done
-    Creating flightline_php_1   ... done
-    Creating flightline_web_1   ... done
-    root@raspberrypi:/data/flightline/flightline#
+    pi@raspberrypi:/data/flightline/flightline $ docker compose down
+    [+] Running 4/4
+    ⠿ Container flightline-proxy-1  Removed                                                                        0.6s
+    ⠿ Container flightline-web-1    Removed                                                                        0.5s
+    ⠿ Container flightline-php-1    Removed                                                                       10.5s
+    ⠿ Network flightline_default    Removed                                                                        0.1s
+    pi@raspberrypi:/data/flightline/flightline $ docker compose up -d
+    [+] Running 4/4
+    ⠿ Network flightline_default    Created                                                                        0.1s
+    ⠿ Container flightline-php-1    Started                                                                        1.6s
+    ⠿ Container flightline-web-1    Started                                                                        2.6s
+    ⠿ Container flightline-proxy-1  Started                                                                        3.7s
 
 We can read the logs with the logs command:
 
-    root@raspberrypi:/data/flightline/flightline# docker-compose logs
-    Attaching to flightline_web_1, flightline_php_1, flightline_proxy_1
-    php_1    | [08-Mar-2020 11:25:24] NOTICE: fpm is running, pid 1
-    php_1    | [08-Mar-2020 11:25:24] NOTICE: ready to handle connections
-    root@raspberrypi:/data/flightline/flightline#
+    pi@raspberrypi:/data/flightline/flightline $ docker compose logs -f
+        flightline-web-1    | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+        flightline-web-1    | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+        flightline-web-1    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+        flightline-php-1    | [11-Feb-2022 02:32:52] NOTICE: fpm is running, pid 1
+        flightline-php-1    | [11-Feb-2022 02:32:52] NOTICE: ready to handle connections
+        flightline-web-1    | 10-listen-on-ipv6-by-default.sh: info: /etc/nginx/conf.d/default.conf is not a file or does not exist
+        flightline-web-1    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+        flightline-web-1    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+        flightline-web-1    | /docker-entrypoint.sh: Configuration complete; ready for start up
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: using the "epoll" event method
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: nginx/1.21.6
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: built by gcc 10.2.1 20210110 (Debian 10.2.1-6)
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: OS: Linux 5.10.92-v8+
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: start worker processes
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: start worker process 22
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: start worker process 23
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: start worker process 24
+        flightline-web-1    | 2022/02/11 02:32:53 [notice] 1#1: start worker process 25
+        flightline-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+        flightline-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+        flightline-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+        flightline-proxy-1  | 10-listen-on-ipv6-by-default.sh: info: /etc/nginx/conf.d/default.conf is not a file or does not exist
+        flightline-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+        flightline-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+        flightline-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+
+The -f option follows the logs while omitting it will show all available logs then exit.
 
 ## Set the timezone
 
