@@ -36,7 +36,6 @@ $logger = new Katzgrau\KLogger\Logger(__DIR__.'/../log', Psr\Log\LogLevel::DEBUG
     'prefix' => 'flightline_',
 ));
 
-
 function random_str(
     $length,
     $keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'

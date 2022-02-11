@@ -66,7 +66,8 @@ $logRequests = true;
 $timezone = 'UTC';
 ini_set('date.timezone', $timezone);
 $dbfile = "db/flightline.db";
-date_default_timezone_set($timezone);    
+date_default_timezone_set($timezone);
+global $logger;
 
 
 if (isset($_GET['OPT'])) $nautoption      = $_GET['OPT'];  else $nautoption = "";
@@ -80,6 +81,7 @@ if (isset($_GET['P']))   $nautoSchedId    = $_GET['P'];    else $nautoSchedId = 
 try {
     $db = new SQLite3($dbfile);
 } catch (Exception $e) {
+    $logger->error("Could not connect to DB - " . $e->getMessage());
     echo "return:900&H:".date('YmdHis', time());
     exit;
 }
@@ -127,19 +129,23 @@ if ($logRequests == true ) {
     }
 
     $fp = fopen('log/request.log', 'a');
-    fwrite($fp, '['.date("c").']' . $url . "\n");
+    fwrite($fp, '['.date("c").'] ' . $url . "\n");
     fclose($fp);
-    error_log("Received: " . $url);
+    $logger->info("Request: " . $url);
+    //error_log("Received: " . $url);
 }
 
 switch ($nautoption) {
     case "H":
+        // What's this operation?
         echo "return:0&H:".date('YmdHis', time());
         break;
 
+    /** @noinspection PhpMissingBreakStatementInspection */
     case "N":
         // Update a single flight score.
         // Fall through to 'U' since it really is the same code only the array is small.
+        $logger->info("Single score update");
     case "U":
          /************
          * Update the flight scores and save them.	
@@ -162,6 +168,8 @@ switch ($nautoption) {
          *      ]
          *  }
          */
+        if ($nautoption == 'U') $logger->info("Full score sheet update");
+
         $sheets = array();
         $sheet = array(
             "pilotId"       => $nautopilotid,
@@ -209,6 +217,7 @@ switch ($nautoption) {
         //    K1 = Known Sched 1, K2 = Known Sched 2 (e.g. alternate), K3 could be a 3rd known...
         //    Actually only the first 3 characters denote theclass, and then everything after the '-' is 
         //    the Schedule for that class.
+        $logger->info("Test mode: check is flight is open.");
         $bl_abort = false;
         if (!is_numeric($nautoflightid)) $bl_abort = true;
         if (!is_numeric($nautocompid))   $bl_abort = true;
@@ -239,14 +248,25 @@ switch ($nautoption) {
                     switch ($flightStatus) {
                         case "O":
                             // We have a flight...   Lets go!
+                            $logger->info("The round is open and ready for scoring.");
                             //updateFlightStatus("O", $nautoflightid, $nautocompid, $nautoSchedId, $nautopilotid);
                             echo "return:0"."&H:".date('YmdHis', time());
                             break;
                         case "U": // Unflown
+                            $logger->info("The round is not yet started.");
+                            echo "return:100&H:".date('YmdHis', time());
+                            break;
                         case "P": // Paused
+                            $logger->info("The round is paused.");
+                            echo "return:100&H:".date('YmdHis', time());
+                            break;
                         case "C": // Completed
+                            $logger->info("The round is already flown.");
+                            echo "return:100&H:".date('YmdHis', time());
+                            break;
                         default:
                             // Normal error (like the flight is not open...
+                            $logger->warning("Unknown flight status.");
                             echo "return:100&H:".date('YmdHis', time());
                             break;
                     }
@@ -255,6 +275,7 @@ switch ($nautoption) {
                 case "ERROR":
                     // Bad error occurred (structural).   Display error bells and whistles.
                     error_log("ERROR: " . $flightStatusMsg);
+                    $logger->error("Something went wrong: " . $flightStatusMsg);
                     echo "return:900&H:".date('YmdHis', time());
                     break;
 
@@ -262,6 +283,7 @@ switch ($nautoption) {
                 default:
                     // Unhandled return!
                     error_log("ERROR: " . $flightStatusReturn);
+                    $logger->error("Something went wrong: " . $flightStatusReturn . " " . $flightStatusMsg);
                     echo "return:100&H:".date('YmdHis', time());
                     break;
             }
@@ -271,6 +293,7 @@ switch ($nautoption) {
     case "P":  
         // The Notaumatic is asking for the next pilot to fly	(test)	
         // Is a "next pilot" selected ?
+        $logger->info("Request received for the next pilot.");
 
         $sql = "select nf.*, p.freestyle, p.imacClass "
              . "from nextFlight nf inner join pilot p on nf.nextPilotId = p.pilotId limit 1;";
@@ -279,16 +302,20 @@ switch ($nautoption) {
             try {
                 $res = $statement->execute();
             } catch (Exception $e) {
+                $logger->error("There was an error executing the database query.");
+
                 echo "return:900&H:".date('YmdHis', time());
                 break;
             }
         } else {
+            $logger->error("There was an error executing the database query.");
             echo "return:900&H:".date('YmdHis', time());
             break;
         }
 
         $nextFlight = $res->fetchArray();
         if (!$nextFlight || $nextFlight["nextPilotId"] === null || $nextFlight["nextPilotId"] <= 0) {
+            $logger->info("No next pilot is set.");
             echo "return:-1";
             break;
         } else {
@@ -297,6 +324,7 @@ switch ($nautoption) {
             $nextCompId = $nextFlight["nextCompId"];
             $nextPilotFreestyle = $nextFlight["freestyle"];
             $nextPilotImacClass = $nextFlight["imacClass"];
+
         }
 
         $sql = "select f.noteFlightId, f.roundId, f.sequenceNum, r.imacClass, r.schedId "
@@ -306,6 +334,7 @@ switch ($nautoption) {
                 . "and r.phase = 'O'";
 
         $nextCompImacClass = convertCompIDToClass($nextCompId);
+        $logger->info("The next flight details are Pilot:$nextPilotId Class:$nextCompImacClass ");
 
         if ($statement = $db->prepare($sql)) {
             try {
@@ -313,10 +342,12 @@ switch ($nautoption) {
                 $statement->bindValue(':nextCompImacClass', $nextCompImacClass);
                 $res = $statement->execute();
             } catch (Exception $e) {
+                $logger->error("There was an error executing the database query.");
                 echo "return:900&H:".date('YmdHis', time());
                 break;
             }
         } else {
+            $logger->error("There was an error executing the database query.");
             echo "return:900&H:".date('YmdHis', time());
             break;
         }
@@ -352,5 +383,6 @@ switch ($nautoption) {
         
     default:
         echo "return:104";
+        $logger->error("Incorrect operation($nautoption).");
         trigger_error('Wrong OPT Code', E_USER_WARNING);
 }
