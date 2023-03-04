@@ -1,4 +1,4 @@
-##Steps for installing and configuring a rPi for FlightLine:
+## Steps for installing and configuring a rPi for FlightLine:
 
 1. [Introduction](#introduction)
 1. [Prepare the SD](#prepare-sd-card)
@@ -11,14 +11,14 @@
 1. [Set the timezone](#set-the-timezone)
 1. [Configure WiFi](#configure-wifi)
 
-##Introduction
+## Introduction
 FlightLine is a small web app that is intended to be a lightweight alternative to NotauScore - the sofware that supports NotauMatic devices used for scoring F3A and Pattern contests.
 
 It is specifically created to allow for the results to be downloaded by Score! (the application used for scoring IMAC competitions).
 
 FlightLine's aim is to (eventually) also support other devices such as Peter Vogel's iOS based Electronic Scribe app as well as ScorePad written by Dan Carroll.
 
-##Prepare SD Card
+## Prepare SD Card
 Write the Raspberian image to the card.
 You can get it here: https://www.raspberrypi.com/software/
 
@@ -37,29 +37,29 @@ The following example assumes the 'boot' drive is drive W:
 
     Microsoft Windows [Version 10.0.19043.1466]
     (c) Microsoft Corporation. All rights reserved.
-
+    
     C:\Users\danny>type nul > w:\ssh
-
+    
     C:\Users\danny>dir w:\
-
+    
      Volume in drive W is boot
      Volume Serial Number is 1EDA-F965
-
+    
      Directory of W:\
-
+    
     11/02/2022  01:31 AM    <DIR>          .
     11/02/2022  01:31 AM    <DIR>          ..
     11/02/2022  01:31 AM                 0 ssh
                    1 File(s)              0 bytes
                    2 Dir(s)  71,592,923,136 bytes free
-
+    
     W:\>
 
 You can now eject the SD Card and put it into your rPi hardware and reboot.
 
 When it is available, log into the rPi via ssh.  If you cannot find the IP address, it's displayed on the console via HDMI at the end of the boot process.
 
-##A note on SSH and the unix command line
+## A note on SSH and the unix command line
 Raspberry Pi OS is just another variant of Unix/Linux (it's based on Debian).   There's a lot of stuff that needs to be done on the Unix command line.    It can be sometimes confusing to know exactly what to type.
 
 You can access the command line interface via the desktop if you installed that version of Raspberry Pi OS, by running the 'Terminal' application.
@@ -112,7 +112,8 @@ Notice how there was no output from the 'sudo' command, but the prompt changed t
 
 So if you are logged in as the pi user and need to be the root user, the command ```sudo su -``` will do that for you.
 
-##Change the default password
+## Change the default password
+
     pi@raspberrypi:~ $ passwd
     Changing password for pi.
     Current password: 
@@ -122,7 +123,7 @@ So if you are logged in as the pi user and need to be the root user, the command
     pi@raspberrypi:~ $
 
 Note: Changing the password with the passwd command, you wont see the passwords as you type them.
-##Create local admin user
+## Create local admin user
 
 In this case I used username 'danny' and user description (full name) 'Dan Carroll'
 
@@ -147,13 +148,15 @@ If you have a ssh keypair you can add the public key to the ~/.ssh/authorized_ke
 
 The directory .ssh should be created with mode 750 and the file should be 600.   If you don't have a key or don't know, then you can skip this part.
 
-##Get the latest dist/firmware
+## Get the latest dist/firmware
+
     root@raspberrypi:~# apt-get update
     <SNIP!>
     root@raspberrypi:~# apt-get upgrade
     <SNIP!>
 
-##Install Docker CE
+## Install Docker CE
+
     root@raspberrypi:~# curl -sSL https://get.docker.com | sh
     # Executing docker install script, commit: 442e66405c304fa92af8aadaa1d9b31bf4b0ad94
     + sh -c apt-get update -qq >/dev/null
@@ -207,20 +210,21 @@ The directory .ssh should be created with mode 750 and the file should be 600.  
     root@raspberrypi:~# sudo usermod -aG docker pi
     root@raspberrypi:~# sudo usermod -aG docker danny
 
-##Install Docker Compose V2
+## Install Docker Compose V2
+
     root@raspberrypi:~# curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-aarch64 -o /usr/libexec/docker/cli-plugins/docker-compose
         % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
         Dload  Upload   Total   Spent    Left  Speed
         100   665  100   665    0     0   1286      0 --:--:-- --:--:-- --:--:--  1286
         100 23.3M  100 23.3M    0     0  3820k      0  0:00:06  0:00:06 --:--:-- 5005k
-
+    
     root@raspberrypi:~# chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-
+    
     # Test the install...
     root@raspberrypi:~# docker compose version
     Docker Compose version v2.2.3
 
-##Install command line utilities
+## Install command line utilities
 
 Some utilities are necessary to get things working.
 We want this as minimal as possible so that the upgrade list is the smallest impact.
@@ -236,7 +240,7 @@ We want this as minimal as possible so that the upgrade list is the smallest imp
     .
     Processing triggers for man-db (2.8.5-2) ...
 
-##Install Flightline
+## Install Flightline
 
 There are 3 containers needed for flightline.   Together they make up the flightline 'service'.   Currently the DB connection is via sqlite to a file.   This seems to be working out OK, but if it becomes a problem, then creating a DB instance wont be difficult.
 
@@ -253,9 +257,9 @@ The 3 containers are:
 
 
     root@raspberrypi:~# mkdir -p /data/volumes
-
+    
     root@raspberrypi:~# cd /data/
-
+    
     root@raspberrypi:/data# git clone https://git.dannysplace.net/scm/score/flightline.git
     Cloning into 'flightline'...
     remote: Counting objects: 269, done.
@@ -272,20 +276,24 @@ The 3 containers are:
     Receiving objects: 100% (5844/5844), 9.40 MiB | 1.30 MiB/s, done.
     Resolving deltas: 100% (2724/2724), done.
     Checking out files: 100% (6500/6500), done.
+    
+    root@raspberrypi:/data# chown root:adm ./score-flightline-node
+    root@raspberrypi:/data# chmod 2775 ./score-flightline-node
     root@raspberrypi:/data# ls -asl
     total 28
     4 drwxr-xr-x  7 root root 4096 Mar  8 08:17 .
     4 drwxr-xr-x 23 root root 4096 Mar  8 05:22 ..
     4 drwxr-xr-x  4 root root 4096 Mar  8 08:17 flightline
-    4 drwxr-xr-x 10 root root 4096 Mar  8 08:17 score-flightline-node
+    4 drwxrwsr-x 10 root adm  4096 Mar  8 08:17 score-flightline-node
     4 drwxr-xr-x  2 root root 4096 Mar  8 08:14 volumes
+    
 
 Now link the html dir of the web server, back to the score-flightline-node repo dir.
 
     root@raspberrypi:/data# cd /data/volumes/
-
+    
     root@raspberrypi:/data/volumes# ln -s ../score-flightline-node html
-
+    
     root@raspberrypi:/data/volumes# ls -asl
     total 8
     4 drwxr-xr-x 2 root root 4096 Mar  8 08:21 .
@@ -298,9 +306,10 @@ The first time you run the composer command it will download the docker containe
 Then it will check composer.json and install the extra components in /vendor
 
     root@raspberrypi:/data/volumes# exit
-
+    
+    
     pi@raspberrypi:/data/volumes $ cd /data/score-flightline-node
-
+    
     pi@raspberrypi:/data/score-flightline-node $ composer install
     Composer is operating significantly slower than normal because you do not have the PHP curl extension enabled.
     No lock file found. Updating dependencies instead of installing from lock file. Use composer update over composer install if you do not have a lock file.
