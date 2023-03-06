@@ -147,43 +147,9 @@ function dbConnect($dbfile) {
         // WAL mode has better control over concurrency.
         // Source: https://www.sqlite.org/wal.html
         $db->exec('PRAGMA journal_mode = wal;');
-
-
-        if ($statement = $db->prepare($query)) {
-            if (isset($paramArr) && is_array($paramArr)) {
-                foreach ($paramArr as $key => $value) {
-                    $statement->bindValue(":$key", $value);
-                }
-            }
-            if (!$res = $statement->execute()) {
-                $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
-                $resultObj["result"]  = 'error';
-                $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
-                array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": Could not get data. Err: " . $db->lastErrorMsg()));
-                $logger->error($resultObj["message"]);
-                return false;
-            }
-        } else {
-            $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
-            $resultObj["result"]  = 'error';
-            $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
-            array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": Could not get data. Err: " . $db->lastErrorMsg()));
-            return false;
-        }
-
-
         return true;
     } catch (Exception $e) {
         return false;
-
-        $bt = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2);
-        $resultObj["result"]  = 'error';
-        $resultObj["message"] = "There was an error executing the database call in function " . $bt[1]["function"] . ".  See logs for more detailed info.";
-        array_push($resultObj["verboseMsgs"], ("In " . $bt[1]["function"] . ": query error: " . $e->getMessage()));
-        $logger->error($resultObj["message"]);
-        return false;
-
-
     }
 }
 
